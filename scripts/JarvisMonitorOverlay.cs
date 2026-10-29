@@ -1583,11 +1583,12 @@ namespace JarvisSasariSa
         private static bool isTaskDrawerExpanded = true;
 
         private static Border musicDrawerBorder;
-        private static StackPanel musicDrawerBody;
+        private static Border musicDiscBorder;
+        private static TextBlock txtMusicDiscIcon;
+        private static TextBlock txtMusicStateBadge;
         private static TextBlock txtMusicDrawerTitle;
-        private static TextBlock txtMusicDrawerSub;
-        private static TextBlock txtMusicCollapseBtn;
-        private static bool isMusicDrawerExpanded = true;
+        private static Border btnMusicPlayPauseCircle;
+        private static TextBlock txtMusicPlayPauseIcon;
 
         private static WrapPanel quickChipsPanel;
         private static bool isHudMenuDrawerPinned = false;
@@ -1774,137 +1775,191 @@ namespace JarvisSasariSa
             drawersHost.Children.Add(taskDrawerBorder);
 
             // =====================================================================
-            // SUB-WINDOW 2: 🎵 미니 뮤직 · 유튜브 컨트롤러 창 (Collapsible)
+            // SUB-WINDOW 2: 🎵 프리미엄 뮤직 플레이어 HUD (음악 재생 시에만 자동 표시)
             // =====================================================================
             musicDrawerBorder = new Border
             {
-                CornerRadius = new CornerRadius(14),
-                Background = new SolidColorBrush(Color.FromArgb(245, 13, 17, 23)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(48, 54, 61)),
-                BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 0, 4),
-                Visibility = Visibility.Collapsed
+                CornerRadius = new CornerRadius(18),
+                Background = new SolidColorBrush(Color.FromArgb(245, 7, 13, 23)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(135, 52, 211, 153)),
+                BorderThickness = new Thickness(1.2),
+                Padding = new Thickness(14, 8, 14, 8),
+                Margin = new Thickness(0, 0, 0, 5),
+                Visibility = Visibility.Collapsed,
+                Effect = new DropShadowEffect
+                {
+                    Color = Color.FromRgb(16, 185, 129),
+                    BlurRadius = 18,
+                    ShadowDepth = 0,
+                    Opacity = 0.22
+                }
             };
-            StackPanel musicOuter = new StackPanel();
-            musicDrawerBorder.Child = musicOuter;
 
-            Border musicHeader = new Border
-            {
-                CornerRadius = new CornerRadius(13, 13, 0, 0),
-                Background = new SolidColorBrush(Color.FromRgb(22, 27, 34)),
-                Padding = new Thickness(14, 7, 12, 7),
-                Cursor = Cursors.Hand
-            };
             Grid musicHGrid = new Grid();
+            musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            musicHeader.Child = musicHGrid;
+            musicDrawerBorder.Child = musicHGrid;
 
+            // Left: Album / Equalizer Disc Badge
+            musicDiscBorder = new Border
+            {
+                Width = 38,
+                Height = 38,
+                CornerRadius = new CornerRadius(11),
+                Background = new SolidColorBrush(Color.FromArgb(38, 52, 211, 153)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(115, 52, 211, 153)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 12, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            txtMusicDiscIcon = new TextBlock
+            {
+                Text = "♫",
+                FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
+                FontSize = 16,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(110, 231, 183)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            musicDiscBorder.Child = txtMusicDiscIcon;
+            Grid.SetColumn(musicDiscBorder, 0);
+            musicHGrid.Children.Add(musicDiscBorder);
+
+            // Center: NOW PLAYING Badge + Track Title
+            StackPanel musicTextCol = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0)
+            };
+            txtMusicStateBadge = new TextBlock
+            {
+                Text = "● NOW PLAYING",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 10,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153)),
+                Margin = new Thickness(0, 0, 0, 1)
+            };
             txtMusicDrawerTitle = new TextBlock
             {
-                Text = "🎵 재생 중: YouTube 미디어",
+                Text = "YouTube Music",
                 FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 12,
+                FontSize = 13,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100)),
-                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.White,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            Grid.SetColumn(txtMusicDrawerTitle, 0);
-            musicHGrid.Children.Add(txtMusicDrawerTitle);
+            musicTextCol.Children.Add(txtMusicStateBadge);
+            musicTextCol.Children.Add(txtMusicDrawerTitle);
+            Grid.SetColumn(musicTextCol, 1);
+            musicHGrid.Children.Add(musicTextCol);
 
-            Func<string, string, Border> makeMiniMediaBtn = (label, cmdStr) =>
+            // Right: Sleek Circular Transport Controls (⏮ 이전곡 · ⏸/▶ 재생/일시정지 · ⏭ 다음곡 · ✕ 닫기)
+            StackPanel transportRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            Func<string, string, string, int, Border> makeTransportCircleBtn = (iconText, cmdStr, tipText, sizePx) =>
             {
                 Border b = new Border
                 {
-                    CornerRadius = new CornerRadius(5),
-                    Background = new SolidColorBrush(Color.FromRgb(33, 38, 45)),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(48, 54, 61)),
+                    Width = sizePx,
+                    Height = sizePx,
+                    CornerRadius = new CornerRadius(sizePx / 2.0),
+                    Background = new SolidColorBrush(Color.FromArgb(220, 22, 29, 41)),
+                    BorderBrush = new SolidColorBrush(Color.FromArgb(140, 68, 82, 104)),
                     BorderThickness = new Thickness(1),
-                    Padding = new Thickness(8, 3, 8, 3),
                     Margin = new Thickness(5, 0, 0, 0),
-                    Cursor = Cursors.Hand
+                    Cursor = Cursors.Hand,
+                    ToolTip = tipText
                 };
                 b.Child = new TextBlock
                 {
-                    Text = label,
-                    FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 10.5,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(240, 246, 252))
+                    Text = iconText,
+                    FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(230, 237, 243)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
+                b.MouseEnter += (s, e) => { b.Background = new SolidColorBrush(Color.FromArgb(245, 34, 45, 62)); };
+                b.MouseLeave += (s, e) => { b.Background = new SolidColorBrush(Color.FromArgb(220, 22, 29, 41)); };
                 b.MouseLeftButtonDown += (s, e) => e.Handled = true;
                 b.MouseLeftButtonUp += (s, e) => { e.Handled = true; SendCommandToButler(cmdStr); };
                 return b;
             };
 
-            Border btnPlayPause = makeMiniMediaBtn("⏯ 재생/일시정지", "재생 일시정지 토글");
-            Grid.SetColumn(btnPlayPause, 1);
-            musicHGrid.Children.Add(btnPlayPause);
+            Border btnPrevTrack = makeTransportCircleBtn("⏮", "이전 곡", "이전 곡", 34);
+            transportRow.Children.Add(btnPrevTrack);
 
-            Border btnNextTrack = makeMiniMediaBtn("⏭ 다음 곡", "다음 곡");
-            Grid.SetColumn(btnNextTrack, 2);
-            musicHGrid.Children.Add(btnNextTrack);
-
-            Border btnStopMusicMini = makeMiniMediaBtn("⏹ 음악 끄기", "음악 꺼줘");
-            btnStopMusicMini.Background = new SolidColorBrush(Color.FromArgb(45, 248, 81, 73));
-            btnStopMusicMini.BorderBrush = new SolidColorBrush(Color.FromRgb(248, 81, 73));
-            Grid.SetColumn(btnStopMusicMini, 3);
-            musicHGrid.Children.Add(btnStopMusicMini);
-
-            Border btnToggleMusic = new Border
+            btnMusicPlayPauseCircle = new Border
             {
-                CornerRadius = new CornerRadius(5),
-                Background = new SolidColorBrush(Color.FromRgb(33, 38, 45)),
-                Padding = new Thickness(8, 3, 8, 3),
-                Margin = new Thickness(5, 0, 0, 0),
-                Cursor = Cursors.Hand
+                Width = 38,
+                Height = 38,
+                CornerRadius = new CornerRadius(19),
+                Background = new SolidColorBrush(Color.FromArgb(55, 52, 211, 153)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(52, 211, 153)),
+                BorderThickness = new Thickness(1.3),
+                Margin = new Thickness(6, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "재생 / 일시정지"
             };
-            txtMusicCollapseBtn = new TextBlock
+            txtMusicPlayPauseIcon = new TextBlock
             {
-                Text = "▲ 접기",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "⏸",
+                FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
+                FontSize = 13.5,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            btnMusicPlayPauseCircle.Child = txtMusicPlayPauseIcon;
+            btnMusicPlayPauseCircle.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnMusicPlayPauseCircle.MouseLeftButtonUp += (s, e) => { e.Handled = true; SendCommandToButler("재생 일시정지 토글"); };
+            transportRow.Children.Add(btnMusicPlayPauseCircle);
+
+            Border btnNextTrack = makeTransportCircleBtn("⏭", "다음 곡", "다음 곡", 34);
+            transportRow.Children.Add(btnNextTrack);
+
+            Border btnCloseMusicHud = new Border
+            {
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(Color.FromArgb(35, 248, 81, 73)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(110, 248, 81, 73)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(8, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "음악 끄기"
+            };
+            btnCloseMusicHud.Child = new TextBlock
+            {
+                Text = "✕",
+                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
                 FontSize = 10.5,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(201, 209, 217))
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 139, 130)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            btnToggleMusic.Child = txtMusicCollapseBtn;
-            Grid.SetColumn(btnToggleMusic, 4);
-            musicHGrid.Children.Add(btnToggleMusic);
-
-            musicDrawerBody = new StackPanel
+            btnCloseMusicHud.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnCloseMusicHud.MouseLeftButtonUp += (s, e) =>
             {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(14, 7, 14, 8),
-                Visibility = Visibility.Visible
+                e.Handled = true;
+                musicDrawerBorder.Visibility = Visibility.Collapsed;
+                SendCommandToButler("음악 꺼줘");
             };
-            txtMusicDrawerSub = new TextBlock
-            {
-                Text = "출력: 바탕화면 브라우저 (Winsta0\\Default) · 음성으로 \"음악 꺼줘\"라고 말씀하셔도 즉시 종료됩니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(139, 148, 158)),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0)
-            };
-            musicDrawerBody.Children.Add(txtMusicDrawerSub);
-            musicDrawerBody.Children.Add(makeMiniMediaBtn("🔉 볼륨 -", "소리 줄여"));
-            musicDrawerBody.Children.Add(makeMiniMediaBtn("🔊 볼륨 +", "소리 키워"));
+            transportRow.Children.Add(btnCloseMusicHud);
 
-            Action toggleMusicDrawer = () =>
-            {
-                isMusicDrawerExpanded = !isMusicDrawerExpanded;
-                musicDrawerBody.Visibility = isMusicDrawerExpanded ? Visibility.Visible : Visibility.Collapsed;
-                txtMusicCollapseBtn.Text = isMusicDrawerExpanded ? "▲ 접기" : "▼ 펼치기";
-            };
-            musicHeader.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            musicHeader.MouseLeftButtonUp += (s, e) => { e.Handled = true; toggleMusicDrawer(); };
-
-            musicOuter.Children.Add(musicHeader);
-            musicOuter.Children.Add(musicDrawerBody);
+            Grid.SetColumn(transportRow, 2);
+            musicHGrid.Children.Add(transportRow);
             drawersHost.Children.Add(musicDrawerBorder);
 
             // =====================================================================
@@ -1991,10 +2046,6 @@ namespace JarvisSasariSa
             {
                 taskDrawerBorder.Visibility = isHudMenuDrawerPinned ? Visibility.Visible : Visibility.Collapsed;
             }
-            if (musicDrawerBorder != null)
-            {
-                musicDrawerBorder.Visibility = isHudMenuDrawerPinned ? Visibility.Visible : Visibility.Collapsed;
-            }
             if (quickChipsPanel != null)
             {
                 quickChipsPanel.Visibility = isHudMenuDrawerPinned ? Visibility.Visible : Visibility.Collapsed;
@@ -2041,16 +2092,50 @@ namespace JarvisSasariSa
                 if (taskDrawerBorder != null) taskDrawerBorder.Visibility = Visibility.Collapsed;
             }
 
-            // 2) Music Sub-Window
+            // 2) Music Sub-Window (Strictly visible ONLY when music is actually active)
             if (json.Contains("\"activeMedia\":{\"active\":true"))
             {
                 int mIdx = json.IndexOf("\"activeMedia\":{");
                 string mSub = json.Substring(mIdx);
                 string mTitle = ExtractJsonField(mSub, "title");
+                string mArtist = ExtractJsonField(mSub, "artist");
+                string mState = ExtractJsonField(mSub, "state");
+                bool isPaused = mState == "Paused";
+
                 musicDrawerBorder.Visibility = Visibility.Visible;
-                txtMusicDrawerTitle.Text = "🎵 재생 중: " + (!string.IsNullOrEmpty(mTitle) ? mTitle : "YouTube 미디어");
+                string displayTrack = !string.IsNullOrEmpty(mTitle) ? mTitle : "YouTube Music";
+                if (!string.IsNullOrEmpty(mArtist) && !displayTrack.Contains(mArtist))
+                {
+                    displayTrack = mArtist + " — " + displayTrack;
+                }
+                txtMusicDrawerTitle.Text = displayTrack;
+
+                if (txtMusicStateBadge != null)
+                {
+                    txtMusicStateBadge.Text = isPaused ? "⏸ PAUSED" : "● NOW PLAYING";
+                    txtMusicStateBadge.Foreground = new SolidColorBrush(isPaused ? Color.FromRgb(251, 191, 36) : Color.FromRgb(52, 211, 153));
+                }
+                if (txtMusicPlayPauseIcon != null)
+                {
+                    txtMusicPlayPauseIcon.Text = isPaused ? "▶" : "⏸";
+                }
+                if (btnMusicPlayPauseCircle != null)
+                {
+                    btnMusicPlayPauseCircle.BorderBrush = new SolidColorBrush(isPaused ? Color.FromRgb(251, 191, 36) : Color.FromRgb(52, 211, 153));
+                    btnMusicPlayPauseCircle.Background = new SolidColorBrush(isPaused ? Color.FromArgb(55, 251, 191, 36) : Color.FromArgb(55, 52, 211, 153));
+                }
+                if (musicDiscBorder != null)
+                {
+                    musicDiscBorder.BorderBrush = new SolidColorBrush(isPaused ? Color.FromArgb(115, 251, 191, 36) : Color.FromArgb(115, 52, 211, 153));
+                    musicDiscBorder.Background = new SolidColorBrush(isPaused ? Color.FromArgb(35, 251, 191, 36) : Color.FromArgb(38, 52, 211, 153));
+                }
+                if (txtMusicDiscIcon != null)
+                {
+                    txtMusicDiscIcon.Foreground = new SolidColorBrush(isPaused ? Color.FromRgb(252, 211, 77) : Color.FromRgb(110, 231, 183));
+                }
+                musicDrawerBorder.BorderBrush = new SolidColorBrush(isPaused ? Color.FromArgb(135, 251, 191, 36) : Color.FromArgb(135, 52, 211, 153));
             }
-            else if (!isHudMenuDrawerPinned)
+            else
             {
                 if (musicDrawerBorder != null) musicDrawerBorder.Visibility = Visibility.Collapsed;
             }

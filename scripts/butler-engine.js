@@ -700,6 +700,17 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
   return `네, ${user}. 말씀하신 「${prompt}」 내용을 확인했습니다. 웹 검색이 필요하시면 「구글에서 ${prompt} 검색해」라고 말씀해 주세요.`;
 }
 
+function isProcessAlive(pid) {
+  const num = Number(pid);
+  if (!Number.isFinite(num) || num <= 0) return false;
+  try {
+    process.kill(num, 0);
+    return true;
+  } catch (e) {
+    return Boolean(e && e.code === 'EPERM');
+  }
+}
+
 class ButlerEngine {
   constructor() {
     ensureDataFiles();
@@ -718,6 +729,12 @@ class ButlerEngine {
     this.mediaControl = controlMedia;
     this.searchYouTube = searchYouTubeTop5;
     this.mediaContext = readJson(FILES.media, null);
+    if (this.mediaContext && (this.mediaContext.state !== 'Playing' || !isProcessAlive(this.mediaContext.processId))) {
+      this.mediaContext.hudVisible = false;
+    }
+    this.liveGsmtcSession = null;
+    this.lastGsmtcProbeAt = 0;
+    this.gsmtcProbeInFlight = false;
   }
 
   getConfig() {
@@ -729,8 +746,57 @@ class ButlerEngine {
   }
 
   rememberMedia(url, title, state = 'opened', browser = {}) {
-    this.mediaContext = { url, title, state, processId: browser.processId || null, updatedAt: Date.now() };
+    this.mediaContext = {
+      url,
+      title,
+      state,
+      processId: browser.processId || null,
+      hudVisible: !['none', 'Closed', 'Stopped'].includes(state),
+      updatedAt: Date.now()
+    };
     writeJson(FILES.media, this.mediaContext);
+  }
+
+  refreshLiveGsmtcMedia() {
+    if (process.env.JARVIS_DISABLE_EXTERNAL_HUB === '1') return;
+    const now = Date.now();
+    if (this.gsmtcProbeInFlight || now - this.lastGsmtcProbeAt < 2500) return;
+    this.gsmtcProbeInFlight = true;
+    this.lastGsmtcProbeAt = now;
+    this.mediaControl({ action: 'status' })
+      .then(res => {
+        const sessions = (res && Array.isArray(res.sessions)) ? res.sessions : [];
+        const playing = sessions.find(s => s.status === 'Playing');
+        const pausedActive = sessions.find(s => s.status === 'Paused' && (s.current || s.browser));
+        if (playing) {
+          this.liveGsmtcSession = {
+            active: true,
+            state: 'Playing',
+            title: playing.title || (this.mediaContext && this.mediaContext.title) || 'YouTube Music',
+            artist: playing.artist || '',
+            source: playing.source || '',
+            updatedAt: Date.now()
+          };
+        } else if (pausedActive && this.mediaContext && this.mediaContext.hudVisible) {
+          this.liveGsmtcSession = {
+            active: true,
+            state: 'Paused',
+            title: pausedActive.title || (this.mediaContext && this.mediaContext.title) || 'YouTube Music',
+            artist: pausedActive.artist || '',
+            source: pausedActive.source || '',
+            updatedAt: Date.now()
+          };
+        } else {
+          this.liveGsmtcSession = { active: false, state: 'none', title: '', artist: '', updatedAt: Date.now() };
+          if (this.mediaContext && Date.now() - (this.mediaContext.updatedAt || 0) > 15000 && !isProcessAlive(this.mediaContext.processId)) {
+            this.mediaContext.hudVisible = false;
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        this.gsmtcProbeInFlight = false;
+      });
   }
 
   isMediaStopRequest(text) {
@@ -741,16 +807,31 @@ class ButlerEngine {
 
   getSubwindowsState() {
     const activeTask = sharedTerminalManager.getActiveState();
-    const hasMedia = this.hasMediaContext() && !['none', 'Closed', 'Stopped'].includes((this.mediaContext && this.mediaContext.state) || '');
-    const activeMedia = hasMedia
+    this.refreshLiveGsmtcMedia();
+
+    const gsmtcLive = Boolean(this.liveGsmtcSession && this.liveGsmtcSession.active && Date.now() - this.liveGsmtcSession.updatedAt < 12000);
+    const recentLaunch = Boolean(
+      this.mediaContext &&
+      this.mediaContext.hudVisible &&
+      ['opened', 'Playing', 'Paused'].includes(this.mediaContext.state || '') &&
+      (Date.now() - (this.mediaContext.updatedAt || 0) < 15000 || isProcessAlive(this.mediaContext.processId))
+    );
+
+    const isMediaHudActive = gsmtcLive || (recentLaunch && (!this.liveGsmtcSession || this.liveGsmtcSession.state !== 'none' || Date.now() - (this.mediaContext.updatedAt || 0) < 15000));
+    const liveTitle = (gsmtcLive && this.liveGsmtcSession.title) || (this.mediaContext && this.mediaContext.title) || '';
+    const liveArtist = (gsmtcLive && this.liveGsmtcSession.artist) || '';
+    const liveState = (gsmtcLive && this.liveGsmtcSession.state) || (this.mediaContext && this.mediaContext.state === 'Paused' ? 'Paused' : 'Playing');
+
+    const activeMedia = isMediaHudActive && liveTitle
       ? {
           active: true,
-          title: (this.mediaContext && this.mediaContext.title) || 'YouTube 미디어 재생 중',
+          title: liveTitle,
+          artist: liveArtist,
           url: (this.mediaContext && this.mediaContext.url) || '',
-          state: (this.mediaContext && this.mediaContext.state) || 'Playing',
-          updatedAt: (this.mediaContext && this.mediaContext.updatedAt) || Date.now()
+          state: liveState === 'Paused' ? 'Paused' : 'Playing',
+          updatedAt: Date.now()
         }
-      : { active: false, title: '', url: '', state: 'none', updatedAt: 0 };
+      : { active: false, title: '', artist: '', url: '', state: 'none', updatedAt: 0 };
 
     let planWindowSignal = { openWindowSeq: 1, activeTab: 'plan', activePlanTitle: '' };
     try {
@@ -1031,8 +1112,11 @@ class ButlerEngine {
     if (/소리줄여|소리낮춰|볼륨줄여|작게/.test(sq2)) {
       return { intent: 'volume', action: 'down' };
     }
-    if (/다음영상|다음곡|스킵|next/.test(sq2)) {
+    if (/다음영상|다음곡|다음노래|스킵|next/.test(sq2)) {
       return { intent: 'mediaNext' };
+    }
+    if (/이전영상|이전곡|이전노래|prev|previous/.test(sq2)) {
+      return { intent: 'mediaPrev' };
     }
     if (/^(재생일시정지|일시정지재생|재생일시정지토글|음악토글|플레이포즈)$/.test(sq2)) {
       return { intent: 'togglePlayPause' };
@@ -1397,16 +1481,34 @@ class ButlerEngine {
         if (outcome.state === 'none') {
           if (this.mediaContext) {
             this.mediaContext.state = 'none';
+            this.mediaContext.hudVisible = false;
             this.mediaContext.updatedAt = Date.now();
             writeJson(FILES.media, this.mediaContext);
           }
+          this.liveGsmtcSession = { active: false, state: 'none', title: '', artist: '', updatedAt: Date.now() };
           return { intent: parsed.intent, hudColor: 'amber', hudTitle: '제어할 재생 항목을 찾지 못했습니다', hudSubtitle: '유튜브 영상이나 음악 앱이 열려 있는지 확인해 주세요.', heard: rawSentence, spoken: '제어할 재생 항목을 찾지 못했습니다.', media: outcome };
         }
         const expected = pause ? ['Paused', 'Stopped', 'Closed'] : ['Playing'];
         if (!outcome.verified || !expected.includes(outcome.state)) throw new Error('요청한 재생 상태를 확인하지 못했습니다.');
         if (this.mediaContext) {
-          Object.assign(this.mediaContext, { state: outcome.state, source: outcome.source, updatedAt: Date.now() });
+          Object.assign(this.mediaContext, {
+            state: outcome.state,
+            source: outcome.source,
+            hudVisible: !pause,
+            updatedAt: Date.now()
+          });
           writeJson(FILES.media, this.mediaContext);
+        }
+        if (pause) {
+          this.liveGsmtcSession = { active: false, state: 'none', title: '', artist: '', updatedAt: Date.now() };
+        } else {
+          this.liveGsmtcSession = {
+            active: true,
+            state: 'Playing',
+            title: (this.mediaContext && this.mediaContext.title) || 'YouTube Music',
+            artist: '',
+            updatedAt: Date.now()
+          };
         }
         return {
           intent: parsed.intent,
@@ -1547,9 +1649,17 @@ class ButlerEngine {
           }
           if (this.mediaContext) {
             this.mediaContext.state = wantPlay ? 'Playing' : 'Paused';
+            this.mediaContext.hudVisible = true;
             this.mediaContext.updatedAt = Date.now();
             writeJson(FILES.media, this.mediaContext);
           }
+          this.liveGsmtcSession = {
+            active: true,
+            state: wantPlay ? 'Playing' : 'Paused',
+            title: (this.mediaContext && this.mediaContext.title) || 'YouTube Music',
+            artist: '',
+            updatedAt: Date.now()
+          };
           return {
             intent: 'togglePlayPause',
             hudColor: 'lime',
@@ -1576,38 +1686,49 @@ class ButlerEngine {
       }
 
       case 'media':
+      case 'mediaPrev':
       case 'mediaNext': {
         if (!executeOsActions) return { intent: parsed.intent, hudColor: 'cyan', hudTitle: '미디어 제어 시험', heard: rawSentence, spoken: '시험 모드에서는 재생 상태를 변경하지 않습니다.' };
         const next = parsed.intent === 'mediaNext';
-        if (next) {
+        const prev = parsed.intent === 'mediaPrev';
+        if (next || prev) {
           if (!this.ytList || this.ytList.length === 0) {
             this.ytList = await this.searchYouTube('집중하기 좋은 로파이 음악 플레이리스트');
           }
           if (this.ytList && this.ytList.length > 0) {
-            this.ytCursor = ((typeof this.ytCursor === 'number' ? this.ytCursor : 0) + 1) % this.ytList.length;
+            const step = prev ? -1 : 1;
+            const cur = typeof this.ytCursor === 'number' ? this.ytCursor : 0;
+            this.ytCursor = (cur + step + this.ytList.length) % this.ytList.length;
             const pick = this.ytList[this.ytCursor] || this.ytList[0];
             const browser = await WindowsHands.openMediaUrl(pick.url);
             this.rememberMedia(pick.url, pick.title, 'Playing', browser);
+            this.liveGsmtcSession = {
+              active: true,
+              state: 'Playing',
+              title: pick.title,
+              artist: '',
+              updatedAt: Date.now()
+            };
             return {
-              intent: 'mediaNext',
+              intent: parsed.intent,
               pickedVideo: pick,
               hudColor: 'lime',
-              hudTitle: `⏭ 다음 곡 재생: ${pick.title}`,
+              hudTitle: `${prev ? '⏮ 이전 곡 재생' : '⏭ 다음 곡 재생'}: ${pick.title}`,
               hudSubtitle: pick.url,
               heard: rawSentence,
-              spoken: `다음 곡으로 ${pick.title} 영상을 재생합니다.`
+              spoken: `${prev ? '이전 곡으로' : '다음 곡으로'} ${pick.title} 영상을 재생합니다.`
             };
           }
         }
-        const outcome = await this.mediaControl({ action: next ? 'next' : parsed.play ? 'play' : 'pause', scope: this.hasMediaContext() ? 'browser' : 'any', preferredSource: this.mediaContext && this.mediaContext.source });
-        if (!next && !outcome.verified) throw new Error('요청한 재생 상태를 확인하지 못했습니다.');
+        const outcome = await this.mediaControl({ action: next ? 'next' : prev ? 'prev' : parsed.play ? 'play' : 'pause', scope: this.hasMediaContext() ? 'browser' : 'any', preferredSource: this.mediaContext && this.mediaContext.source });
+        if (!next && !prev && !outcome.verified) throw new Error('요청한 재생 상태를 확인하지 못했습니다.');
         return {
           intent: parsed.intent,
           hudColor: 'cyan',
-          hudTitle: next ? '⏭ 다음 영상 요청 · 전환 확인 필요' : outcome.state === 'none' ? '재생 항목 확인 필요' : parsed.play ? '▶ 재생 확인' : '⏸ 일시정지 확인',
+          hudTitle: next ? '⏭ 다음 영상 요청 · 전환 확인 필요' : prev ? '⏮ 이전 영상 요청 · 전환 확인 필요' : outcome.state === 'none' ? '재생 항목 확인 필요' : parsed.play ? '▶ 재생 확인' : '⏸ 일시정지 확인',
           hudSubtitle: 'Windows 미디어 세션 상태 확인',
           heard: rawSentence,
-          spoken: outcome.state === 'none' ? 'Windows에서 제어할 수 있는 재생 항목을 찾지 못했습니다.' : next ? '다음 영상을 요청했습니다. 실제로 바뀌었는지 확인해 주세요.' : parsed.play ? '재생 중인 것을 확인했습니다.' : '미디어가 멈춘 것을 확인했습니다.'
+          spoken: outcome.state === 'none' ? 'Windows에서 제어할 수 있는 재생 항목을 찾지 못했습니다.' : next ? '다음 영상을 요청했습니다.' : prev ? '이전 영상을 요청했습니다.' : parsed.play ? '재생 중인 것을 확인했습니다.' : '미디어가 멈춘 것을 확인했습니다.'
         };
       }
 

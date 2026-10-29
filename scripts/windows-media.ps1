@@ -18,13 +18,22 @@ try {
   foreach ($session in $sessions) {
     $source = [string]$session.SourceAppUserModelId
     $info = $session.GetPlaybackInfo()
-    $rows += @{ session=$session; source=$source; browser=($source -match '(?i)chrome|msedge|firefox|brave|opera|youtube'); status=[string]$info.PlaybackStatus; current=($null -ne $current -and [Object]::ReferenceEquals($current,$session)) }
+    $title = ''
+    $artist = ''
+    try {
+      $props = Await ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+      if ($null -ne $props) {
+        $title = [string]$props.Title
+        $artist = [string]$props.Artist
+      }
+    } catch {}
+    $rows += @{ session=$session; source=$source; browser=($source -match '(?i)chrome|msedge|firefox|brave|opera|whale|youtube'); status=[string]$info.PlaybackStatus; title=$title; artist=$artist; current=($null -ne $current -and [Object]::ReferenceEquals($current,$session)) }
   }
   if ($request.action -eq 'status') {
-    @{ ok=$true; sessions=@($rows | ForEach-Object { @{ source=$_.source; browser=$_.browser; status=$_.status; current=$_.current } }) } | ConvertTo-Json -Depth 4 -Compress
+    @{ ok=$true; sessions=@($rows | ForEach-Object { @{ source=$_.source; browser=$_.browser; status=$_.status; title=$_.title; artist=$_.artist; current=$_.current } }) } | ConvertTo-Json -Depth 4 -Compress
     return
   }
-  if ($request.action -notin @('pause','play','next')) { throw '지원하지 않는 미디어 명령입니다.' }
+  if ($request.action -notin @('pause','play','next','prev')) { throw '지원하지 않는 미디어 명령입니다.' }
   $candidates = @($rows | Where-Object { $_.status -ne 'Closed' -and ($request.scope -ne 'browser' -or $_.browser) })
   if ($request.preferredSource) {
     $preferred = @($candidates | Where-Object { $_.source -eq $request.preferredSource })
@@ -68,6 +77,10 @@ try {
   } elseif ($request.action -eq 'play') {
     if (-not $session.GetPlaybackInfo().Controls.IsPlayEnabled) { throw '이 앱은 현재 다시 재생을 지원하지 않습니다.' }
     [void](Await ($session.TryPlayAsync()) ([bool])); $attempts += 'play'
+  } elseif ($request.action -eq 'prev') {
+    if (-not $session.GetPlaybackInfo().Controls.IsPreviousEnabled) { throw '현재 영상은 이전 곡 제어를 지원하지 않습니다.' }
+    $accepted=Await ($session.TrySkipPreviousAsync()) ([bool])
+    @{ok=[bool]$accepted;state='requested';verified=$false;changed=[bool]$accepted;source=$selected.source}|ConvertTo-Json -Compress; return
   } else {
     if (-not $session.GetPlaybackInfo().Controls.IsNextEnabled) { throw '현재 영상은 다음 곡 제어를 지원하지 않습니다.' }
     $accepted=Await ($session.TrySkipNextAsync()) ([bool])

@@ -10,6 +10,7 @@ function VideoButtons($root) {
     pause=@($buttons | Where-Object { $_.Current.Name -match '^(일시\s*중지|Pause)(\s|\(|$)' -and $_.Current.IsEnabled })
     play=@($buttons | Where-Object { $_.Current.Name -match '^(재생|Play)(\s|\(|$)' -and $_.Current.IsEnabled })
     next=@($buttons | Where-Object { $_.Current.Name -match '^(다음|Next)\s*\(' -and $_.Current.IsEnabled })
+    prev=@($buttons | Where-Object { $_.Current.Name -match '^(이전|Previous)\s*\(' -and $_.Current.IsEnabled })
   }
 }
 function IsYouTubePage($root) {
@@ -55,7 +56,7 @@ try {
   if($request.action -eq 'status') {
     @{ok=$true;browserWindows=$browserCount;totalTabs=$totalTabs;youtubeTabs=$tabCount;youtubeCandidates=$targets.Count;diagnostics=$diagnostics}|ConvertTo-Json -Depth 4 -Compress;return
   }
-  if($request.action -notin @('pause','play','next')){throw '지원하지 않는 브라우저 미디어 명령입니다.'}
+  if($request.action -notin @('pause','play','next','prev')){throw '지원하지 않는 브라우저 미디어 명령입니다.'}
   if($targets.Count -gt 8){throw '유튜브 탭이 많아 대상을 자동으로 결정하지 못했습니다.'}
   $states=@()
   foreach($target in $targets) {
@@ -70,7 +71,7 @@ try {
   }
   $wanted=if($request.action -eq 'play'){'Paused'}else{'Playing'}
   $active=@($states|Where-Object{$_.state -eq $wanted})
-  if($active.Count -eq 0 -and $states.Count -ge 1 -and $request.action -ne 'next'){
+  if($active.Count -eq 0 -and $states.Count -ge 1 -and $request.action -notin @('next','prev')){
     @{ok=$true;state=$states[0].state;verified=$true;changed=$false;source=$states[0].target.source;method='youtube-accessibility'}|ConvertTo-Json -Compress;return
   }
   if($active.Count -eq 0){@{ok=$true;state='none';verified=$true;changed=$false;method='youtube-accessibility'}|ConvertTo-Json -Compress;return}
@@ -78,11 +79,11 @@ try {
   SelectTab $chosen.tab
   if(-not (IsYouTubePage $chosen.root)){throw '유튜브 주소를 확인하지 못해 조작하지 않았습니다.'}
   $buttons=VideoButtons $chosen.root
-  $key=if($request.action -eq 'pause'){'pause'}elseif($request.action -eq 'play'){'play'}else{'next'}
+  $key=if($request.action -eq 'pause'){'pause'}elseif($request.action -eq 'play'){'play'}elseif($request.action -eq 'prev'){'prev'}else{'next'}
   $controlMatches=@($buttons[$key]);$invoke=$null
   if($controlMatches.Count -ne 1 -or -not $controlMatches[0].TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$invoke)){throw '유튜브 재생 제어 버튼을 확인하지 못했습니다.'}
   $invoke.Invoke()
-  if($request.action -eq 'next'){@{ok=$true;state='requested';verified=$false;changed=$true;source=$chosen.source;method='youtube-accessibility'}|ConvertTo-Json -Compress;return}
+  if($request.action -in @('next','prev')){@{ok=$true;state='requested';verified=$false;changed=$true;source=$chosen.source;method='youtube-accessibility'}|ConvertTo-Json -Compress;return}
   $verified=$false
   for($i=0;$i -lt 10;$i++){
     Start-Sleep -Milliseconds 150

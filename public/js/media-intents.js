@@ -11,6 +11,7 @@
     if (hasContext && /^(꺼|꺼줘|꺼주세요|멈춰|멈춰줘|멈춰주세요|그만틀어|그만틀어줘|정지|중지|중지해줘|stop)$/.test(phrase)) return { intent: 'stopMusic', scope: 'browser', explicit: false };
     if (/^(?:유튜브|음악|노래|영상|미디어)?(?:다시틀어|다시재생해|다시켜|재생계속해|계속재생해)(?:줘|주세요)?$/.test(phrase) && (hasContext || /^(유튜브|음악|노래|영상|미디어)/.test(phrase))) return { intent: 'resumeMusic', scope: 'browser' };
     if (hasContext && /^(다음곡|다음노래|다음영상)(?:틀어|재생해)?(?:줘|주세요)?$/.test(phrase)) return { intent: 'mediaNext', scope: 'browser' };
+    if (hasContext && /^(이전곡|이전노래|이전영상)(?:틀어|재생해)?(?:줘|주세요)?$/.test(phrase)) return { intent: 'mediaPrev', scope: 'browser' };
     return null;
   }
   return { classifyMediaControl };
