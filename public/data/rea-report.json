@@ -1,0 +1,1965 @@
+{
+  "generatedAt": "2026-10-28T04:56:53.473Z",
+  "engine": "REA v6.7.0 + BSC 4-Stage Clean-Room Analyzer",
+  "target": "C:\\자비스\\vendor\\sasarisa",
+  "upstreamVersion": "0.7.3",
+  "surface": {
+    "totalFiles": 92,
+    "totalLines": 11261,
+    "totalBytes": 13685598,
+    "byExt": {
+      ".yml": 4,
+      ".md": 10,
+      ".none": 6,
+      ".icns": 1,
+      ".entitlements": 1,
+      ".swift": 44,
+      ".sh": 6,
+      ".png": 8,
+      ".gif": 2,
+      ".html": 2,
+      ".webp": 4,
+      ".jpg": 1,
+      ".mp4": 1,
+      ".css": 1,
+      ".js": 1
+    },
+    "entryPoints": [
+      "Sources/MacButler/BootScene.swift",
+      "Sources/MacButler/Butler.swift",
+      "Sources/MacButler/Commands.swift",
+      "Sources/MacButler/HUD.swift",
+      "Sources/MacButler/main.swift",
+      "Tools/butler.swift",
+      "Tools/jax.swift"
+    ]
+  },
+  "evidence4Split": {
+    "observations": [
+      "Target Repository: mvcompany8500-web/sasarisa (v0.7.3; see upstream NOTICE.md and LICENSE for AGPL-3.0)",
+      "Total Files Scanned: 92 files (11,261 LOC, 13364.8 KB)",
+      "Swift Source Modules: 44 .swift files in Sources/MacButler/ and Tools/",
+      "Web & Docs Assets: 4 files (docs/index.html, docs/tutorial.html, docs/tutorial.css, docs/tutorial.js)",
+      "Entry Points Verified: Sources/MacButler/BootScene.swift, Sources/MacButler/Butler.swift, Sources/MacButler/Commands.swift, Sources/MacButler/HUD.swift, Sources/MacButler/main.swift, Tools/butler.swift, Tools/jax.swift"
+    ],
+    "derivations": [
+      "Extracted Swift Types (class/struct/enum): 85 symbols across 44 modules",
+      "Extracted Swift Methods (func): 516 functions deconstructed",
+      "Extracted Deterministic Grammar Intents (Commands.swift): 34 cases (greet, type(String), claude(target: String, message: String, newSession: Bool), youtube(String), youtubeNth(Int), seek(Int), mailNth(Int), higgsfield(String), search(String), web(label: String, query: String, url: String), remember(String), media(play: Bool), ...)",
+      "macOS Native Frameworks Imported: AVFoundation, AppKit, ApplicationServices, AudioToolbox, Charts, CoreAudio, CoreGraphics, CoreMedia, CryptoKit, Foundation, FoundationModels, ImageIO, QuartzCore, ScreenCaptureKit, Security, Speech, SwiftUI, UniformTypeIdentifiers",
+      "Extracted HUD & Tutorial Color/Design Tokens: --blue: #2563eb | --c: #4dd9ff | --c: #ffb840}.tut .hud.lime{--c:#73ff99}\r\n.tut .hud.pop{transform:translateY(-3px)}\r\n.tut .htxt{flex:1 | --card: #ffffff | --green: #16a34a | --ink: #0b0d12 | --line: #eceef2 | --max: 1180px | --mute: #9aa1ad | --pad: 24px | --sky1: #9fe3ff | --sky2: #cdeffd | --sky3: #eef9ff | --soft: #f7f8fa | --sub: #6b7280"
+    ],
+    "inferences": [
+      "The upstream parser and aliases provide local command paths; coverage and latency have not been measured.",
+      "Pattern 2 (Phonetic Hangul Wake Matcher): Config.soundAlike decomposes Korean syllables (사사리사/자비스 -> 싸싸리싸/재비스) so speech recognizer typos still wake the butler.",
+      "Tools/jax.swift uses accessibility APIs; Windows behavior and feature parity are not established by this report.",
+      "Windows message sending requires manual recipient verification; automatic sending is disabled."
+    ],
+    "unknowns": [
+      "원본 Pro 서버 기능과 Windows 구현의 동등성은 확인되지 않았습니다. msedge-tts는 네트워크 연결에 의존할 수 있습니다."
+    ]
+  },
+  "swiftModules": [
+    {
+      "relPath": "Sources/MacButler/AIUsage.swift",
+      "name": "AIUsage.swift",
+      "lines": 85,
+      "bytes": 5898,
+      "sha256": "453f71f74889a02b",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum AIUsage",
+        "struct Plan",
+        "struct Window"
+      ],
+      "funcs": [
+        "load",
+        "save",
+        "noteClaude",
+        "refreshCodex",
+        "findRateLimits",
+        "daily"
+      ],
+      "totalFuncs": 6
+    },
+    {
+      "relPath": "Sources/MacButler/APIBrain.swift",
+      "name": "APIBrain.swift",
+      "lines": 379,
+      "bytes": 23798,
+      "sha256": "41093abf09fe4f52",
+      "imports": [
+        "AppKit",
+        "Security"
+      ],
+      "types": [
+        "class APIBrain",
+        "class ToolBoxClient",
+        "enum Brains",
+        "enum Keys",
+        "protocol Thinker",
+        "struct Provider",
+        "struct Reply"
+      ],
+      "funcs": [
+        "warm",
+        "ask",
+        "stop",
+        "cancel",
+        "make",
+        "ready",
+        "get",
+        "set",
+        "remove",
+        "lookup",
+        "start",
+        "send",
+        "request",
+        "call",
+        "provider",
+        "safeBase",
+        "say",
+        "run"
+      ],
+      "totalFuncs": 24
+    },
+    {
+      "relPath": "Sources/MacButler/AsideBrain.swift",
+      "name": "AsideBrain.swift",
+      "lines": 149,
+      "bytes": 8595,
+      "sha256": "a42500d52b1f1a1d",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "class AsideBrain"
+      ],
+      "funcs": [
+        "warm",
+        "ask",
+        "feed",
+        "finish",
+        "answer",
+        "clean",
+        "sessionID",
+        "stop",
+        "cancel"
+      ],
+      "totalFuncs": 9
+    },
+    {
+      "relPath": "Sources/MacButler/AudioDevices.swift",
+      "name": "AudioDevices.swift",
+      "lines": 105,
+      "bytes": 7117,
+      "sha256": "75695d50ab8342c4",
+      "imports": [
+        "AppKit",
+        "AudioToolbox",
+        "CoreAudio"
+      ],
+      "types": [
+        "enum AudioDevices",
+        "enum Sound",
+        "struct AudioDevice"
+      ],
+      "funcs": [
+        "hasStreams",
+        "all",
+        "defaultInputUID",
+        "defaultOutputName",
+        "outputBusy",
+        "micUsers",
+        "inputs",
+        "outputs",
+        "device",
+        "use",
+        "play",
+        "named",
+        "soft",
+        "file"
+      ],
+      "totalFuncs": 14
+    },
+    {
+      "relPath": "Sources/MacButler/BootScene.swift",
+      "name": "BootScene.swift",
+      "lines": 250,
+      "bytes": 16819,
+      "sha256": "3264f33166b130b0",
+      "imports": [
+        "AppKit",
+        "QuartzCore"
+      ],
+      "types": [
+        "class BootScene",
+        "enum SysInfo",
+        "struct Text"
+      ],
+      "funcs": [
+        "memory",
+        "model",
+        "diskFreeGB",
+        "synthChime",
+        "ring",
+        "ticks",
+        "label",
+        "type",
+        "play"
+      ],
+      "totalFuncs": 9
+    },
+    {
+      "relPath": "Sources/MacButler/Brain.swift",
+      "name": "Brain.swift",
+      "lines": 233,
+      "bytes": 15878,
+      "sha256": "0ae94c7e430c0831",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "class Brain"
+      ],
+      "funcs": [
+        "systemPrompt",
+        "permissionArgs",
+        "mcpConfig",
+        "commandLine",
+        "q",
+        "stepLabel",
+        "warm",
+        "ensure",
+        "feed",
+        "handle",
+        "finish",
+        "ask",
+        "turnText",
+        "stop",
+        "cancel"
+      ],
+      "totalFuncs": 15
+    },
+    {
+      "relPath": "Sources/MacButler/Butler.swift",
+      "name": "Butler.swift",
+      "lines": 1618,
+      "bytes": 114381,
+      "sha256": "1a1de470a14e67df",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "class Butler",
+        "enum Mode"
+      ],
+      "funcs": [
+        "canBargeIn",
+        "start",
+        "listenForSignals",
+        "signal",
+        "holdBegan",
+        "holdEnded",
+        "holdCancelled",
+        "studyWords",
+        "manualWake",
+        "partial",
+        "utterance",
+        "nameTraining",
+        "trainCard",
+        "nameByWhisper",
+        "onset",
+        "browserApp",
+        "noFreeText",
+        "refine"
+      ],
+      "totalFuncs": 74
+    },
+    {
+      "relPath": "Sources/MacButler/ClaudeRelay.swift",
+      "name": "ClaudeRelay.swift",
+      "lines": 141,
+      "bytes": 12171,
+      "sha256": "aabd844d227956fc",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "enum ClaudeRelay"
+      ],
+      "funcs": [
+        "score",
+        "clearBest",
+        "ask",
+        "pick",
+        "compose",
+        "directOrder",
+        "invented",
+        "stripFiller",
+        "isQuote"
+      ],
+      "totalFuncs": 9
+    },
+    {
+      "relPath": "Sources/MacButler/CodexBrain.swift",
+      "name": "CodexBrain.swift",
+      "lines": 223,
+      "bytes": 15098,
+      "sha256": "ad1c4f1057689771",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "class CodexBrain",
+        "struct Caps"
+      ],
+      "funcs": [
+        "model",
+        "listedModels",
+        "capabilities",
+        "run",
+        "arguments",
+        "q",
+        "warm",
+        "ask",
+        "feed",
+        "handle",
+        "finish",
+        "stop",
+        "cancel"
+      ],
+      "totalFuncs": 13
+    },
+    {
+      "relPath": "Sources/MacButler/ComboBrain.swift",
+      "name": "ComboBrain.swift",
+      "lines": 60,
+      "bytes": 3872,
+      "sha256": "923a51ae47b97a7f",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "class ComboBrain"
+      ],
+      "funcs": [
+        "pick",
+        "brain",
+        "warm",
+        "ask",
+        "stop",
+        "cancel"
+      ],
+      "totalFuncs": 6
+    },
+    {
+      "relPath": "Sources/MacButler/Commands.swift",
+      "name": "Commands.swift",
+      "lines": 686,
+      "bytes": 60872,
+      "sha256": "154bac3b10060c05",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum Intent",
+        "struct Parser"
+      ],
+      "funcs": [
+        "app",
+        "match",
+        "kakaoReply",
+        "squash",
+        "clean",
+        "wakeRange",
+        "ourAddress",
+        "stripWake",
+        "isGreeting",
+        "isBye",
+        "isHush",
+        "instant",
+        "parse",
+        "dropLeadIn",
+        "closeTabs",
+        "isDisplayOff",
+        "isCloseOpened",
+        "browserNav"
+      ],
+      "totalFuncs": 41
+    },
+    {
+      "relPath": "Sources/MacButler/Config.swift",
+      "name": "Config.swift",
+      "lines": 306,
+      "bytes": 24420,
+      "sha256": "b737c975a52925ab",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum Paths",
+        "struct Config",
+        "struct ElevenLabsConfig"
+      ],
+      "funcs": [
+        "soundAlike",
+        "hangulReading",
+        "fill",
+        "handyVocabulary",
+        "set",
+        "load",
+        "which",
+        "voiceFile",
+        "log",
+        "dotenv"
+      ],
+      "totalFuncs": 10
+    },
+    {
+      "relPath": "Sources/MacButler/ControlSocket.swift",
+      "name": "ControlSocket.swift",
+      "lines": 69,
+      "bytes": 3834,
+      "sha256": "5147bb4a5c5b51eb",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "class ControlSocket"
+      ],
+      "funcs": [
+        "start",
+        "stop"
+      ],
+      "totalFuncs": 2
+    },
+    {
+      "relPath": "Sources/MacButler/DemoFrames.swift",
+      "name": "DemoFrames.swift",
+      "lines": 109,
+      "bytes": 9279,
+      "sha256": "ca42ff06fff9668f",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "enum DemoFrames",
+        "struct Scene"
+      ],
+      "funcs": [
+        "run",
+        "frame",
+        "compose",
+        "displayAll"
+      ],
+      "totalFuncs": 4
+    },
+    {
+      "relPath": "Sources/MacButler/DoubleTalk.swift",
+      "name": "DoubleTalk.swift",
+      "lines": 90,
+      "bytes": 4757,
+      "sha256": "b17fdc69a4263b6a",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "class DoubleTalk"
+      ],
+      "funcs": [
+        "listen",
+        "begin",
+        "end",
+        "played",
+        "isUser",
+        "periodicity"
+      ],
+      "totalFuncs": 6
+    },
+    {
+      "relPath": "Sources/MacButler/Ear.swift",
+      "name": "Ear.swift",
+      "lines": 339,
+      "bytes": 20718,
+      "sha256": "13ff88392101e323",
+      "imports": [
+        "AVFoundation",
+        "Speech"
+      ],
+      "types": [
+        "class Ear"
+      ],
+      "funcs": [
+        "segment",
+        "start",
+        "observeEngine",
+        "restartEngine",
+        "startEngine",
+        "process",
+        "restart",
+        "isReset",
+        "forceFlush",
+        "beginHold",
+        "endHold",
+        "cancelHold",
+        "markSegmentNow",
+        "flush",
+        "soundsFinished",
+        "tick"
+      ],
+      "totalFuncs": 16
+    },
+    {
+      "relPath": "Sources/MacButler/EchoTest.swift",
+      "name": "EchoTest.swift",
+      "lines": 44,
+      "bytes": 2899,
+      "sha256": "bff623c2823d18c3",
+      "imports": [
+        "AVFoundation",
+        "Speech"
+      ],
+      "types": [
+        "enum EchoTest"
+      ],
+      "funcs": [
+        "run"
+      ],
+      "totalFuncs": 1
+    },
+    {
+      "relPath": "Sources/MacButler/GrowTogether.swift",
+      "name": "GrowTogether.swift",
+      "lines": 132,
+      "bytes": 8979,
+      "sha256": "2eec007a2bffe333",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "enum GrowTogether",
+        "struct State"
+      ],
+      "funcs": [
+        "saveState",
+        "isShareable",
+        "cleanSaid",
+        "lookup",
+        "veto",
+        "askIfNeeded",
+        "sync",
+        "payload",
+        "upload",
+        "download"
+      ],
+      "totalFuncs": 10
+    },
+    {
+      "relPath": "Sources/MacButler/HUD.swift",
+      "name": "HUD.swift",
+      "lines": 175,
+      "bytes": 9788,
+      "sha256": "2559a5cdbf3f6973",
+      "imports": [
+        "AppKit",
+        "QuartzCore"
+      ],
+      "types": [
+        "class HUD",
+        "class OrbView"
+      ],
+      "funcs": [
+        "setColor",
+        "setSpeed",
+        "level",
+        "layout",
+        "positions",
+        "paint",
+        "expand",
+        "idle",
+        "show",
+        "setStatus",
+        "body",
+        "hideAll"
+      ],
+      "totalFuncs": 12
+    },
+    {
+      "relPath": "Sources/MacButler/Hands.swift",
+      "name": "Hands.swift",
+      "lines": 140,
+      "bytes": 8282,
+      "sha256": "62e015332692bbbe",
+      "imports": [
+        "AppKit",
+        "ApplicationServices"
+      ],
+      "types": [
+        "enum AX",
+        "enum Hands"
+      ],
+      "funcs": [
+        "key",
+        "playPause",
+        "mediaKey",
+        "paste",
+        "typeVisible",
+        "attr",
+        "app",
+        "frame",
+        "walk",
+        "windows",
+        "focusedIsSecure",
+        "press",
+        "focus",
+        "button",
+        "showSidebar",
+        "norm",
+        "session",
+        "composer"
+      ],
+      "totalFuncs": 18
+    },
+    {
+      "relPath": "Sources/MacButler/Higgsfield.swift",
+      "name": "Higgsfield.swift",
+      "lines": 192,
+      "bytes": 13995,
+      "sha256": "bfb354a041fb8842",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "class Higgsfield",
+        "struct HFError",
+        "struct Plan"
+      ],
+      "funcs": [
+        "request",
+        "stop",
+        "quote",
+        "generate",
+        "run",
+        "setGuard",
+        "save",
+        "history",
+        "remember",
+        "spentToday",
+        "number",
+        "lastJSON"
+      ],
+      "totalFuncs": 12
+    },
+    {
+      "relPath": "Sources/MacButler/KoreanReader.swift",
+      "name": "KoreanReader.swift",
+      "lines": 84,
+      "bytes": 5533,
+      "sha256": "2917b58eedae5543",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum KoreanReader"
+      ],
+      "funcs": [
+        "sino",
+        "under10000",
+        "native",
+        "read",
+        "latinModels"
+      ],
+      "totalFuncs": 5
+    },
+    {
+      "relPath": "Sources/MacButler/Learning.swift",
+      "name": "Learning.swift",
+      "lines": 228,
+      "bytes": 14850,
+      "sha256": "c016f7b391321533",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum Growth",
+        "enum Learning",
+        "enum Memory",
+        "enum Usage",
+        "struct Entry",
+        "struct State"
+      ],
+      "funcs": [
+        "save",
+        "key",
+        "tokens",
+        "replayable",
+        "remember",
+        "forget",
+        "lookup",
+        "used",
+        "replay",
+        "note",
+        "exchange",
+        "promptBlock",
+        "append",
+        "record",
+        "today",
+        "words",
+        "study",
+        "miss"
+      ],
+      "totalFuncs": 21
+    },
+    {
+      "relPath": "Sources/MacButler/MicCapture.swift",
+      "name": "MicCapture.swift",
+      "lines": 40,
+      "bytes": 2523,
+      "sha256": "055c596ed9b703c5",
+      "imports": [
+        "AVFoundation",
+        "CoreMedia"
+      ],
+      "types": [
+        "class MicCapture"
+      ],
+      "funcs": [
+        "start",
+        "stop",
+        "captureOutput"
+      ],
+      "totalFuncs": 3
+    },
+    {
+      "relPath": "Sources/MacButler/Mouth.swift",
+      "name": "Mouth.swift",
+      "lines": 232,
+      "bytes": 13456,
+      "sha256": "dc286bd7a0ae3bf0",
+      "imports": [
+        "AVFoundation",
+        "AppKit"
+      ],
+      "types": [
+        "class Mouth"
+      ],
+      "funcs": [
+        "speak",
+        "complete",
+        "bestVoice",
+        "rank",
+        "say",
+        "sayCommand",
+        "eleven",
+        "speechRequest",
+        "json",
+        "fetch",
+        "playOnDevice",
+        "playFile",
+        "rms",
+        "audioPlayerDidFinishPlaying",
+        "stop",
+        "play"
+      ],
+      "totalFuncs": 16
+    },
+    {
+      "relPath": "Sources/MacButler/NameModel.swift",
+      "name": "NameModel.swift",
+      "lines": 55,
+      "bytes": 3804,
+      "sha256": "eb03290c2927b56b",
+      "imports": [
+        "Foundation",
+        "Speech"
+      ],
+      "types": [
+        "enum NameModel"
+      ],
+      "funcs": [
+        "phrases",
+        "prepare"
+      ],
+      "totalFuncs": 2
+    },
+    {
+      "relPath": "Sources/MacButler/NameTraining.swift",
+      "name": "NameTraining.swift",
+      "lines": 155,
+      "bytes": 10164,
+      "sha256": "ff28949aea83619c",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "class NameTrainer",
+        "struct Result",
+        "struct Sample"
+      ],
+      "funcs": [
+        "command",
+        "prompt",
+        "take",
+        "parser",
+        "hits",
+        "result",
+        "save",
+        "norm",
+        "withoutCommand",
+        "usable",
+        "close",
+        "jamo",
+        "distance",
+        "verdict"
+      ],
+      "totalFuncs": 14
+    },
+    {
+      "relPath": "Sources/MacButler/Polish.swift",
+      "name": "Polish.swift",
+      "lines": 85,
+      "bytes": 5080,
+      "sha256": "2ba52889dfc307e0",
+      "imports": [
+        "Foundation",
+        "FoundationModels"
+      ],
+      "types": [
+        "enum Polish"
+      ],
+      "funcs": [
+        "handyPrompt",
+        "run"
+      ],
+      "totalFuncs": 2
+    },
+    {
+      "relPath": "Sources/MacButler/ProAccount.swift",
+      "name": "ProAccount.swift",
+      "lines": 130,
+      "bytes": 8591,
+      "sha256": "50f92730ff66008e",
+      "imports": [
+        "AppKit"
+      ],
+      "types": [
+        "enum ProAccount",
+        "struct Status"
+      ],
+      "funcs": [
+        "authed",
+        "call",
+        "link",
+        "unlink",
+        "refresh",
+        "speechRequest",
+        "startRemote",
+        "reply"
+      ],
+      "totalFuncs": 8
+    },
+    {
+      "relPath": "Sources/MacButler/Router.swift",
+      "name": "Router.swift",
+      "lines": 124,
+      "bytes": 8035,
+      "sha256": "32e78f5aeb929da5",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "class Router",
+        "enum Aliases"
+      ],
+      "funcs": [
+        "prompt",
+        "warm",
+        "ensure",
+        "feed",
+        "reply",
+        "route",
+        "stop",
+        "lookup",
+        "learn",
+        "forget"
+      ],
+      "totalFuncs": 10
+    },
+    {
+      "relPath": "Sources/MacButler/Routines.swift",
+      "name": "Routines.swift",
+      "lines": 32,
+      "bytes": 1787,
+      "sha256": "8ee10f07184bffde",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum Routines"
+      ],
+      "funcs": [
+        "load",
+        "save",
+        "remove",
+        "match",
+        "write"
+      ],
+      "totalFuncs": 5
+    },
+    {
+      "relPath": "Sources/MacButler/SelfTest.swift",
+      "name": "SelfTest.swift",
+      "lines": 374,
+      "bytes": 42036,
+      "sha256": "7ed679f40af83fb8",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum SelfTest"
+      ],
+      "funcs": [
+        "run",
+        "check",
+        "checkBool"
+      ],
+      "totalFuncs": 3
+    },
+    {
+      "relPath": "Sources/MacButler/SettingsWindow.swift",
+      "name": "SettingsWindow.swift",
+      "lines": 653,
+      "bytes": 49927,
+      "sha256": "f771e83bd7065a0d",
+      "imports": [
+        "AVFoundation",
+        "AppKit",
+        "Charts",
+        "SwiftUI"
+      ],
+      "types": [
+        "class Closer",
+        "class NameTrainingModel",
+        "class SettingsModel",
+        "enum SettingsWindow",
+        "struct Choice",
+        "struct EngineMenu",
+        "struct NameTrainingRow",
+        "struct Note",
+        "struct SettingsView",
+        "struct UsageBar"
+      ],
+      "funcs": [
+        "refreshUsage",
+        "preview",
+        "refreshPro",
+        "linkPro",
+        "unlinkPro",
+        "keyHint",
+        "save",
+        "sayVoices",
+        "when",
+        "short",
+        "shot",
+        "windowWillClose",
+        "show",
+        "relaunch",
+        "start",
+        "stop"
+      ],
+      "totalFuncs": 16
+    },
+    {
+      "relPath": "Sources/MacButler/SetupWindow.swift",
+      "name": "SetupWindow.swift",
+      "lines": 290,
+      "bytes": 19692,
+      "sha256": "798b712ab6a79031",
+      "imports": [
+        "AVFoundation",
+        "AppKit",
+        "CryptoKit",
+        "ScreenCaptureKit",
+        "Speech",
+        "SwiftUI"
+      ],
+      "types": [
+        "class SetupModel",
+        "enum SetupWindow",
+        "struct SetupView"
+      ],
+      "funcs": [
+        "previewVoice",
+        "save",
+        "refresh",
+        "openPane",
+        "download",
+        "urlSession",
+        "row",
+        "pickRow",
+        "shot",
+        "showIfNeeded",
+        "show"
+      ],
+      "totalFuncs": 11
+    },
+    {
+      "relPath": "Sources/MacButler/Strings.swift",
+      "name": "Strings.swift",
+      "lines": 63,
+      "bytes": 5241,
+      "sha256": "32a1505da78378e9",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "struct Strings"
+      ],
+      "funcs": [
+        "t",
+        "menuToggle",
+        "menuGreet",
+        "menuFolder",
+        "menuQuit",
+        "hotkeyHint"
+      ],
+      "totalFuncs": 6
+    },
+    {
+      "relPath": "Sources/MacButler/Timers.swift",
+      "name": "Timers.swift",
+      "lines": 47,
+      "bytes": 2178,
+      "sha256": "d9265e7e7d440af1",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum Timers",
+        "struct Item"
+      ],
+      "funcs": [
+        "add",
+        "restore",
+        "cancelLast",
+        "cancelAll",
+        "schedule",
+        "save"
+      ],
+      "totalFuncs": 6
+    },
+    {
+      "relPath": "Sources/MacButler/Utterances.swift",
+      "name": "Utterances.swift",
+      "lines": 24,
+      "bytes": 1486,
+      "sha256": "fb55384c30d28945",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "enum Utterances"
+      ],
+      "funcs": [
+        "keep"
+      ],
+      "totalFuncs": 1
+    },
+    {
+      "relPath": "Sources/MacButler/Whisper.swift",
+      "name": "Whisper.swift",
+      "lines": 221,
+      "bytes": 14701,
+      "sha256": "3cc8ded80a82edd7",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "class Whisper"
+      ],
+      "funcs": [
+        "warm",
+        "stop",
+        "transcribe",
+        "next",
+        "saidTwice",
+        "attempt",
+        "field",
+        "processName",
+        "clean",
+        "related",
+        "hangulize",
+        "dropRepeatedTail",
+        "shaky",
+        "hangulRatio",
+        "isHallucination",
+        "wav",
+        "u32",
+        "u16"
+      ],
+      "totalFuncs": 18
+    },
+    {
+      "relPath": "Sources/MacButler/Writer.swift",
+      "name": "Writer.swift",
+      "lines": 73,
+      "bytes": 5143,
+      "sha256": "020791610c4ac324",
+      "imports": [
+        "AppKit",
+        "ApplicationServices"
+      ],
+      "types": [
+        "enum Writer"
+      ],
+      "funcs": [
+        "instruction",
+        "selection",
+        "rewrite"
+      ],
+      "totalFuncs": 3
+    },
+    {
+      "relPath": "Sources/MacButler/main.swift",
+      "name": "main.swift",
+      "lines": 284,
+      "bytes": 18702,
+      "sha256": "f9d8de9e7c382469",
+      "imports": [
+        "AVFoundation",
+        "AppKit",
+        "Speech"
+      ],
+      "types": [
+        "class AppDelegate"
+      ],
+      "funcs": [
+        "applicationDidFinishLaunching",
+        "menuWillOpen",
+        "fixPermission",
+        "installHotkey",
+        "toggle",
+        "greet",
+        "forgetLearned",
+        "openSetup",
+        "openSettings",
+        "openFolder",
+        "quit",
+        "applicationWillTerminate",
+        "hear"
+      ],
+      "totalFuncs": 13
+    },
+    {
+      "relPath": "Tools/butler.swift",
+      "name": "butler.swift",
+      "lines": 61,
+      "bytes": 4948,
+      "sha256": "811d0a8224daa54b",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [],
+      "funcs": [
+        "butlerSend",
+        "hfGuard",
+        "block"
+      ],
+      "totalFuncs": 3
+    },
+    {
+      "relPath": "Tools/jax.swift",
+      "name": "jax.swift",
+      "lines": 325,
+      "bytes": 23603,
+      "sha256": "58203916e1170369",
+      "imports": [
+        "AppKit",
+        "ApplicationServices"
+      ],
+      "types": [],
+      "funcs": [
+        "butlerSend",
+        "attr",
+        "frame",
+        "label",
+        "guardApp",
+        "record",
+        "irreversibleKind",
+        "confirmIrreversible",
+        "appBundle",
+        "keyKind",
+        "nowLine",
+        "frontNow",
+        "walk",
+        "norm",
+        "pick",
+        "press"
+      ],
+      "totalFuncs": 16
+    },
+    {
+      "relPath": "Tools/mcp.swift",
+      "name": "mcp.swift",
+      "lines": 132,
+      "bytes": 9303,
+      "sha256": "54dfc610e6636902",
+      "imports": [
+        "Foundation"
+      ],
+      "types": [
+        "struct Tool"
+      ],
+      "funcs": [
+        "s",
+        "i",
+        "run",
+        "str",
+        "call",
+        "text",
+        "need",
+        "reply"
+      ],
+      "totalFuncs": 8
+    },
+    {
+      "relPath": "docs/make-gif.swift",
+      "name": "make-gif.swift",
+      "lines": 27,
+      "bytes": 1870,
+      "sha256": "b180556fe38d34c9",
+      "imports": [
+        "CoreGraphics",
+        "Foundation",
+        "ImageIO",
+        "UniformTypeIdentifiers"
+      ],
+      "types": [],
+      "funcs": [],
+      "totalFuncs": 0
+    }
+  ],
+  "allTypes": [
+    "AIUsage.swift:enum AIUsage",
+    "AIUsage.swift:struct Plan",
+    "AIUsage.swift:struct Window",
+    "APIBrain.swift:class APIBrain",
+    "APIBrain.swift:class ToolBoxClient",
+    "APIBrain.swift:enum Brains",
+    "APIBrain.swift:enum Keys",
+    "APIBrain.swift:protocol Thinker",
+    "APIBrain.swift:struct Provider",
+    "APIBrain.swift:struct Reply",
+    "AsideBrain.swift:class AsideBrain",
+    "AudioDevices.swift:enum AudioDevices",
+    "AudioDevices.swift:enum Sound",
+    "AudioDevices.swift:struct AudioDevice",
+    "BootScene.swift:class BootScene",
+    "BootScene.swift:enum SysInfo",
+    "BootScene.swift:struct Text",
+    "Brain.swift:class Brain",
+    "Butler.swift:class Butler",
+    "Butler.swift:enum Mode",
+    "ClaudeRelay.swift:enum ClaudeRelay",
+    "CodexBrain.swift:class CodexBrain",
+    "CodexBrain.swift:struct Caps",
+    "ComboBrain.swift:class ComboBrain",
+    "Commands.swift:enum Intent",
+    "Commands.swift:struct Parser",
+    "Config.swift:enum Paths",
+    "Config.swift:struct Config",
+    "Config.swift:struct ElevenLabsConfig",
+    "ControlSocket.swift:class ControlSocket",
+    "DemoFrames.swift:enum DemoFrames",
+    "DemoFrames.swift:struct Scene",
+    "DoubleTalk.swift:class DoubleTalk",
+    "Ear.swift:class Ear",
+    "EchoTest.swift:enum EchoTest",
+    "GrowTogether.swift:enum GrowTogether",
+    "GrowTogether.swift:struct State",
+    "HUD.swift:class HUD",
+    "HUD.swift:class OrbView",
+    "Hands.swift:enum AX",
+    "Hands.swift:enum Hands",
+    "Higgsfield.swift:class Higgsfield",
+    "Higgsfield.swift:struct HFError",
+    "Higgsfield.swift:struct Plan",
+    "KoreanReader.swift:enum KoreanReader",
+    "Learning.swift:enum Growth",
+    "Learning.swift:enum Learning",
+    "Learning.swift:enum Memory",
+    "Learning.swift:enum Usage",
+    "Learning.swift:struct Entry",
+    "Learning.swift:struct State",
+    "MicCapture.swift:class MicCapture",
+    "Mouth.swift:class Mouth",
+    "NameModel.swift:enum NameModel",
+    "NameTraining.swift:class NameTrainer",
+    "NameTraining.swift:struct Result",
+    "NameTraining.swift:struct Sample",
+    "Polish.swift:enum Polish",
+    "ProAccount.swift:enum ProAccount",
+    "ProAccount.swift:struct Status",
+    "Router.swift:class Router",
+    "Router.swift:enum Aliases",
+    "Routines.swift:enum Routines",
+    "SelfTest.swift:enum SelfTest",
+    "SettingsWindow.swift:class Closer",
+    "SettingsWindow.swift:class NameTrainingModel",
+    "SettingsWindow.swift:class SettingsModel",
+    "SettingsWindow.swift:enum SettingsWindow",
+    "SettingsWindow.swift:struct Choice",
+    "SettingsWindow.swift:struct EngineMenu",
+    "SettingsWindow.swift:struct NameTrainingRow",
+    "SettingsWindow.swift:struct Note",
+    "SettingsWindow.swift:struct SettingsView",
+    "SettingsWindow.swift:struct UsageBar",
+    "SetupWindow.swift:class SetupModel",
+    "SetupWindow.swift:enum SetupWindow",
+    "SetupWindow.swift:struct SetupView",
+    "Strings.swift:struct Strings",
+    "Timers.swift:enum Timers",
+    "Timers.swift:struct Item",
+    "Utterances.swift:enum Utterances",
+    "Whisper.swift:class Whisper",
+    "Writer.swift:enum Writer",
+    "main.swift:class AppDelegate",
+    "mcp.swift:struct Tool"
+  ],
+  "allFunctions": [
+    "AIUsage.swift#daily()",
+    "AIUsage.swift#findRateLimits()",
+    "AIUsage.swift#load()",
+    "AIUsage.swift#noteClaude()",
+    "AIUsage.swift#refreshCodex()",
+    "AIUsage.swift#save()",
+    "APIBrain.swift#anthropicTurn()",
+    "APIBrain.swift#approxSize()",
+    "APIBrain.swift#ask()",
+    "APIBrain.swift#ask()",
+    "APIBrain.swift#call()",
+    "APIBrain.swift#cancel()",
+    "APIBrain.swift#cancel()",
+    "APIBrain.swift#cancel()",
+    "APIBrain.swift#get()",
+    "APIBrain.swift#get()",
+    "APIBrain.swift#lookup()",
+    "APIBrain.swift#make()",
+    "APIBrain.swift#openAITurn()",
+    "APIBrain.swift#post()",
+    "APIBrain.swift#provider()",
+    "APIBrain.swift#ready()",
+    "APIBrain.swift#remove()",
+    "APIBrain.swift#request()",
+    "APIBrain.swift#resolveModel()",
+    "APIBrain.swift#run()",
+    "APIBrain.swift#safeBase()",
+    "APIBrain.swift#say()",
+    "APIBrain.swift#send()",
+    "APIBrain.swift#set()",
+    "APIBrain.swift#start()",
+    "APIBrain.swift#stop()",
+    "APIBrain.swift#stop()",
+    "APIBrain.swift#stop()",
+    "APIBrain.swift#systemPrompt()",
+    "APIBrain.swift#warm()",
+    "APIBrain.swift#warm()",
+    "AsideBrain.swift#answer()",
+    "AsideBrain.swift#ask()",
+    "AsideBrain.swift#cancel()",
+    "AsideBrain.swift#clean()",
+    "AsideBrain.swift#feed()",
+    "AsideBrain.swift#finish()",
+    "AsideBrain.swift#sessionID()",
+    "AsideBrain.swift#stop()",
+    "AsideBrain.swift#warm()",
+    "AudioDevices.swift#all()",
+    "AudioDevices.swift#defaultInputUID()",
+    "AudioDevices.swift#defaultOutputName()",
+    "AudioDevices.swift#device()",
+    "AudioDevices.swift#file()",
+    "AudioDevices.swift#hasStreams()",
+    "AudioDevices.swift#inputs()",
+    "AudioDevices.swift#micUsers()",
+    "AudioDevices.swift#named()",
+    "AudioDevices.swift#outputBusy()",
+    "AudioDevices.swift#outputs()",
+    "AudioDevices.swift#play()",
+    "AudioDevices.swift#soft()",
+    "AudioDevices.swift#use()",
+    "BootScene.swift#diskFreeGB()",
+    "BootScene.swift#label()",
+    "BootScene.swift#memory()",
+    "BootScene.swift#model()",
+    "BootScene.swift#play()",
+    "BootScene.swift#ring()",
+    "BootScene.swift#synthChime()",
+    "BootScene.swift#ticks()",
+    "BootScene.swift#type()",
+    "Brain.swift#ask()",
+    "Brain.swift#cancel()",
+    "Brain.swift#commandLine()",
+    "Brain.swift#ensure()",
+    "Brain.swift#feed()",
+    "Brain.swift#finish()",
+    "Brain.swift#handle()",
+    "Brain.swift#mcpConfig()",
+    "Brain.swift#permissionArgs()",
+    "Brain.swift#q()",
+    "Brain.swift#stepLabel()",
+    "Brain.swift#stepLabel()",
+    "Brain.swift#stop()",
+    "Brain.swift#systemPrompt()",
+    "Brain.swift#systemPrompt()",
+    "Brain.swift#turnText()",
+    "Brain.swift#warm()",
+    "Butler.swift#answerAction()",
+    "Butler.swift#answerFreeMode()",
+    "Butler.swift#answerHF()",
+    "Butler.swift#answerPending()",
+    "Butler.swift#ask()",
+    "Butler.swift#askToDelegate()",
+    "Butler.swift#bargeIn()",
+    "Butler.swift#bargeInByVoice()",
+    "Butler.swift#browserApp()",
+    "Butler.swift#canBargeIn()",
+    "Butler.swift#checkCalls()",
+    "Butler.swift#claudeMacro()",
+    "Butler.swift#closeEmptySafariWindows()",
+    "Butler.swift#closeOpened()",
+    "Butler.swift#closeTabs()",
+    "Butler.swift#closeTabs()",
+    "Butler.swift#closeVideos()",
+    "Butler.swift#command()",
+    "Butler.swift#confirmAction()",
+    "Butler.swift#converse()",
+    "Butler.swift#cpuSeconds()",
+    "Butler.swift#delegateFromBrain()",
+    "Butler.swift#dictate()",
+    "Butler.swift#done()",
+    "Butler.swift#dropEcho()",
+    "Butler.swift#enc()",
+    "Butler.swift#ensurePlaying()",
+    "Butler.swift#fail()",
+    "Butler.swift#finishRemote()",
+    "Butler.swift#glossary()",
+    "Butler.swift#goIdle()",
+    "Butler.swift#greet()",
+    "Butler.swift#handle()",
+    "Butler.swift#higgsfield()",
+    "Butler.swift#holdBegan()",
+    "Butler.swift#holdCancelled()",
+    "Butler.swift#holdEnded()",
+    "Butler.swift#isEcho()",
+    "Butler.swift#isQuick()",
+    "Butler.swift#kakaoReply()",
+    "Butler.swift#keepForPaste()",
+    "Butler.swift#listenForSignals()",
+    "Butler.swift#manualWake()",
+    "Butler.swift#media()",
+    "Butler.swift#memoryMB()",
+    "Butler.swift#nameByWhisper()",
+    "Butler.swift#nameTraining()",
+    "Butler.swift#noFreeText()",
+    "Butler.swift#noteOpened()",
+    "Butler.swift#noteOpened()",
+    "Butler.swift#noteOpened()",
+    "Butler.swift#offerFreeMode()",
+    "Butler.swift#onset()",
+    "Butler.swift#open()",
+    "Butler.swift#openClaudeSession()",
+    "Butler.swift#parseYouTube()",
+    "Butler.swift#partial()",
+    "Butler.swift#played()",
+    "Butler.swift#refine()",
+    "Butler.swift#remoteSaid()",
+    "Butler.swift#remoteSettle()",
+    "Butler.swift#routeOrAsk()",
+    "Butler.swift#runRemote()",
+    "Butler.swift#safeHost()",
+    "Butler.swift#screenContext()",
+    "Butler.swift#showPendingAction()",
+    "Butler.swift#shutdown()",
+    "Butler.swift#signal()",
+    "Butler.swift#speak()",
+    "Butler.swift#speakable()",
+    "Butler.swift#start()",
+    "Butler.swift#studyWords()",
+    "Butler.swift#timerFired()",
+    "Butler.swift#trainCard()",
+    "Butler.swift#userAskedFor()",
+    "Butler.swift#utterance()",
+    "Butler.swift#youtube()",
+    "ClaudeRelay.swift#ask()",
+    "ClaudeRelay.swift#clearBest()",
+    "ClaudeRelay.swift#compose()",
+    "ClaudeRelay.swift#directOrder()",
+    "ClaudeRelay.swift#invented()",
+    "ClaudeRelay.swift#isQuote()",
+    "ClaudeRelay.swift#pick()",
+    "ClaudeRelay.swift#score()",
+    "ClaudeRelay.swift#stripFiller()",
+    "CodexBrain.swift#arguments()",
+    "CodexBrain.swift#ask()",
+    "CodexBrain.swift#cancel()",
+    "CodexBrain.swift#capabilities()",
+    "CodexBrain.swift#feed()",
+    "CodexBrain.swift#finish()",
+    "CodexBrain.swift#handle()",
+    "CodexBrain.swift#listedModels()",
+    "CodexBrain.swift#model()",
+    "CodexBrain.swift#q()",
+    "CodexBrain.swift#run()",
+    "CodexBrain.swift#stop()",
+    "CodexBrain.swift#warm()",
+    "ComboBrain.swift#ask()",
+    "ComboBrain.swift#brain()",
+    "ComboBrain.swift#cancel()",
+    "ComboBrain.swift#pick()",
+    "ComboBrain.swift#stop()",
+    "ComboBrain.swift#warm()",
+    "Commands.swift#actions()",
+    "Commands.swift#alsoStops()",
+    "Commands.swift#app()",
+    "Commands.swift#browserNav()",
+    "Commands.swift#cancelledAtEnd()",
+    "Commands.swift#carriesOtherJob()",
+    "Commands.swift#clean()",
+    "Commands.swift#clock()",
+    "Commands.swift#closeTabs()",
+    "Commands.swift#closesVideo()",
+    "Commands.swift#dropLeadIn()",
+    "Commands.swift#instant()",
+    "Commands.swift#isBye()",
+    "Commands.swift#isCancelTimers()",
+    "Commands.swift#isCloseOpened()",
+    "Commands.swift#isCompound()",
+    "Commands.swift#isDisplayOff()",
+    "Commands.swift#isGreeting()",
+    "Commands.swift#isHush()",
+    "Commands.swift#isNext()",
+    "Commands.swift#isOther()",
+    "Commands.swift#kakaoReply()",
+    "Commands.swift#mailSite()",
+    "Commands.swift#mapPlace()",
+    "Commands.swift#match()",
+    "Commands.swift#mediaControl()",
+    "Commands.swift#num()",
+    "Commands.swift#ordinal()",
+    "Commands.swift#ourAddress()",
+    "Commands.swift#parse()",
+    "Commands.swift#rewriteStyle()",
+    "Commands.swift#seek()",
+    "Commands.swift#siteAction()",
+    "Commands.swift#splitCommands()",
+    "Commands.swift#squash()",
+    "Commands.swift#startedMedia()",
+    "Commands.swift#stripAsk()",
+    "Commands.swift#stripWake()",
+    "Commands.swift#timer()",
+    "Commands.swift#volume()",
+    "Commands.swift#wakeRange()",
+    "Config.swift#dotenv()",
+    "Config.swift#fill()",
+    "Config.swift#handyVocabulary()",
+    "Config.swift#hangulReading()",
+    "Config.swift#load()",
+    "Config.swift#log()",
+    "Config.swift#set()",
+    "Config.swift#soundAlike()",
+    "Config.swift#voiceFile()",
+    "Config.swift#which()",
+    "ControlSocket.swift#start()",
+    "ControlSocket.swift#stop()",
+    "DemoFrames.swift#compose()",
+    "DemoFrames.swift#displayAll()",
+    "DemoFrames.swift#frame()",
+    "DemoFrames.swift#run()",
+    "DoubleTalk.swift#begin()",
+    "DoubleTalk.swift#end()",
+    "DoubleTalk.swift#isUser()",
+    "DoubleTalk.swift#listen()",
+    "DoubleTalk.swift#periodicity()",
+    "DoubleTalk.swift#played()",
+    "Ear.swift#beginHold()",
+    "Ear.swift#cancelHold()",
+    "Ear.swift#endHold()",
+    "Ear.swift#flush()",
+    "Ear.swift#forceFlush()",
+    "Ear.swift#isReset()",
+    "Ear.swift#markSegmentNow()",
+    "Ear.swift#observeEngine()",
+    "Ear.swift#process()",
+    "Ear.swift#restart()",
+    "Ear.swift#restartEngine()",
+    "Ear.swift#segment()",
+    "Ear.swift#soundsFinished()",
+    "Ear.swift#start()",
+    "Ear.swift#startEngine()",
+    "Ear.swift#tick()",
+    "EchoTest.swift#run()",
+    "GrowTogether.swift#askIfNeeded()",
+    "GrowTogether.swift#cleanSaid()",
+    "GrowTogether.swift#download()",
+    "GrowTogether.swift#isShareable()",
+    "GrowTogether.swift#lookup()",
+    "GrowTogether.swift#payload()",
+    "GrowTogether.swift#saveState()",
+    "GrowTogether.swift#sync()",
+    "GrowTogether.swift#upload()",
+    "GrowTogether.swift#veto()",
+    "HUD.swift#body()",
+    "HUD.swift#expand()",
+    "HUD.swift#hideAll()",
+    "HUD.swift#idle()",
+    "HUD.swift#layout()",
+    "HUD.swift#level()",
+    "HUD.swift#paint()",
+    "HUD.swift#positions()",
+    "HUD.swift#setColor()",
+    "HUD.swift#setSpeed()",
+    "HUD.swift#setStatus()",
+    "HUD.swift#show()",
+    "Hands.swift#app()",
+    "Hands.swift#attr()",
+    "Hands.swift#button()",
+    "Hands.swift#composer()",
+    "Hands.swift#focus()",
+    "Hands.swift#focusedIsSecure()",
+    "Hands.swift#frame()",
+    "Hands.swift#key()",
+    "Hands.swift#mediaKey()",
+    "Hands.swift#norm()",
+    "Hands.swift#paste()",
+    "Hands.swift#playPause()",
+    "Hands.swift#press()",
+    "Hands.swift#session()",
+    "Hands.swift#showSidebar()",
+    "Hands.swift#typeVisible()",
+    "Hands.swift#walk()",
+    "Hands.swift#windows()",
+    "Higgsfield.swift#generate()",
+    "Higgsfield.swift#history()",
+    "Higgsfield.swift#lastJSON()",
+    "Higgsfield.swift#number()",
+    "Higgsfield.swift#quote()",
+    "Higgsfield.swift#remember()",
+    "Higgsfield.swift#request()",
+    "Higgsfield.swift#run()",
+    "Higgsfield.swift#save()",
+    "Higgsfield.swift#setGuard()",
+    "Higgsfield.swift#spentToday()",
+    "Higgsfield.swift#stop()",
+    "KoreanReader.swift#latinModels()",
+    "KoreanReader.swift#native()",
+    "KoreanReader.swift#read()",
+    "KoreanReader.swift#sino()",
+    "KoreanReader.swift#under10000()",
+    "Learning.swift#append()",
+    "Learning.swift#exchange()",
+    "Learning.swift#fastHit()",
+    "Learning.swift#forget()",
+    "Learning.swift#key()",
+    "Learning.swift#lookup()",
+    "Learning.swift#miss()",
+    "Learning.swift#missReport()",
+    "Learning.swift#note()",
+    "Learning.swift#promptBlock()",
+    "Learning.swift#record()",
+    "Learning.swift#remember()",
+    "Learning.swift#replay()",
+    "Learning.swift#replayable()",
+    "Learning.swift#save()",
+    "Learning.swift#save()",
+    "Learning.swift#study()",
+    "Learning.swift#sweep()",
+    "Learning.swift#today()",
+    "Learning.swift#tokens()",
+    "Learning.swift#used()",
+    "Learning.swift#words()",
+    "MicCapture.swift#captureOutput()",
+    "MicCapture.swift#start()",
+    "MicCapture.swift#stop()",
+    "Mouth.swift#audioPlayerDidFinishPlaying()",
+    "Mouth.swift#bestVoice()",
+    "Mouth.swift#complete()",
+    "Mouth.swift#eleven()",
+    "Mouth.swift#fetch()",
+    "Mouth.swift#json()",
+    "Mouth.swift#play()",
+    "Mouth.swift#playFile()",
+    "Mouth.swift#playOnDevice()",
+    "Mouth.swift#rank()",
+    "Mouth.swift#rms()",
+    "Mouth.swift#say()",
+    "Mouth.swift#sayCommand()",
+    "Mouth.swift#speak()",
+    "Mouth.swift#speechRequest()",
+    "Mouth.swift#stop()",
+    "NameModel.swift#phrases()",
+    "NameModel.swift#prepare()",
+    "NameTraining.swift#close()",
+    "NameTraining.swift#command()",
+    "NameTraining.swift#distance()",
+    "NameTraining.swift#hits()",
+    "NameTraining.swift#jamo()",
+    "NameTraining.swift#norm()",
+    "NameTraining.swift#parser()",
+    "NameTraining.swift#prompt()",
+    "NameTraining.swift#result()",
+    "NameTraining.swift#save()",
+    "NameTraining.swift#take()",
+    "NameTraining.swift#usable()",
+    "NameTraining.swift#verdict()",
+    "NameTraining.swift#withoutCommand()",
+    "Polish.swift#handyPrompt()",
+    "Polish.swift#run()",
+    "ProAccount.swift#authed()",
+    "ProAccount.swift#call()",
+    "ProAccount.swift#link()",
+    "ProAccount.swift#refresh()",
+    "ProAccount.swift#reply()",
+    "ProAccount.swift#speechRequest()",
+    "ProAccount.swift#startRemote()",
+    "ProAccount.swift#unlink()",
+    "Router.swift#ensure()",
+    "Router.swift#feed()",
+    "Router.swift#forget()",
+    "Router.swift#learn()",
+    "Router.swift#lookup()",
+    "Router.swift#prompt()",
+    "Router.swift#reply()",
+    "Router.swift#route()",
+    "Router.swift#stop()",
+    "Router.swift#warm()",
+    "Routines.swift#load()",
+    "Routines.swift#match()",
+    "Routines.swift#remove()",
+    "Routines.swift#save()",
+    "Routines.swift#write()",
+    "SelfTest.swift#check()",
+    "SelfTest.swift#checkBool()",
+    "SelfTest.swift#run()",
+    "SettingsWindow.swift#keyHint()",
+    "SettingsWindow.swift#linkPro()",
+    "SettingsWindow.swift#preview()",
+    "SettingsWindow.swift#refreshPro()",
+    "SettingsWindow.swift#refreshUsage()",
+    "SettingsWindow.swift#relaunch()",
+    "SettingsWindow.swift#save()",
+    "SettingsWindow.swift#sayVoices()",
+    "SettingsWindow.swift#short()",
+    "SettingsWindow.swift#shot()",
+    "SettingsWindow.swift#show()",
+    "SettingsWindow.swift#start()",
+    "SettingsWindow.swift#stop()",
+    "SettingsWindow.swift#unlinkPro()",
+    "SettingsWindow.swift#when()",
+    "SettingsWindow.swift#windowWillClose()",
+    "SetupWindow.swift#download()",
+    "SetupWindow.swift#openPane()",
+    "SetupWindow.swift#pickRow()",
+    "SetupWindow.swift#previewVoice()",
+    "SetupWindow.swift#refresh()",
+    "SetupWindow.swift#row()",
+    "SetupWindow.swift#save()",
+    "SetupWindow.swift#shot()",
+    "SetupWindow.swift#show()",
+    "SetupWindow.swift#showIfNeeded()",
+    "SetupWindow.swift#urlSession()",
+    "SetupWindow.swift#urlSession()",
+    "SetupWindow.swift#urlSession()",
+    "Strings.swift#hotkeyHint()",
+    "Strings.swift#menuFolder()",
+    "Strings.swift#menuGreet()",
+    "Strings.swift#menuQuit()",
+    "Strings.swift#menuToggle()",
+    "Strings.swift#t()",
+    "Timers.swift#add()",
+    "Timers.swift#cancelAll()",
+    "Timers.swift#cancelLast()",
+    "Timers.swift#restore()",
+    "Timers.swift#save()",
+    "Timers.swift#schedule()",
+    "Utterances.swift#keep()",
+    "Whisper.swift#attempt()",
+    "Whisper.swift#clean()",
+    "Whisper.swift#dropRepeatedTail()",
+    "Whisper.swift#field()",
+    "Whisper.swift#hangulRatio()",
+    "Whisper.swift#hangulize()",
+    "Whisper.swift#isHallucination()",
+    "Whisper.swift#next()",
+    "Whisper.swift#processName()",
+    "Whisper.swift#related()",
+    "Whisper.swift#saidTwice()",
+    "Whisper.swift#shaky()",
+    "Whisper.swift#stop()",
+    "Whisper.swift#transcribe()",
+    "Whisper.swift#u16()",
+    "Whisper.swift#u32()",
+    "Whisper.swift#warm()",
+    "Whisper.swift#wav()",
+    "Writer.swift#instruction()",
+    "Writer.swift#rewrite()",
+    "Writer.swift#selection()",
+    "butler.swift#block()",
+    "butler.swift#butlerSend()",
+    "butler.swift#hfGuard()",
+    "jax.swift#appBundle()",
+    "jax.swift#attr()",
+    "jax.swift#butlerSend()",
+    "jax.swift#confirmIrreversible()",
+    "jax.swift#frame()",
+    "jax.swift#frontNow()",
+    "jax.swift#guardApp()",
+    "jax.swift#irreversibleKind()",
+    "jax.swift#keyKind()",
+    "jax.swift#label()",
+    "jax.swift#norm()",
+    "jax.swift#nowLine()",
+    "jax.swift#pick()",
+    "jax.swift#press()",
+    "jax.swift#record()",
+    "jax.swift#walk()",
+    "main.swift#applicationDidFinishLaunching()",
+    "main.swift#applicationWillTerminate()",
+    "main.swift#fixPermission()",
+    "main.swift#forgetLearned()",
+    "main.swift#greet()",
+    "main.swift#hear()",
+    "main.swift#installHotkey()",
+    "main.swift#menuWillOpen()",
+    "main.swift#openFolder()",
+    "main.swift#openSettings()",
+    "main.swift#openSetup()",
+    "main.swift#quit()",
+    "main.swift#toggle()",
+    "mcp.swift#call()",
+    "mcp.swift#i()",
+    "mcp.swift#need()",
+    "mcp.swift#reply()",
+    "mcp.swift#run()",
+    "mcp.swift#s()",
+    "mcp.swift#str()",
+    "mcp.swift#text()"
+  ],
+  "intents": [
+    "greet",
+    "type(String)",
+    "claude(target: String, message: String, newSession: Bool)",
+    "youtube(String)",
+    "youtubeNth(Int)",
+    "seek(Int)",
+    "mailNth(Int)",
+    "higgsfield(String)",
+    "search(String)",
+    "web(label: String, query: String, url: String)",
+    "remember(String)",
+    "media(play: Bool)",
+    "closeTabs(label: String, host: String)",
+    "mediaNext",
+    "displayOff",
+    "closeOpened",
+    "browser(String)",
+    "volume(set: Int?, delta: Int, mute: Bool)",
+    "clock(date: Bool)",
+    "timer(seconds: Int, label: String)",
+    "cancelTimers",
+    "map(String)",
+    "multi([String])",
+    "routine(String)",
+    "rewrite(String)",
+    "undo",
+    "whatDid",
+    "makeRoutine(name: String, steps: [String])",
+    "badRoutine(String)",
+    "forgetRoutine(String)",
+    "openApp(spoken: String, app: String)",
+    "kakaoReply(to: String, text: String)",
+    "kakaoType(to: String, text: String)",
+    "none"
+  ],
+  "cssTokens": [
+    "--blue: #2563eb",
+    "--c: #4dd9ff",
+    "--c: #ffb840}.tut .hud.lime{--c:#73ff99}\r\n.tut .hud.pop{transform:translateY(-3px)}\r\n.tut .htxt{flex:1",
+    "--card: #ffffff",
+    "--green: #16a34a",
+    "--ink: #0b0d12",
+    "--line: #eceef2",
+    "--max: 1180px",
+    "--mute: #9aa1ad",
+    "--pad: 24px",
+    "--sky1: #9fe3ff",
+    "--sky2: #cdeffd",
+    "--sky3: #eef9ff",
+    "--soft: #f7f8fa",
+    "--sub: #6b7280"
+  ],
+  "cleanRoomMap": [
+    {
+      "upstreamFile": "Sources/MacButler/main.swift",
+      "upstreamRole": "NSApplication + NSStatusBar (◉S) + CGEvent rightOption tap/0.3s hold + 6-item permission check",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\public\\index.html + public/js/jarvis-app.js (Top MenuBar ◉J + Alt/Space Tap & 0.3s Hold Push-to-Talk)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/BootScene.swift",
+      "upstreamRole": "Full-screen Arc Reactor (R=330, 120/12 ticks, conic radar, 7 counter-rotating rings, synthChime 44.1kHz, real RAM/Disk boot log, fly-to-orb)",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\public\\js\\jarvis-app.js (WebAudio 44.1kHz synthChime + SVG/CSS Arc Reactor R=330 + Windows OS RAM/Disk telemetry + Fly-to-Orb)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/HUD.swift",
+      "upstreamRole": "NSPanel (980x168) + OrbView (128x128, 3 dashed rings, radial core, audio level reactive) + cyan/amber/lime + 5 screen positions",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\public\\css\\jarvis-sasarisa.css + jarvis-app.js (980px HUD Card + 128px 3-Ring Orb + 5 positions + live mic level)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/Ear.swift & Whisper.swift",
+      "upstreamRole": "AVAudioEngine 16kHz + SFSpeechRecognizer live partials + whisper.cpp (ggml-large-v3-turbo-q8_0.bin) + AGC",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\scripts\\windows-ear-daemon.js + Web Speech API + Local Whisper API bridge + WebAudio AnalyserNode AGC",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/Mouth.swift & DoubleTalk.swift",
+      "upstreamRole": "AVSpeechSynthesizer (Yuna Premium) / ElevenLabs / OpenAI / Azure + Echo & Barge-in detection",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\server.js (msedge-tts 96kbps ko-KR-SunHiNeural / InJoonNeural + Windows SAPI fallback + Barge-in cut)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/Commands.swift & Router.swift",
+      "upstreamRole": "Deterministic Korean Parser (34 Intent cases, soundAlike Hangul regex, Aliases 0-token cache, Fast Router)",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\scripts\\butler-engine.js (34 Intent deterministic parser + Hangul soundAlike + aliases.json 0-token replay)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/Butler.swift",
+      "upstreamRole": "Core state machine (idle/awake/dictation/busy/speaking), YouTube #1~#5, Coupang/Naver, Kakao previewBeforeSend, Undo, Routines",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\scripts\\butler-engine.js (Full state machine, real YouTube search + #1~#5 pick, 20s previewBeforeSend [응]/[아니], Undo, Routines)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/SetupWindow.swift & SettingsWindow.swift",
+      "upstreamRole": "SwiftUI First-Run Setup Checklist (6 checks + Whisper download) & Full Settings Form (Basics, Learning, Mic/Speaker, Voice, Usage, Brain)",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\public\\index.html + jarvis-app.js (Interactive Setup Modal & Full 7-Section Settings Modal editing config.json)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Sources/MacButler/Learning.swift & GrowTogether.swift",
+      "upstreamRole": "learned.json (3x repeat auto-promotion), memory.md, usage.json (7-day chart), shared-aliases.json (GrowTogether)",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\data\\ (config.json, aliases.json, learned.json, memory.md, usage.json, shared-aliases.json)",
+      "status": "동등성 미검증"
+    },
+    {
+      "upstreamFile": "Tools/jax.swift & Hands.swift",
+      "upstreamRole": "macOS AXUIElement CLI (list, front, tap, field, key, volume, open-app, open-url) without moving user mouse",
+      "windowsEquivalent": "과거 설계상 대응 관계 (구현 및 기능은 별도 확인 필요): C:\\자비스\\scripts\\butler-engine.js (Windows PowerShell UIAutomation / SendKeys / WScript.Shell volume / Start-Process)",
+      "status": "동등성 미검증"
+    }
+  ]
+}

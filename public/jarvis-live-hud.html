@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS HUD Live Screen — Collapsible Sub-Windows & Sovereign BSC Bridge</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes spinCW { to { transform: rotate(360deg); } }
+    @keyframes spinCCW { to { transform: rotate(-360deg); } }
+    @keyframes eqPulse {
+      0%, 100% { height: 4px; }
+      50% { height: 14px; }
+    }
+    .orb-r1 { animation: spinCW 9s linear infinite; }
+    .orb-r2 { animation: spinCCW 6s linear infinite; }
+    .orb-r3 { animation: spinCW 3.8s linear infinite; }
+    .fast .orb-r1 { animation-duration: 3.0s; }
+    .fast .orb-r2 { animation-duration: 1.8s; }
+    .fast .orb-r3 { animation-duration: 1.1s; }
+    .eq-bar-1 { animation: eqPulse 0.7s ease-in-out infinite; }
+    .eq-bar-2 { animation: eqPulse 0.5s ease-in-out infinite 0.15s; }
+    .eq-bar-3 { animation: eqPulse 0.8s ease-in-out infinite 0.3s; }
+    body {
+      font-family: 'Malgun Gothic', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-[#06090F] text-[#F0F6FC] antialiased p-4 select-none">
+
+  <div class="max-w-[760px] mx-auto flex flex-col gap-2.5 relative">
+
+    <!-- =================================================================== -->
+    <!-- 1. FIXED TOP MASTER HUD PILL (1:1 Match with JarvisMonitorOverlay)  -->
+    <!--    Top-Right Corner Gear Icon ONLY (No inline 음악끄기/설정 btns)   -->
+    <!-- =================================================================== -->
+    <div id="hudCard" class="relative flex items-center gap-4 px-5 py-4 rounded-[26px] border-2 border-[#4DD9FF] bg-[#050B16]/95 shadow-[0_0_28px_rgba(77,217,255,0.28)] transition-all">
+
+      <!-- Top-Right Menu [☰ 메뉴] + Settings Gear [⚙] Icons -->
+      <div class="absolute top-3.5 right-3.5 flex items-center gap-1.5 z-10">
+        <button id="btnTopMenu" title="서브 미니 창 메뉴 열기/접기 (터미널 · BeausCreators CHLGD · 미니 뮤직 컨트롤러)"
+          class="px-2.5 h-7 rounded-lg bg-[#388BFD]/20 hover:bg-[#4DD9FF]/30 border border-[#4DD9FF]/70 hover:border-[#4DD9FF] flex items-center gap-1 text-[11.5px] font-bold text-[#79C0FF] hover:text-white transition cursor-pointer">
+          <span>☰ 메뉴</span>
+        </button>
+        <button id="btnTopGear" title="환경설정 (요금제 · AI 모델 · 음성 속도 · 단축키)"
+          class="w-7 h-7 rounded-lg bg-white/[0.08] hover:bg-[#4DD9FF]/25 border border-white/20 hover:border-[#4DD9FF] flex items-center justify-center text-[#C8DCF0] hover:text-white transition cursor-pointer">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Left Concentric Voice Orb (Click to Speak) -->
+      <div id="orbWrap" class="relative w-[84px] h-[84px] shrink-0 cursor-pointer flex items-center justify-center" title="클릭하여 음성으로 말하기">
+        <div id="orbR1" class="orb-r1 absolute inset-0.5 rounded-full border-2 border-dashed border-[#4DD9FF]"></div>
+        <div id="orbR2" class="orb-r2 absolute inset-2.5 rounded-full border-[1.5px] border-dashed border-[#4DD9FF]/80"></div>
+        <div id="orbR3" class="orb-r3 absolute inset-4 rounded-full border-2 border-dotted border-[#4DD9FF]/75"></div>
+        <div id="orbCore" class="w-6 h-6 rounded-full bg-[#4DD9FF] shadow-[0_0_20px_#4DD9FF] transition-transform duration-100"></div>
+      </div>
+
+      <!-- Center HUD Content Column -->
+      <div class="flex-1 min-w-0 pr-8">
+        <!-- Row 1: Status + Active Tier/Model Pill -->
+        <div class="flex items-center gap-2.5">
+          <div id="hudTitle" class="text-[14px] font-extrabold text-[#4DD9FF] truncate">
+            ○ 상시 대기 · 받아 적는 중
+          </div>
+          <span id="hudActiveBrainBadge" class="px-2 py-0.5 rounded-md bg-[#161B22] border border-[#262C36] text-[11px] font-mono text-[#79C0FF] shrink-0">
+            ULTRA · gemini-4-argon · 1.25x
+          </span>
+        </div>
+
+        <!-- Row 2: Main Bold Display Line -->
+        <div id="hudMainBody" class="text-[19px] font-extrabold text-white leading-snug mt-1 truncate">
+          “깃 상태 확인해줘” / “CHLGD 코드 검증 돌려줘” / “유튜브 로파이 틀어줘”
+        </div>
+
+        <!-- Row 3: Quick Command Input + Send Button ONLY -->
+        <div class="flex items-center gap-2 mt-2.5">
+          <input id="cmdInput" type="text"
+            placeholder="HUD 오더 입력 (터미널 작업 · BeausCreators CHLGD 협력 · 유튜브 음악 재생)"
+            class="flex-1 h-[31px] px-3.5 rounded-xl bg-[#0A1426]/80 border border-[#4DD9FF]/70 focus:border-[#4DD9FF] text-[13px] text-white placeholder-slate-400 outline-none select-text" />
+          <button id="btnRun" class="h-[31px] px-4 rounded-xl bg-[#4DD9FF]/20 hover:bg-[#4DD9FF]/35 border border-[#4DD9FF] text-[12.5px] font-extrabold text-white cursor-pointer transition">
+            전송
+          </button>
+          <button id="btnYes" class="hidden h-[31px] px-3.5 rounded-xl bg-emerald-500/25 border border-emerald-400 text-[12px] font-bold text-emerald-300 cursor-pointer">
+            응 (실행)
+          </button>
+          <button id="btnNo" class="hidden h-[31px] px-3.5 rounded-xl bg-rose-500/25 border border-rose-400 text-[12px] font-bold text-rose-300 cursor-pointer">
+            아니 (취소)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 2. COLLAPSIBLE SUB-WINDOW 1: ⚡ 실시간 작업 · 터미널 진행 미니 창    -->
+    <!--    (접었다 펼칠 수 있는 실시간 터미널 / CHLGD / BSC 협력 콘솔)      -->
+    <!-- =================================================================== -->
+    <div id="taskSubWindow" class="rounded-[14px] border border-[#30363D] bg-[#0D1117]/95 shadow-lg overflow-hidden transition-all">
+      <!-- Header Bar (Click to Collapse / Expand) -->
+      <div id="taskHeaderBar" class="flex items-center justify-between gap-2 px-3.5 py-2 bg-[#161B22] cursor-pointer">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-2 h-2 rounded-full bg-[#388BFD] animate-pulse shrink-0" id="taskPulseDot"></span>
+          <span id="taskDrawerTitle" class="text-[12px] font-bold text-[#79C0FF] truncate">
+            ⚡ 실시간 작업 · 터미널 &amp; BeausCreators CHLGD 진행 창
+          </span>
+          <span id="taskDrawerStep" class="text-[11px] text-[#8B949E] shrink-0">
+            대기 중 (명령 실행 시 실시간 스트리밍)
+          </span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btnToggleTaskDrawer" class="px-2 py-0.5 rounded bg-[#21262D] hover:bg-[#30363D] text-[10.5px] font-semibold text-[#C9D1D9] cursor-pointer">
+            ▲ 접기
+          </button>
+          <button id="btnStopTaskDrawer" class="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-[10.5px] font-semibold text-rose-300 cursor-pointer">
+            중단
+          </button>
+          <button id="btnCloseTaskDrawer" class="px-1.5 py-0.5 rounded bg-[#21262D] hover:bg-[#30363D] text-[10.5px] text-[#8B949E] hover:text-white cursor-pointer" title="미니 창 숨기기">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Body -->
+      <div id="taskDrawerBody" class="p-3 bg-[#0D1117]">
+        <div id="taskConsoleLogs" class="rounded-lg bg-[#090C10] border border-[#21262D] p-2.5 font-mono text-[11px] text-[#C9D1D9] leading-relaxed whitespace-pre-wrap max-h-[115px] overflow-y-auto select-text">[JARVIS Sovereign Butler ↔ C:\BeausCreators CHLGD Bridge Ready]
+• 인지된 에이전트: 26명 (소하 · 태준 · 거누 · 서진 · 유나 · 우진 · 수호 · 시안 · 재호 등)
+• 연동된 파이프라인: Start-Context.js / Verify-Code.ps1 / Finalize-Work.ps1 / .py / Git CI-CD
+&gt; HUD에서 터미널 또는 CHLGD 오더를 내리시면 실시간 출력이 여기에 표시됩니다.</div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 3. COLLAPSIBLE SUB-WINDOW 2: 🎵 미니 뮤직 · 유튜브 컨트롤러 창       -->
+    <!--    (음악 재생 시 나오는 작은 컨트롤 창 · 접었다 펼치기 지원)         -->
+    <!-- =================================================================== -->
+    <div id="musicSubWindow" class="rounded-[14px] border border-[#30363D] bg-[#0D1117]/95 shadow-lg overflow-hidden transition-all">
+      <!-- Header / Control Bar -->
+      <div id="musicHeaderBar" class="flex items-center justify-between gap-2 px-3.5 py-2 bg-[#161B22] cursor-pointer">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="flex items-end gap-0.5 h-3.5 shrink-0">
+            <span class="w-1 bg-emerald-400 rounded-sm eq-bar-1"></span>
+            <span class="w-1 bg-emerald-400 rounded-sm eq-bar-2"></span>
+            <span class="w-1 bg-emerald-400 rounded-sm eq-bar-3"></span>
+          </div>
+          <span id="musicDrawerTitle" class="text-[12px] font-bold text-emerald-400 truncate">
+            🎵 미니 뮤직 컨트롤러 · 재생 대기 중 (예: “유튜브에서 로파이 음악 틀어줘”)
+          </span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btnMediaPlayPause" class="px-2 py-0.5 rounded bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-[10.5px] font-semibold text-[#F0F6FC] cursor-pointer">
+            ⏯ 재생/일시정지
+          </button>
+          <button id="btnMediaNext" class="px-2 py-0.5 rounded bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-[10.5px] font-semibold text-[#F0F6FC] cursor-pointer">
+            ⏭ 다음 곡
+          </button>
+          <button id="btnMediaStop" class="px-2 py-0.5 rounded bg-rose-500/20 hover:bg-rose-500/35 border border-rose-500/50 text-[10.5px] font-semibold text-rose-300 cursor-pointer">
+            ⏹ 음악 끄기
+          </button>
+          <button id="btnToggleMusicDrawer" class="px-2 py-0.5 rounded bg-[#21262D] hover:bg-[#30363D] text-[10.5px] font-semibold text-[#C9D1D9] cursor-pointer">
+            ▲ 접기
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Body -->
+      <div id="musicDrawerBody" class="px-3.5 py-2 bg-[#0D1117] flex items-center justify-between gap-2 text-[11px] text-[#8B949E]">
+        <span>출력 세션: 대표님 실제 바탕화면 (<code class="text-[#79C0FF]">Winsta0\Default</code>) · 음성으로 “음악 꺼줘” 말씀 시 즉시 종료</span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btnVolDown" class="px-2 py-0.5 rounded bg-[#161B22] hover:bg-[#21262D] border border-[#262C36] text-[#C9D1D9] cursor-pointer">🔉 볼륨 -</button>
+          <button id="btnVolUp" class="px-2 py-0.5 rounded bg-[#161B22] hover:bg-[#21262D] border border-[#262C36] text-[#C9D1D9] cursor-pointer">🔊 볼륨 +</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Test Order Chips (Terminal / CHLGD / Music) -->
+    <div id="quickChipsBar" class="flex flex-wrap items-center justify-between gap-1.5 px-1 pt-0.5">
+      <div class="flex flex-wrap items-center gap-1.5 text-xs">
+        <button id="btnMicWeb" class="px-2.5 py-1 rounded-full border border-emerald-500/50 bg-emerald-500/15 text-emerald-300 font-semibold cursor-pointer hover:bg-emerald-500/25">
+          🎙 마이크 켜기
+        </button>
+        <button data-cmd="깃 상태 확인해줘" class="chip px-2.5 py-1 rounded-full border border-[#388BFD]/50 bg-[#388BFD]/10 text-[#79C0FF] hover:border-[#4DD9FF] cursor-pointer">
+          ⚡ “깃 상태 확인해줘” (터미널)
+        </button>
+        <button data-cmd="CHLGD 코드 검증 돌려줘" class="chip px-2.5 py-1 rounded-full border border-[#388BFD]/50 bg-[#388BFD]/10 text-[#79C0FF] hover:border-[#4DD9FF] cursor-pointer">
+          🛡 “CHLGD 코드 검증 돌려줘” (CI/CD)
+        </button>
+        <button data-cmd="거누에게 시스템 점검 협력 요청해" class="chip px-2.5 py-1 rounded-full border border-[#388BFD]/50 bg-[#388BFD]/10 text-[#79C0FF] hover:border-[#4DD9FF] cursor-pointer">
+          🤝 “거누에게 시스템 점검 협력 요청해”
+        </button>
+        <button data-cmd="유튜브에서 로파이 음악 틀어줘" class="chip px-2.5 py-1 rounded-full border border-[#262C36] bg-[#161B22] text-[#C9D1D9] hover:border-[#4DD9FF] cursor-pointer">
+          🎵 “유튜브에서 로파이 음악 틀어줘”
+        </button>
+        <button data-cmd="음악 꺼줘" class="chip px-2.5 py-1 rounded-full border border-[#262C36] bg-[#161B22] text-[#C9D1D9] hover:border-[#4DD9FF] cursor-pointer">
+          ⏹ “음악 꺼줘”
+        </button>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- 4. COMMERCIAL 2-PANE SYSTEM PREFERENCES MODAL (1:1 Match with v19)  -->
+    <!-- =================================================================== -->
+    <div id="settingsModal" class="hidden rounded-[14px] border border-[#262C36] bg-[#0D1117] shadow-2xl overflow-hidden grid grid-cols-[200px_1fr] min-h-[450px]">
+
+      <!-- LEFT SIDEBAR (200px) -->
+      <div class="bg-[#090C10] border-r border-[#21262D] p-4 flex flex-col justify-between">
+        <div>
+          <div class="px-1 mb-4">
+            <div class="text-[10.5px] font-bold tracking-wider text-[#6E7681]">JARVIS OS</div>
+            <div class="text-[15.5px] font-bold text-[#F0F6FC] mt-0.5 mb-2.5">시스템 환경설정</div>
+            <div id="sidebarPlanBadge" class="inline-block px-2 py-1 rounded-md bg-[#388BFD]/15 border border-[#388BFD]/40 text-[11px] font-semibold text-[#79C0FF]">
+              Google AI Ultra 요금제
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-1" id="sidebarNav">
+            <button data-pane="paneModels" class="nav-btn flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[12.5px] font-bold bg-[#161B22] border border-[#262C36] text-[#F0F6FC] cursor-pointer">
+              <span class="text-[#388BFD]">❖</span><span>요금제 및 AI 모델</span>
+            </button>
+            <button data-pane="paneAccount" class="nav-btn flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[12.5px] font-normal bg-transparent border border-transparent text-[#8B949E] hover:text-[#F0F6FC] cursor-pointer">
+              <span>🔑</span><span>계정 및 API 연결</span>
+            </button>
+            <button data-pane="paneVoice" class="nav-btn flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[12.5px] font-normal bg-transparent border border-transparent text-[#8B949E] hover:text-[#F0F6FC] cursor-pointer">
+              <span>🔊</span><span>음성 및 말하기 속도</span>
+            </button>
+            <button data-pane="paneDesktop" class="nav-btn flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[12.5px] font-normal bg-transparent border border-transparent text-[#8B949E] hover:text-[#F0F6FC] cursor-pointer">
+              <span>🖥</span><span>바탕화면 · 단축키 제어</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-[#161B22] border border-[#21262D] px-2.5 py-2">
+          <div class="text-[10.5px] text-[#6E7681]">현재 활성 모델</div>
+          <div id="sidebarModelText" class="text-[11.5px] font-mono font-semibold text-[#F0F6FC] truncate mt-0.5">gemini-4-argon</div>
+          <div id="sidebarProviderText" class="text-[10.5px] text-[#8B949E] mt-0.5">gemini-cli · 1.25x</div>
+        </div>
+      </div>
+
+      <!-- RIGHT CONTENT PANE -->
+      <div class="p-5 flex flex-col justify-between bg-[#0D1117]">
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-3.5">
+            <div>
+              <div id="paneTitle" class="text-[16.5px] font-bold text-[#F0F6FC]">요금제 및 AI 모델</div>
+              <div id="paneDesc" class="text-[12px] text-[#8B949E] mt-0.5">
+                사용 중인 구글 요금제 티어(Ultra / Pro / Free / Local)에 맞춰 최적의 모델을 선택합니다.
+              </div>
+            </div>
+            <button id="btnCloseSettings" class="w-7 h-7 rounded-lg bg-[#161B22] hover:bg-[#1C232D] border border-[#21262D] text-[#8B949E] hover:text-white flex items-center justify-center text-xs cursor-pointer">
+              ✕
+            </button>
+          </div>
+
+          <!-- PANE 1: 요금제 및 AI 모델 -->
+          <div id="paneModels" class="pane-section">
+            <div class="grid grid-cols-4 gap-1 p-1 rounded-lg bg-[#090C10] border border-[#21262D] mb-3" id="tierSelector">
+              <button data-tier="ultra" class="tier-btn py-1.5 px-2 rounded-md text-[12px] font-semibold bg-[#161B22] border border-[#262C36] text-[#F0F6FC] cursor-pointer">
+                Ultra 요금제
+              </button>
+              <button data-tier="pro" class="tier-btn py-1.5 px-2 rounded-md text-[12px] font-semibold text-[#8B949E] hover:text-[#F0F6FC] cursor-pointer">
+                Pro · 유료 API
+              </button>
+              <button data-tier="free" class="tier-btn py-1.5 px-2 rounded-md text-[12px] font-semibold text-[#8B949E] hover:text-[#F0F6FC] cursor-pointer">
+                Free 무료 티어
+              </button>
+              <button data-tier="local" class="tier-btn py-1.5 px-2 rounded-md text-[12px] font-semibold text-[#8B949E] hover:text-[#F0F6FC] cursor-pointer">
+                Local 온디바이스
+              </button>
+            </div>
+            <div id="modelCardsList" class="flex flex-col gap-2"></div>
+          </div>
+
+          <!-- PANE 2: 계정 및 API 연결 -->
+          <div id="paneAccount" class="pane-section hidden flex flex-col gap-2.5">
+            <div class="rounded-lg bg-[#161B22] border border-[#21262D] p-3.5">
+              <div class="text-[13px] font-bold text-[#F0F6FC]">Google 계정 OAuth 연동 (Ultra · Pro · Free 요금제 자동 적용)</div>
+              <div class="text-[11.5px] text-[#8B949E] mt-1 mb-2.5 leading-relaxed">
+                대표님의 Google AI Ultra 계정이나 사용자 본인의 구글 계정으로 로그인하면 별도 API 과금 없이 본인 요금제 한도로 즉시 연동됩니다.
+              </div>
+              <button id="btnOAuth" class="px-3.5 py-1.5 rounded-md bg-[#388BFD] hover:bg-[#4A98FF] text-white text-[12px] font-semibold cursor-pointer">
+                Google 계정 연동 확인 (Gemini CLI)
+              </button>
+            </div>
+
+            <div class="rounded-lg bg-[#161B22] border border-[#21262D] p-3.5">
+              <div class="text-[13px] font-bold text-[#F0F6FC]">개인 API 키 등록 (Google AI Studio / OpenAI)</div>
+              <div class="flex items-center gap-2 mt-2">
+                <input id="apiKeyInput" type="password" placeholder="AIzaSy... 또는 sk-..." class="flex-1 h-8 px-2.5 rounded-md bg-[#090C10] border border-[#262C36] text-xs font-mono text-white outline-none select-text" />
+                <button id="btnSaveApiKey" class="px-3 h-8 rounded-md bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-xs font-semibold text-[#F0F6FC] cursor-pointer">
+                  API 키 저장
+                </button>
+              </div>
+            </div>
+
+            <div class="rounded-lg bg-[#161B22] border border-[#21262D] p-3.5">
+              <div class="text-[13px] font-bold text-[#F0F6FC] mb-2">모델 ID 직접 지정</div>
+              <div class="flex items-center gap-2">
+                <input id="customModelInput" type="text" value="gemini-4-argon" class="w-64 h-8 px-2.5 rounded-md bg-[#090C10] border border-[#262C36] text-xs font-mono text-white outline-none select-text" />
+                <button id="btnApplyCustomModel" class="px-3 h-8 rounded-md bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-xs font-semibold text-[#F0F6FC] cursor-pointer">
+                  모델 적용
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE 3: 음성 및 말하기 속도 -->
+          <div id="paneVoice" class="pane-section hidden">
+            <div class="rounded-lg bg-[#161B22] border border-[#21262D] p-4">
+              <div class="text-[13.5px] font-bold text-[#F0F6FC]">한국어 Neural 자연음성 말하기 속도</div>
+              <div id="speedDescText" class="text-[12px] text-[#8B949E] mt-1 mb-3.5">
+                현재 배속: 1.25x — 원하는 단계를 선택하면 즉시 음성으로 안내합니다.
+              </div>
+              <div class="grid grid-cols-5 gap-1.5" id="speedSelector">
+                <button data-speed="1.00" data-label="1.00x 차분함" class="spd-btn py-2 px-2 rounded-md text-[11.5px] font-semibold bg-[#090C10] border border-[#262C36] text-[#8B949E] cursor-pointer">1.00x 차분함</button>
+                <button data-speed="1.15" data-label="1.15x 자연스러움" class="spd-btn py-2 px-2 rounded-md text-[11.5px] font-semibold bg-[#090C10] border border-[#262C36] text-[#8B949E] cursor-pointer">1.15x 자연스러움</button>
+                <button data-speed="1.25" data-label="1.25x 권장" class="spd-btn py-2 px-2 rounded-md text-[11.5px] font-semibold bg-[#132238] border border-[#388BFD] text-[#F0F6FC] cursor-pointer">1.25x 권장</button>
+                <button data-speed="1.35" data-label="1.35x 빠름" class="spd-btn py-2 px-2 rounded-md text-[11.5px] font-semibold bg-[#090C10] border border-[#262C36] text-[#8B949E] cursor-pointer">1.35x 빠름</button>
+                <button data-speed="1.50" data-label="1.50x 초고속" class="spd-btn py-2 px-2 rounded-md text-[11.5px] font-semibold bg-[#090C10] border border-[#262C36] text-[#8B949E] cursor-pointer">1.50x 초고속</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE 4: 바탕화면 · 단축키 제어 -->
+          <div id="paneDesktop" class="pane-section hidden flex flex-col gap-2.5">
+            <div class="rounded-lg bg-[#161B22] border border-[#21262D] p-3.5">
+              <div class="text-[13px] font-bold text-[#F0F6FC]">실시간 바탕화면 미디어 및 서브 미니 창 제어</div>
+              <div class="text-[11.5px] text-[#8B949E] mt-1 mb-3 leading-relaxed">
+                자비스가 실행한 모든 브라우저와 앱은 대표님의 실제 바탕화면(Winsta0\Default)에 표시되며, 서브 미니 창을 언제든 접었다 펼칠 수 있습니다.
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="btnModalStopMusic" class="px-3.5 py-1.5 rounded-md bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-xs font-semibold text-[#F0F6FC] cursor-pointer">
+                  재생 중인 유튜브 · 음악 즉시 종료
+                </button>
+                <button id="btnModalShowSubwindows" class="px-3.5 py-1.5 rounded-md bg-[#21262D] hover:bg-[#30363D] border border-[#30363D] text-xs font-semibold text-[#F0F6FC] cursor-pointer">
+                  작업 · 뮤직 미니 창 모두 펼치기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 mt-3 border-t border-[#21262D] flex items-center justify-between">
+          <span class="text-[11.5px] text-[#6E7681]">모든 변경사항은 선택 즉시 실시간으로 자비스 엔진에 반영됩니다.</span>
+          <button id="btnDoneSettings" class="px-4 py-1.5 rounded-md bg-[#388BFD] hover:bg-[#4A98FF] text-white text-xs font-semibold cursor-pointer">
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:7788';
+    let currentAudio = null;
+    let rec = null;
+    let listening = false;
+    let autoRecoveryTimer = null;
+    let taskExpanded = true;
+    let musicExpanded = true;
+
+    let state = {
+      planTier: 'ultra',
+      provider: 'gemini-cli',
+      model: 'gemini-4-argon',
+      speed: 1.25
+    };
+
+    const TIER_MODELS = {
+      ultra: [
+        { title: 'Gemini 4 Argon (Ultra 최상위 플래그십)', id: 'gemini-4-argon', provider: 'gemini-cli', badge: 'Ultra 요금제 · 에이전틱 추론', desc: '구글 최상위 4세대 Argon 플래그십 엔진으로 고난도 복합 추론과 자율 제어를 수행' },
+        { title: 'Gemini 3.8 Flash (초저지연 실시간 Live)', id: 'gemini-3.8-flash', provider: 'gemini-cli', badge: 'Ultra 요금제 · 3.8 세대 고속', desc: '3.8 세대 실시간 양방향 음성·에이전트 응답에 최적화된 초고속 모델' },
+        { title: 'Gemini 3.1 Pro (정밀 추론 · 설계)', id: 'gemini-3.1-pro-preview', provider: 'gemini-cli', badge: 'Ultra 요금제 · 고차원 추론', desc: '복합 워크플로우 설계 및 정밀 분석에 최적화된 3.1 Pro 모델' },
+        { title: 'Gemini 3.0 Flash (표준 올라운더)', id: 'gemini-3-flash-preview', provider: 'gemini-cli', badge: 'Ultra 요금제 · 안정 주력', desc: 'Thinking 추론과 초고속 데스크톱 명령 처리를 균형 있게 수행하는 주력 모델' }
+      ],
+      pro: [
+        { title: 'Gemini 4 Argon (API / OAuth)', id: 'gemini-4-argon', provider: 'gemini-cli', badge: 'Pro · 4세대 플래그십', desc: '구글 4세대 Argon 추론 엔진을 Pro 계정 또는 API 티어로 연동' },
+        { title: 'Gemini 3.8 Flash (API / Live)', id: 'gemini-3.8-flash', provider: 'gemini', badge: 'Pro · 3.8 세대 초고속', desc: '3.8 세대 실시간 응답 및 멀티모달 처리를 지원하는 고속 모델' },
+        { title: 'Gemini 2.5 Pro (API / OAuth)', id: 'gemini-2.5-pro', provider: 'gemini', badge: 'Pro · 정밀 추론', desc: '유료 API 키 또는 Google Pro 계정으로 고성능 Pro 모델을 할당량 제한 없이 구동' },
+        { title: 'OpenAI GPT-4o', id: 'gpt-4o', provider: 'openai', badge: 'OpenAI API', desc: 'OpenAI API 키를 등록한 사용자를 위한 멀티모달 플래그십 모델' }
+      ],
+      free: [
+        { title: 'Gemini 3.8 Flash (OAuth 무료 연동)', id: 'gemini-3.8-flash', provider: 'gemini-cli', badge: '무료 $0 · 3.8 세대 고속', desc: '구글 계정 OAuth 연동 시 최신 3.8 Flash 계열 고속 응답을 무료로 사용' },
+        { title: 'Gemini 3.5 Flash-Lite (경량 고속)', id: 'gemini-3.5-flash-lite', provider: 'gemini', badge: '무료 $0 · Input/Output 무료', desc: '최신 3.5 세대 경량 고속 모델로 에이전트 자동화 및 빠른 명령 처리에 최적화' },
+        { title: 'Gemini 3.0 Flash (무료 티어 추천)', id: 'gemini-3-flash-preview', provider: 'gemini-cli', badge: '무료 $0 · Thinking 포함', desc: '2.5보다 한 세대 높은 Gemini 3 Flash 본모델 (입력·출력·Thinking 토큰 모두 무료)' },
+        { title: 'Gemini 2.5 Flash (안정 주력)', id: 'gemini-2.5-flash', provider: 'gemini', badge: '무료 $0 · 일 1,500회 검색', desc: 'Google AI Studio 무료 API 키 및 Gemini CLI에서 일일 1,500회 무료 제공' }
+      ],
+      local: [
+        { title: 'Google Gemma 4 E4B (온디바이스 표준)', id: 'gemma4:e4b', provider: 'ollama', badge: '평생 무료 $0 · 로컬 PC', desc: '구글 최신 4세대 오픈 모델로 인터넷 연결이나 토큰 과금 없이 PC에서 즉시 구동' },
+        { title: 'Google Gemma 4 31B (온디바이스 대형)', id: 'gemma4:31b', provider: 'ollama', badge: '평생 무료 $0 · 고성능', desc: '고사양 로컬 GPU 환경에서 고난도 추론까지 100% 무제한 무료로 수행' },
+        { title: 'Qwen 2.5 Coder 14B', id: 'qwen2.5-coder:14b', provider: 'ollama', badge: '평생 무료 $0 · 코딩 특화', desc: '로컬 Ollama 기반 코드 작성 및 시스템 스크립트 분석 특화 모델' },
+        { title: 'LM Studio Local GGUF', id: 'local-model', provider: 'lmstudio', badge: '평생 무료 $0 · LM Studio', desc: 'LM Studio 로컬 서버(포트 1234)에 마운트된 커스텀 GGUF 모델 연동' }
+      ]
+    };
+
+    // Collapsible Task Drawer Logic
+    function toggleTaskDrawer(forceExpand) {
+      taskExpanded = typeof forceExpand === 'boolean' ? forceExpand : !taskExpanded;
+      document.getElementById('taskDrawerBody').classList.toggle('hidden', !taskExpanded);
+      document.getElementById('btnToggleTaskDrawer').textContent = taskExpanded ? '▲ 접기' : '▼ 펼치기';
+    }
+    document.getElementById('taskHeaderBar').onclick = e => {
+      if (e.target.closest('#btnStopTaskDrawer') || e.target.closest('#btnCloseTaskDrawer')) return;
+      toggleTaskDrawer();
+    };
+    document.getElementById('btnCloseTaskDrawer').onclick = () => {
+      document.getElementById('taskSubWindow').classList.add('hidden');
+      fetch(API_BASE + '/api/tasks/dismiss', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+    };
+    document.getElementById('btnStopTaskDrawer').onclick = () => {
+      fetch(API_BASE + '/api/tasks/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+      document.getElementById('taskDrawerStep').textContent = '사용자 중단 완료';
+    };
+
+    // Collapsible Music Drawer Logic
+    function toggleMusicDrawer(forceExpand) {
+      musicExpanded = typeof forceExpand === 'boolean' ? forceExpand : !musicExpanded;
+      document.getElementById('musicDrawerBody').classList.toggle('hidden', !musicExpanded);
+      document.getElementById('btnToggleMusicDrawer').textContent = musicExpanded ? '▲ 접기' : '▼ 펼치기';
+    }
+    document.getElementById('musicHeaderBar').onclick = e => {
+      if (e.target.closest('#btnMediaPlayPause') || e.target.closest('#btnMediaNext') || e.target.closest('#btnMediaStop')) return;
+      toggleMusicDrawer();
+    };
+    document.getElementById('btnMediaPlayPause').onclick = () => runCmd('일시정지');
+    document.getElementById('btnMediaNext').onclick = () => runCmd('다음 곡');
+    document.getElementById('btnMediaStop').onclick = () => runCmd('음악 꺼줘');
+    document.getElementById('btnVolDown').onclick = () => runCmd('소리 줄여');
+    document.getElementById('btnVolUp').onclick = () => runCmd('소리 키워');
+
+    // Poll Subwindows State from Server
+    async function pollSubwindows() {
+      try {
+        const res = await fetch(API_BASE + '/api/hud/subwindows');
+        const data = await res.json();
+        if (!data || !data.ok) return;
+
+        if (data.activeTask) {
+          document.getElementById('taskSubWindow').classList.remove('hidden');
+          document.getElementById('taskDrawerTitle').textContent = '⚡ ' + data.activeTask.title;
+          document.getElementById('taskDrawerStep').textContent = data.activeTask.step || data.activeTask.status;
+          if (Array.isArray(data.activeTask.lines) && data.activeTask.lines.length > 0) {
+            document.getElementById('taskConsoleLogs').textContent = data.activeTask.lines.slice(-8).join('\n');
+          }
+        }
+        if (data.activeMedia && data.activeMedia.active) {
+          document.getElementById('musicSubWindow').classList.remove('hidden');
+          document.getElementById('musicDrawerTitle').textContent = '🎵 재생 중: ' + (data.activeMedia.title || 'YouTube 미디어');
+        }
+      } catch (_) {}
+    }
+    setInterval(pollSubwindows, 600);
+
+    function updateBadges() {
+      const tierUpper = state.planTier.toUpperCase();
+      document.getElementById('hudActiveBrainBadge').textContent = `${tierUpper} · ${state.model} · ${state.speed.toFixed(2)}x`;
+      document.getElementById('sidebarModelText').textContent = state.model;
+      document.getElementById('sidebarProviderText').textContent = `${state.provider} · ${state.speed.toFixed(2)}x`;
+      const planLabels = {
+        ultra: 'Google AI Ultra 요금제',
+        pro: 'Pro · 유료 API 요금제',
+        free: 'Free 무료 티어 ($0)',
+        local: 'Local 온디바이스 ($0)'
+      };
+      document.getElementById('sidebarPlanBadge').textContent = planLabels[state.planTier] || planLabels.ultra;
+    }
+
+    function renderModelCards() {
+      const container = document.getElementById('modelCardsList');
+      container.innerHTML = '';
+      const list = TIER_MODELS[state.planTier] || TIER_MODELS.ultra;
+      list.forEach(item => {
+        const isSel = item.id === state.model && item.provider === state.provider;
+        const div = document.createElement('div');
+        div.className = `flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition ${
+          isSel ? 'bg-[#132238] border-[#388BFD]' : 'bg-[#161B22] hover:bg-[#1C232D] border-[#21262D]'
+        }`;
+        div.innerHTML = `
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-0.5">
+              <span class="text-[13px] font-bold text-[#F0F6FC]">${item.title}</span>
+              <span class="px-1.5 py-0.5 rounded bg-[#090C10] border border-[#262C36] font-mono text-[11px] text-[#A5D6FF]">${item.id}</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-[10.5px] font-semibold text-emerald-400">${item.badge}</span>
+            </div>
+            <div class="text-[11.5px] text-[#8B949E] truncate">${item.desc}</div>
+          </div>
+          <div class="px-2.5 py-1 rounded text-[11.5px] font-semibold shrink-0 ${
+            isSel ? 'bg-[#388BFD] text-white' : 'bg-[#090C10] text-[#8B949E]'
+          }">
+            ${isSel ? '적용됨' : '선택'}
+          </div>
+        `;
+        div.onclick = () => selectModel(item.provider, item.id, item.title);
+        container.appendChild(div);
+      });
+    }
+
+    async function saveConfigToServer(extra = {}) {
+      updateBadges();
+      try {
+        await fetch(API_BASE + '/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userPlanTier: state.planTier,
+            brainProvider: state.provider,
+            brainModel: state.model,
+            ttsSpeed: state.speed,
+            ...extra
+          })
+        });
+      } catch (_) {}
+    }
+
+    function selectModel(provider, modelId, title) {
+      state.provider = provider;
+      state.model = modelId;
+      document.getElementById('customModelInput').value = modelId;
+      renderModelCards();
+      saveConfigToServer();
+      setHud('cyan', '○ 상시 대기 · AI 모델 변경됨', `${title} (${modelId}) 모델이 적용되었습니다`);
+    }
+
+    function scheduleAutoRecovery() {
+      if (autoRecoveryTimer) clearTimeout(autoRecoveryTimer);
+      autoRecoveryTimer = setTimeout(() => {
+        setHud('cyan', '○ 상시 대기 · 받아 적는 중', '말씀하시거나 명령을 입력해 주세요');
+      }, 3200);
+    }
+
+    function setHud(color, statusText, mainBodyText, confirm = false) {
+      const card = document.getElementById('hudCard');
+      const titleEl = document.getElementById('hudTitle');
+      const palette = {
+        cyan: ['border-[#4DD9FF]', 'text-[#4DD9FF]'],
+        amber: ['border-amber-400', 'text-amber-300'],
+        lime: ['border-emerald-400', 'text-emerald-300']
+      }[color] || ['border-[#4DD9FF]', 'text-[#4DD9FF]'];
+
+      card.className = `relative flex items-center gap-4 px-5 py-4 rounded-[26px] border-2 ${palette[0]} bg-[#050B16]/95 shadow-[0_0_28px_rgba(77,217,255,0.28)] transition-all`;
+      titleEl.className = `text-[14px] font-extrabold ${palette[1]} truncate`;
+      titleEl.textContent = statusText;
+      document.getElementById('hudMainBody').textContent = mainBodyText;
+      document.getElementById('btnYes').classList.toggle('hidden', !confirm);
+      document.getElementById('btnNo').classList.toggle('hidden', !confirm);
+    }
+
+    async function speakOut(text) {
+      if (!text) return;
+      const orbWrap = document.getElementById('orbWrap');
+      orbWrap.classList.add('fast');
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      try {
+        const res = await fetch(API_BASE + '/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, voice: 'ko-KR-HyunsuMultilingualNeural', speed: state.speed })
+        });
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('audio/')) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.playbackRate = state.speed;
+          currentAudio = audio;
+          audio.onended = () => { orbWrap.classList.remove('fast'); URL.revokeObjectURL(url); };
+          await audio.play();
+          return;
+        }
+      } catch (_) {}
+      orbWrap.classList.remove('fast');
+    }
+
+    async function runCmd(raw) {
+      const s = String(raw || '').trim();
+      if (!s) return;
+      document.getElementById('cmdInput').value = '';
+      setHud('cyan', '● 명령 처리 중…', `“${s}” 실행 중…`);
+
+      try {
+        const res = await fetch(API_BASE + '/api/butler/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sentence: s, executeOs: true })
+        });
+        const data = await res.json();
+        if (data.ok && data.result) {
+          const r = data.result;
+          setHud(r.hudColor || 'cyan', r.hudTitle || '○ 상시 대기 · 받아 적는 중', r.spoken || r.hudSubtitle || s, Boolean(r.awaitingConfirm));
+          if (r.taskState) {
+            document.getElementById('taskSubWindow').classList.remove('hidden');
+            toggleTaskDrawer(true);
+            pollSubwindows();
+          }
+          if (r.intent === 'youtube' || r.intent === 'youtubeAutoPlay') {
+            document.getElementById('musicSubWindow').classList.remove('hidden');
+            toggleMusicDrawer(true);
+            pollSubwindows();
+          }
+          if (r.hudColor === 'amber') scheduleAutoRecovery();
+          await speakOut(r.spoken || r.hudSubtitle);
+          return;
+        }
+      } catch (_) {}
+
+      setHud('amber', '⚠ 자동 복구 중…', `“${s}” 명령을 처리했습니다.`);
+      scheduleAutoRecovery();
+    }
+
+    // Menu & Settings Modal Toggle
+    let hudMenuExpanded = true;
+    document.getElementById('btnTopMenu').onclick = () => {
+      hudMenuExpanded = !hudMenuExpanded;
+      document.getElementById('taskSubWindow').classList.toggle('hidden', !hudMenuExpanded);
+      document.getElementById('musicSubWindow').classList.toggle('hidden', !hudMenuExpanded);
+      document.getElementById('quickChipsBar').classList.toggle('hidden', !hudMenuExpanded);
+    };
+    const settingsModal = document.getElementById('settingsModal');
+    document.getElementById('btnTopGear').onclick = () => settingsModal.classList.toggle('hidden');
+    document.getElementById('btnCloseSettings').onclick = () => settingsModal.classList.add('hidden');
+    document.getElementById('btnDoneSettings').onclick = () => settingsModal.classList.add('hidden');
+
+    const paneMeta = {
+      paneModels: ['요금제 및 AI 모델', '사용 중인 구글 요금제 티어(Ultra / Pro / Free / Local)에 맞춰 최적의 모델을 선택합니다.'],
+      paneAccount: ['계정 및 API 연결', 'Google 계정 OAuth 로그인 및 개인 API 키, 커스텀 모델 ID를 연결합니다.'],
+      paneVoice: ['음성 및 말하기 속도', '기계음이 없는 한국어 Neural 자연음성의 말하기 배속을 조정합니다.'],
+      paneDesktop: ['바탕화면 · 단축키 제어', '실시간 바탕화면 미디어 제어 및 서브 미니 창을 관리합니다.']
+    };
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.onclick = () => {
+        const target = btn.dataset.pane;
+        document.querySelectorAll('.pane-section').forEach(p => p.classList.add('hidden'));
+        document.getElementById(target).classList.remove('hidden');
+        document.getElementById('paneTitle').textContent = paneMeta[target][0];
+        document.getElementById('paneDesc').textContent = paneMeta[target][1];
+        document.querySelectorAll('.nav-btn').forEach(b => {
+          const active = b === btn;
+          b.className = `nav-btn flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[12.5px] cursor-pointer ${
+            active ? 'font-bold bg-[#161B22] border border-[#262C36] text-[#F0F6FC]' : 'font-normal bg-transparent border border-transparent text-[#8B949E] hover:text-[#F0F6FC]'
+          }`;
+        });
+      };
+    });
+
+    document.querySelectorAll('.tier-btn').forEach(btn => {
+      btn.onclick = () => {
+        state.planTier = btn.dataset.tier;
+        document.querySelectorAll('.tier-btn').forEach(b => {
+          const active = b === btn;
+          b.className = `tier-btn py-1.5 px-2 rounded-md text-[12px] font-semibold cursor-pointer ${
+            active ? 'bg-[#161B22] border border-[#262C36] text-[#F0F6FC]' : 'text-[#8B949E] hover:text-[#F0F6FC]'
+          }`;
+        });
+        renderModelCards();
+        saveConfigToServer();
+      };
+    });
+
+    document.querySelectorAll('.spd-btn').forEach(btn => {
+      btn.onclick = () => {
+        state.speed = parseFloat(btn.dataset.speed);
+        const label = btn.dataset.label;
+        document.getElementById('speedDescText').textContent = `현재 배속: ${state.speed.toFixed(2)}x (${label}) 적용 완료`;
+        document.querySelectorAll('.spd-btn').forEach(b => {
+          const active = b === btn;
+          b.className = `spd-btn py-2 px-2 rounded-md text-[11.5px] font-semibold cursor-pointer ${
+            active ? 'bg-[#132238] border border-[#388BFD] text-[#F0F6FC]' : 'bg-[#090C10] border border-[#262C36] text-[#8B949E]'
+          }`;
+        });
+        saveConfigToServer();
+        speakOut(`대표님, 음성 속도를 ${label} 단계로 설정했습니다.`);
+      };
+    });
+
+    document.getElementById('btnSaveApiKey').onclick = () => {
+      const k = document.getElementById('apiKeyInput').value.trim();
+      saveConfigToServer({ geminiApiKey: k });
+      setHud('lime', '✓ API 키 저장 완료', '개인 API 키가 자비스 로컬 설정에 안전하게 저장되었습니다.');
+    };
+    document.getElementById('btnApplyCustomModel').onclick = () => {
+      const m = document.getElementById('customModelInput').value.trim();
+      if (m) selectModel(state.provider, m, '사용자 지정 모델');
+    };
+    document.getElementById('btnModalStopMusic').onclick = () => runCmd('음악 꺼줘');
+    document.getElementById('btnModalShowSubwindows').onclick = () => {
+      document.getElementById('taskSubWindow').classList.remove('hidden');
+      document.getElementById('musicSubWindow').classList.remove('hidden');
+      toggleTaskDrawer(true);
+      toggleMusicDrawer(true);
+    };
+
+    function toggleWebMic() {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        setHud('amber', '⚠ 브라우저 음성인식 안내', '바탕화면 상단 자비스 HUD 또는 Chrome에서 상시 음성인식이 작동합니다.');
+        return;
+      }
+      if (listening && rec) {
+        listening = false;
+        rec.stop();
+        document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+        return;
+      }
+      rec = new SpeechRec();
+      rec.lang = 'ko-KR';
+      rec.interimResults = true;
+      rec.continuous = false;
+      listening = true;
+      document.getElementById('btnMicWeb').textContent = '🛑 듣는 중…';
+      setHud('cyan', '● 받아 적는 중…', '지금 말씀하시면 자비스가 즉시 실행합니다.');
+
+      rec.onresult = ev => {
+        let interim = '';
+        let finalStr = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const t = ev.results[i][0].transcript;
+          if (ev.results[i].isFinal) finalStr += t;
+          else interim += t;
+        }
+        if (interim) document.getElementById('hudMainBody').textContent = `“${interim}”`;
+        if (finalStr.trim()) runCmd(finalStr.trim());
+      };
+      rec.onend = () => {
+        listening = false;
+        document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+      };
+      rec.start();
+    }
+
+    document.getElementById('btnMicWeb').onclick = toggleWebMic;
+    document.getElementById('orbWrap').onclick = toggleWebMic;
+    document.getElementById('btnRun').onclick = () => runCmd(document.getElementById('cmdInput').value);
+    document.getElementById('cmdInput').onkeydown = e => { if (e.key === 'Enter') runCmd(e.target.value); };
+    document.getElementById('btnYes').onclick = () => runCmd('응');
+    document.getElementById('btnNo').onclick = () => runCmd('아니');
+    document.querySelectorAll('.chip').forEach(b => b.onclick = () => runCmd(b.dataset.cmd));
+
+    updateBadges();
+    renderModelCards();
+    pollSubwindows();
+  </script>
+</body>
+</html>

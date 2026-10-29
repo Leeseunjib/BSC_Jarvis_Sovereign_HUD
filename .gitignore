@@ -1,0 +1,22 @@
+﻿# Environment & Credentials (Rule 11 Security Isolation)
+.env
+.env.*
+*.key
+*.pem
+data/config.json
+
+# Node dependencies & runtime caches
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Runtime Chrome / Ear / Media profiles & transient logs
+data/chrome-ear-profile/
+data/chrome-media-profile/
+data/*.wav
+data/*.mp3
+data/*.log
+*.bak
+bin/*.bak
+JarvisHud_v*.exe
+bin/JarvisHud.next.exe

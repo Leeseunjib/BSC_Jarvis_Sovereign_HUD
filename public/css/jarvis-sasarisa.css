@@ -1,0 +1,553 @@
+/**
+ * @file C:\자비스\public\css\jarvis-sasarisa.css
+ * @description 100% 1:1 Visual Match of SasariSa (v0.7.3):
+ *   - Sources/MacButler/HUD.swift (980x168 NSPanel, 128px 3-ring OrbView, cyan/amber/lime, 5 positions)
+ *   - Sources/MacButler/BootScene.swift (Full-screen Arc Reactor R=330, 120/12 ticks, conic radar, boot log, clock)
+ *   - Sources/MacButler/SetupWindow.swift & SettingsWindow.swift (Grouped macOS/Windows hybrid settings sheet)
+ *   - docs/tutorial.css (Interactive 5-step tutorial card & stage)
+ */
+
+:root {
+  --cyan: rgb(0, 235, 255);
+  --amber: rgb(255, 179, 38);
+  --lime: rgb(89, 255, 153);
+  --hud-c: var(--cyan);
+  --ink: #0b0d12;
+  --sub: #9aa1ad;
+  --card-bg: rgba(11, 15, 24, 0.88);
+  --border: rgba(0, 235, 255, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Malgun Gothic", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 50% 25%, #091d2c 0%, #05080f 65%, #020306 100%);
+  color: #f3f6fa;
+  min-height: 100vh;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* 1. Top MenuBar (Sources/MacButler/main.swift NSStatusBar ◉J 1:1) */
+.top-menubar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  background: rgba(6, 10, 16, 0.86);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  z-index: 2000;
+  font-size: 13px;
+}
+
+.menubar-left, .menubar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 99px;
+  background: rgba(0, 235, 255, 0.12);
+  border: 1px solid rgba(0, 235, 255, 0.35);
+  color: var(--cyan);
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.status-pill:hover {
+  background: rgba(0, 235, 255, 0.22);
+}
+
+.menu-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  padding: 4px 11px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.menu-btn:hover {
+  background: rgba(0, 235, 255, 0.15);
+  border-color: rgba(0, 235, 255, 0.4);
+  color: #fff;
+}
+.menu-btn.highlight {
+  background: rgba(89, 255, 153, 0.14);
+  border-color: rgba(89, 255, 153, 0.45);
+  color: var(--lime);
+  font-weight: 600;
+}
+
+/* 2. Floating HUD Panel (Sources/MacButler/HUD.swift 980x168 + 128px OrbView 1:1) */
+.sasarisa-hud-wrapper {
+  position: fixed;
+  z-index: 1500;
+  width: min(980px, 95vw);
+  transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 5 HUD Positions from HUD.swift */
+.sasarisa-hud-wrapper.pos-top {
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.sasarisa-hud-wrapper.pos-center {
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.sasarisa-hud-wrapper.pos-bottomCenter {
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.sasarisa-hud-wrapper.pos-bottomRight {
+  bottom: 36px;
+  right: 28px;
+}
+.sasarisa-hud-wrapper.pos-bottomLeft {
+  bottom: 36px;
+  left: 28px;
+}
+
+.sasarisa-hud-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 156px;
+  padding: 18px 26px 18px 18px;
+  border-radius: 26px;
+  background: rgba(6, 11, 18, 0.90);
+  backdrop-filter: blur(24px);
+  border: 1.5px solid var(--hud-c);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), 0 0 28px rgba(0, 235, 255, 0.22);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.sasarisa-hud-card.color-cyan {
+  --hud-c: rgb(0, 235, 255);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), 0 0 28px rgba(0, 235, 255, 0.25);
+}
+.sasarisa-hud-card.color-amber {
+  --hud-c: rgb(255, 179, 38);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), 0 0 28px rgba(255, 179, 38, 0.28);
+}
+.sasarisa-hud-card.color-lime {
+  --hud-c: rgb(89, 255, 153);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), 0 0 28px rgba(89, 255, 153, 0.28);
+}
+
+/* OrbView (128x128 3-ring counter-rotating dashed rings + radial core) */
+.orb-view {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.orb-ring {
+  position: absolute;
+  border-radius: 50%;
+  border-style: dashed;
+  border-color: var(--hud-c);
+  filter: drop-shadow(0 0 6px var(--hud-c));
+}
+.orb-ring.r1 {
+  inset: 6px;
+  border-width: 2.2px;
+  opacity: 0.95;
+  animation: orbSpinCW 10s linear infinite;
+}
+.orb-ring.r2 {
+  inset: 17px;
+  border-width: 1.5px;
+  opacity: 0.72;
+  animation: orbSpinCCW 6s linear infinite;
+}
+.orb-ring.r3 {
+  inset: 28px;
+  border-width: 1.2px;
+  opacity: 0.55;
+  animation: orbSpinCW 3.5s linear infinite;
+}
+.orb-core {
+  position: absolute;
+  inset: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, var(--hud-c) 45%, transparent 100%);
+  box-shadow: 0 0 22px var(--hud-c);
+  transition: transform 0.08s ease-out;
+}
+.orb-view.fast .orb-ring.r1 { animation-duration: 3.8s; }
+.orb-view.fast .orb-ring.r2 { animation-duration: 2.2s; }
+.orb-view.fast .orb-ring.r3 { animation-duration: 1.3s; }
+
+@keyframes orbSpinCW { to { transform: rotate(360deg); } }
+@keyframes orbSpinCCW { to { transform: rotate(-360deg); } }
+
+.hud-text-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hud-status-line {
+  font-family: "SF Mono", "Consolas", monospace;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--hud-c);
+  text-shadow: 0 0 10px rgba(0, 235, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-heard-line {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+.hud-body-line {
+  font-size: 16px;
+  font-weight: 500;
+  color: #cbd5e1;
+  line-height: 1.42;
+}
+
+/* Command bar inside HUD for instant keyboard or voice input + 2-step [응]/[아니] buttons */
+.hud-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.hud-cmd-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 8px 13px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+.hud-cmd-input:focus {
+  border-color: var(--hud-c);
+  background: rgba(255, 255, 255, 0.11);
+}
+.hud-action-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 235, 255, 0.4);
+  background: rgba(0, 235, 255, 0.16);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.hud-action-btn:hover {
+  background: rgba(0, 235, 255, 0.28);
+}
+.hud-action-btn.yes {
+  background: rgba(89, 255, 153, 0.22);
+  border-color: var(--lime);
+  color: var(--lime);
+}
+.hud-action-btn.no {
+  background: rgba(255, 99, 99, 0.22);
+  border-color: #ff6b6b;
+  color: #ff8787;
+}
+
+/* 3. Workspace / Interactive Tutorial & Command Deck below HUD */
+.main-stage {
+  max-width: 1120px;
+  margin: 235px auto 60px;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 22px;
+}
+
+.glass-panel {
+  background: rgba(11, 16, 26, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.panel-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(0, 235, 255, 0.14);
+  color: var(--cyan);
+  border: 1px solid rgba(0, 235, 255, 0.3);
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.cmd-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  padding: 7px 12px;
+  border-radius: 99px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.cmd-chip:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 235, 255, 0.14);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* YouTube #1~#5 Result List */
+.yt-list-box {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.yt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.yt-item:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 235, 255, 0.1);
+}
+
+/* 4. Full-Screen BootScene Overlay (Sources/MacButler/BootScene.swift 1:1) */
+.boot-scene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: radial-gradient(circle at 50% 47%, rgba(5, 26, 41, 0.86) 0%, rgba(0, 0, 0, 0.92) 100%);
+  display: none;
+  overflow: hidden;
+}
+.boot-scene-overlay.active {
+  display: block;
+}
+.boot-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(0, 235, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 235, 255, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.boot-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 235, 255, 0.22), transparent);
+  animation: bootScan 1.8s ease-out forwards;
+}
+@keyframes bootScan {
+  from { top: -140px; }
+  to { top: 100vh; }
+}
+
+.boot-reactor-wrap {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 520px;
+  height: 520px;
+  transform: translate(-50%, -50%);
+  transition: all 0.7s cubic-bezier(0.4, 0, 1, 1);
+}
+.boot-reactor-wrap.fly-to-orb {
+  top: 110px;
+  transform: translate(-50%, -50%) scale(0.22);
+  opacity: 0;
+}
+.boot-radar {
+  position: absolute;
+  inset: 30px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(0, 235, 255, 0.35) 0deg, transparent 65deg, transparent 360deg);
+  animation: orbSpinCCW 2.2s linear infinite;
+}
+.boot-log-panel {
+  position: absolute;
+  left: 70px;
+  top: 80px;
+  font-family: "SF Mono", "Consolas", monospace;
+  font-size: 18px;
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(0, 235, 255, 0.7);
+  line-height: 1.75;
+}
+.boot-clock-panel {
+  position: absolute;
+  right: 70px;
+  top: 75px;
+  text-align: right;
+  font-family: "SF Mono", "Consolas", monospace;
+}
+.boot-clock-hm {
+  font-size: 86px;
+  font-weight: 200;
+  color: #fff;
+  text-shadow: 0 0 16px rgba(0, 235, 255, 0.8);
+}
+.boot-clock-date {
+  font-size: 20px;
+  color: var(--cyan);
+}
+.boot-nominal {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lime);
+}
+.boot-greeting-bottom {
+  position: absolute;
+  bottom: 65px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+.boot-title-big {
+  font-family: "SF Mono", "Consolas", monospace;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  color: var(--cyan);
+  text-shadow: 0 0 18px rgba(0, 235, 255, 0.8);
+}
+.boot-hello-big {
+  margin-top: 10px;
+  font-size: 40px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* 5. Modals (SetupWindow.swift, SettingsWindow.swift, REA Blueprint Modal) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-backdrop.open {
+  display: flex;
+}
+.modal-window {
+  width: min(760px, 96vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: #111622;
+  border: 1px solid rgba(0, 235, 255, 0.32);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.8);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+.form-section {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.form-section h4 {
+  font-size: 14px;
+  color: var(--cyan);
+  margin-bottom: 10px;
+}
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 13.5px;
+}
+.form-row input[type="text"], .form-row select {
+  background: #0b0f18;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  min-width: 240px;
+}
+
+.rea-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  margin-top: 10px;
+}
+.rea-table th, .rea-table td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 10px;
+  text-align: left;
+}
+.rea-table th {
+  background: rgba(0, 235, 255, 0.12);
+  color: var(--cyan);
+}

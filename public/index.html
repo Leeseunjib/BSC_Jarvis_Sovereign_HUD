@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>자비스 — Windows 음성 비서</title>
+  <link rel="stylesheet" href="/css/jarvis-sasarisa.css" />
+</head>
+<body>
+
+  <!-- 1. Top MenuBar (Sources/MacButler/main.swift NSStatusBar ◉S -> ◉J 1:1) -->
+  <header class="top-menubar">
+    <div class="menubar-left">
+      <div class="status-pill" id="btnWakeToggle" title="클릭하여 자비스 부르기 (오른쪽 Alt 톡)">
+        <span id="statusDot">◉</span>
+        <span id="assistantTitleBadge">자비스 (SasariSa v0.7.3)</span>
+      </div>
+      <button class="menu-btn highlight" id="btnAlwaysOnMic">🎙 상시 음성 대기 켜기 (Ear.swift)</button>
+      <button class="menu-btn" id="btnWinNativeMic">🎧 Windows 하드웨어 마이크 직접 듣기</button>
+      <button class="menu-btn" id="btnGreet">⚡ 인사하기 (BootScene)</button>
+      <button class="menu-btn" id="btnOpenSetup">🛠 준비 (Setup…)</button>
+      <button class="menu-btn" id="btnOpenSettings">⚙ 설정 (Settings…)</button>
+      <button class="menu-btn" id="btnForgetLearned">🧹 배운 것 지우기</button>
+    </div>
+    <div class="menubar-right">
+      <span id="micLevelIndicator" style="color:var(--cyan);font-family:monospace;font-size:12px;">MIC: 대기 중</span>
+      <button class="menu-btn highlight" id="btnOpenRea">🔬 REA 4단계 역공학 명세서</button>
+    </div>
+  </header>
+
+  <!-- 2. Floating HUD Panel (Image 3 & HUD.swift Minimalist 2-Line Pill: ○ 받아 적는 중 / 클래식 음악 좀 틀어 줘) -->
+  <section class="sasarisa-hud-wrapper pos-top" id="hudWrapper">
+    <div class="sasarisa-hud-card color-cyan" id="hudCard" style="max-width:680px;margin:0 auto;min-height:114px;padding:14px 26px 14px 20px;border-radius:22px;">
+      <!-- 88px 3-Ring Counter-Rotating OrbView (Reacts to real microphone dB level) -->
+      <div class="orb-view" id="orbView" title="클릭하여 음성 인식 시작/중지" style="width:88px;height:88px;flex:0 0 88px;">
+        <div class="orb-ring r1"></div>
+        <div class="orb-ring r2"></div>
+        <div class="orb-ring r3"></div>
+        <div class="orb-core" id="orbCore"></div>
+      </div>
+
+      <div class="hud-text-col" style="justify-content:center;gap:6px;">
+        <div class="hud-status-line" id="hudStatus" style="font-size:14.5px;font-weight:700;color:#4dd9ff;">○ 받아 적는 중</div>
+        <div class="hud-heard-line" id="hudHeard" style="display:none;"></div>
+        <div class="hud-body-line" id="hudBody" style="font-size:24px;font-weight:800;color:#ffffff;line-height:1.25;">클래식 음악 좀 틀어 줘</div>
+
+        <div class="hud-input-row" style="margin-top:4px;display:flex;gap:8px;">
+          <button class="hud-action-btn yes" id="btnConfirmYes" style="display:none;">응 (전송)</button>
+          <button class="hud-action-btn no" id="btnConfirmNo" style="display:none;">아니 (취소)</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2-B. Practical Use-Case Guide Banner (이 프로젝트를 어떻게 활용하면 좋을지 한눈에 보기) -->
+  <section style="max-width:1200px;margin:0 auto 18px auto;padding:0 24px;">
+    <div style="background:linear-gradient(135deg, rgba(6,22,38,0.92), rgba(4,12,24,0.95));border:1.5px solid rgba(77,217,255,0.45);border-radius:18px;padding:18px 22px;box-shadow:0 0 28px rgba(77,217,255,0.15);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:17px;font-weight:800;color:#4dd9ff;">
+          🚀 유튜버 화면(사사리사) 그대로! 목소리 한마디로 자동 실행되는 5가지 핵심 활용법 (클릭 시 즉시 시연)
+        </div>
+        <span class="badge">무터치 상시 음성 대기 ON</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:10px;margin-bottom:14px;">
+        <div class="cmd-chip" data-cmd="아빠 왔어" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#4dd9ff;font-weight:800;font-size:13.5px;margin-bottom:4px;">① “아빠 왔어” (출근 부트)</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">팔짱 끼고 “아빠 왔어” 한마디만 하면 아이언맨 부트 화면과 환영 음성이 자동으로 열립니다.</div>
+        </div>
+        <div class="cmd-chip" data-cmd="클래식 음악 좀 틀어 줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#73ff99;font-weight:800;font-size:13.5px;margin-bottom:4px;">② “클래식 음악 좀 틀어 줘”</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">유튜버 영상처럼 상단 HUD에 『○ 받아 적는 중 / 클래식 음악 좀 틀어 줘』가 뜨며 바로 재생합니다.</div>
+        </div>
+        <div class="cmd-chip" data-cmd="오늘 해야 할 일 정리해 줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#ffb840;font-weight:800;font-size:13.5px;margin-bottom:4px;">③ “오늘 할 일 정리해 줘”</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">유튜버 모니터 우측 하단처럼 오늘 해야 할 일을 우선순위 순서대로 정리해 창을 띄웁니다.</div>
+        </div>
+        <div class="cmd-chip" data-cmd="카톡 영웅님한테 오늘도 힘내세요라고 답장해" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#4dd9ff;font-weight:800;font-size:13.5px;margin-bottom:4px;">④ 카톡 음성 답장 (안전 확인)</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">음성으로 카톡 답장을 받아 적고, “응”이라고 승인할 때만 전송해 오타 사고를 막습니다.</div>
+        </div>
+        <div class="cmd-chip" data-cmd="쿠팡에서 맥미니 찾아" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#f472b6;font-weight:800;font-size:13.5px;margin-bottom:4px;">⑤ 0-토큰 쇼핑·길찾기·취소</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">“쿠팡에서 맥미니 찾아”, “강남역 가는 길”, “되돌려”를 API 비용 0원으로 즉시 처리합니다.</div>
+        </div>
+      </div>
+
+      <!-- 보조 텍스트 입력 바 (상단 HUD 알약 밖으로 분리하여 유튜버 화면처럼 깔끔하게 유지) -->
+      <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid rgba(77,217,255,0.2);">
+        <input
+          type="text"
+          class="hud-cmd-input"
+          id="hudCommandInput"
+          placeholder="상단 마이크가 자동으로 음성을 듣고 있습니다. 키보드로 직접 테스트하려면 여기에 입력 후 Enter를 누르세요 (예: 클래식 음악 좀 틀어 줘)"
+          style="flex:1;"
+        />
+        <button class="hud-action-btn yes" id="btnMicListen">🎙 내 음성 듣기 (상시 켜짐)</button>
+        <button class="hud-action-btn" id="btnSendCmd">실행</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Main Workspace: Quick Command Deck + 5-Step Tutorial (docs/tutorial.html 1:1) -->
+  <main class="main-stage">
+    <!-- Left Column: Voice Conversation & Deterministic Command Deck -->
+    <div class="glass-panel">
+      <div class="panel-header">
+        <div class="panel-title">🗣 실시간 음성 대화 & 34종 빠른 명령 덱 (`Commands.swift` + `Brain.swift`)</div>
+        <span class="badge" id="voiceEngineBadge">Neural TTS: ko-KR-SunHiNeural</span>
+      </div>
+
+      <div class="chip-grid">
+        <button class="cmd-chip" data-cmd="자비스 내 말 들려?">🎙 “자비스 내 말 들려?”</button>
+        <button class="cmd-chip" data-cmd="자비스 넌 누구야?">🤖 “자비스 넌 누구야?”</button>
+        <button class="cmd-chip" data-cmd="시스템 상태 어때?">💻 “시스템 상태 어때?”</button>
+        <button class="cmd-chip" data-cmd="아빠 왔어">⚡ “아빠 왔어” (BootScene)</button>
+        <button class="cmd-chip" data-cmd="유튜브에서 로파이 검색해">▶ “유튜브에서 로파이 검색해”</button>
+        <button class="cmd-chip" data-cmd="1번 틀어">1️⃣ “1번 틀어”</button>
+        <button class="cmd-chip" data-cmd="쿠팡에서 맥미니 찾아">🛒 “쿠팡에서 맥미니 찾아”</button>
+        <button class="cmd-chip" data-cmd="강남역 가는 길">🗺 “강남역 가는 길”</button>
+        <button class="cmd-chip" data-cmd="카톡 영웅님한테 오늘도 힘내세요라고 답장해">💬 “카톡 영웅님한테 답장해” (2단계 미리보기)</button>
+        <button class="cmd-chip" data-cmd="소리 키워">🔊 “소리 키워”</button>
+        <button class="cmd-chip" data-cmd="되돌려">↩ “되돌려” (Undo)</button>
+        <button class="cmd-chip" data-cmd="방금 뭐 했어">📋 “방금 뭐 했어?”</button>
+        <button class="cmd-chip" data-cmd="창 다 꺼">🧹 “창 다 꺼”</button>
+        <button class="cmd-chip" data-cmd="몇 시야">🕒 “몇 시야”</button>
+      </div>
+
+      <div id="ytResultsContainer" style="display:none;">
+        <div style="font-size:13px;color:var(--cyan);font-weight:700;margin-bottom:6px;">
+          ▶ 유튜브 실시간 검색 상위 5개 (`Butler.swift ytList` — 번호를 말씀하시거나 클릭하세요)
+        </div>
+        <div class="yt-list-box" id="ytListBox"></div>
+      </div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;">📊 실시간 음성 인식 및 답변 로그 (`conversation.log`)</div>
+        <pre id="liveLogBox" style="background:rgba(0,0,0,0.35);padding:12px;border-radius:10px;font-size:12.5px;color:#cbd5e1;max-height:170px;overflow-y:auto;white-space:pre-wrap;"></pre>
+      </div>
+    </div>
+
+    <!-- Right Column: 5-Step Interactive Tutorial (docs/tutorial.js 1:1) & Telemetry -->
+    <div class="glass-panel">
+      <div class="panel-header">
+        <div class="panel-title">🎓 1분 만에 배우는 자비스 (사사리사 5단계 튜토리얼)</div>
+        <span class="badge" id="tutStepBadge">1 / 5 단계</span>
+      </div>
+
+      <div id="tutorialBox" style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,235,255,0.22);border-radius:14px;padding:16px;">
+        <h3 id="tutTitle" style="font-size:16px;color:var(--cyan);margin-bottom:6px;">1단계 · 부르기 (“자비스” 또는 오른쪽 Alt)</h3>
+        <p id="tutDesc" style="font-size:13.5px;color:#cbd5e1;line-height:1.5;margin-bottom:12px;">
+          평소엔 조용히 대기하다가 부르는 말(「자비스」, 「사사리사」)을 듣거나 Alt 키를 톡 누르면 깨어납니다. 한글 발음 유사도 매칭(`Config.soundAlike`)으로 “재비스”, “싸싸리싸”라고 들려도 정확히 알아듣습니다.
+        </p>
+        <div style="display:flex;gap:8px;justify-content:space-between;">
+          <button class="menu-btn" id="btnTutPrev">← 이전</button>
+          <button class="menu-btn highlight" id="btnTutTry">이 단계 바로 체험하기</button>
+          <button class="menu-btn" id="btnTutNext">다음 →</button>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div class="panel-header" style="margin-bottom:8px;">
+          <div class="panel-title" style="font-size:14.5px;">🖥 Windows 11 실시간 하드웨어 & AI 사용량 (`AIUsage.swift`)</div>
+        </div>
+        <div id="telemetryBox" style="font-size:13px;color:#cbd5e1;line-height:1.7;background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;">
+          로딩 중…
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 4. Full-Screen BootScene Overlay (Sources/MacButler/BootScene.swift 1:1) -->
+  <div class="boot-scene-overlay" id="bootSceneOverlay">
+    <div class="boot-grid" id="bootGrid"></div>
+    <div class="boot-scanline"></div>
+    <div class="boot-log-panel" id="bootLogPanel"></div>
+
+    <div class="boot-reactor-wrap" id="bootReactorWrap">
+      <div class="boot-radar" id="bootRadar"></div>
+      <svg viewBox="0 0 600 600" width="100%" height="100%">
+        <defs>
+          <radialGradient id="reactorCoreGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="40%" stop-color="#00ebff" />
+            <stop offset="100%" stop-color="#00ebff" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx="300" cy="300" r="280" fill="none" stroke="rgba(0,235,255,0.45)" stroke-width="1.5" />
+        <circle cx="300" cy="300" r="245" fill="none" stroke="rgba(0,235,255,0.8)" stroke-width="12" stroke-dasharray="90 18 30 18">
+          <animateTransform attributeName="transform" type="rotate" from="0 300 300" to="360 300 300" dur="7s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="300" cy="300" r="215" fill="none" stroke="rgba(0,235,255,0.85)" stroke-width="2" stroke-dasharray="4 6">
+          <animateTransform attributeName="transform" type="rotate" from="360 300 300" to="0 300 300" dur="12s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="300" cy="300" r="185" fill="none" stroke="rgba(0,235,255,0.35)" stroke-width="22" stroke-dasharray="160 360">
+          <animateTransform attributeName="transform" type="rotate" from="360 300 300" to="0 300 300" dur="5s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="300" cy="300" r="145" fill="none" stroke="rgba(0,235,255,0.9)" stroke-width="3" stroke-dasharray="60 10 6 10">
+          <animateTransform attributeName="transform" type="rotate" from="0 300 300" to="360 300 300" dur="4s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="300" cy="300" r="110" fill="none" stroke="rgba(0,235,255,0.9)" stroke-width="7" stroke-dasharray="2 9">
+          <animateTransform attributeName="transform" type="rotate" from="360 300 300" to="0 300 300" dur="3s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="300" cy="300" r="95" fill="url(#reactorCoreGrad)" />
+      </svg>
+    </div>
+
+    <div class="boot-clock-panel">
+      <div class="boot-clock-hm" id="bootClockHm">12:00</div>
+      <div class="boot-clock-date" id="bootClockDate">2026.10.27 TUESDAY</div>
+      <div class="boot-nominal">● ALL SYSTEMS NOMINAL</div>
+    </div>
+
+    <div class="boot-greeting-bottom">
+      <div class="boot-title-big" id="bootTitleBig">J A R V I S</div>
+      <div style="font-family:monospace;font-size:18px;color:#cbd5e1;margin-top:4px;">SASARISA v0.7.3 · WINDOWS 11 CLEAN-ROOM EDITION</div>
+      <div class="boot-hello-big" id="bootHelloBig">어서 오십시오, 대표님.</div>
+    </div>
+  </div>
+
+  <!-- 5. First-Run Setup Modal (Sources/MacButler/SetupWindow.swift 1:1) -->
+  <div class="modal-backdrop" id="setupModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size:22px;">🛠 자비스 (사사리사) 준비 (`SetupWindow.swift`)</h2>
+          <p style="font-size:13px;color:#94a3b8;margin-top:2px;">빨간 것만 해결하면 됩니다. 소리는 이 PC 밖으로 나가지 않아요.</p>
+        </div>
+        <button class="menu-btn" data-close="setupModal">닫기 ✕</button>
+      </div>
+
+      <div class="form-section">
+        <h4>1단계 · 비서 이름 및 호칭 정하기</h4>
+        <div class="form-row">
+          <span>부르는 이름 (`assistantName`)</span>
+          <input type="text" id="setupAssistantName" value="자비스" />
+        </div>
+        <div class="form-row">
+          <span>나를 부르는 호칭 (`userName`)</span>
+          <input type="text" id="setupUserName" value="대표님" />
+        </div>
+        <div class="form-row">
+          <span>화면 위치 (`hudPosition`)</span>
+          <select id="setupHudPosition">
+            <option value="top">위쪽 가운데 (기본)</option>
+            <option value="center">화면 정중앙</option>
+            <option value="bottomCenter">아래쪽 가운데</option>
+            <option value="bottomRight">오른쪽 아래</option>
+            <option value="bottomLeft">왼쪽 아래</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>2단계 · 권한 및 로컬 음성/두뇌 점검 (6대 필수 체크리스트)</h4>
+        <div class="form-row"><span>✅ <b>마이크</b> — 부르는 말을 듣기 위해</span><span class="badge">준비 완료</span></div>
+        <div class="form-row"><span>✅ <b>음성 인식 (STT)</b> — Windows System.Speech + Web Speech</span><span class="badge">준비 완료</span></div>
+        <div class="form-row"><span>✅ <b>손쉬운 사용 (Hands)</b> — 마우스 이동 없이 키/볼륨/앱 제어</span><span class="badge">준비 완료</span></div>
+        <div class="form-row"><span>✅ <b>두뇌 (생각하는 AI)</b> — Claude Code / Codex / Gemini / Ollama</span><span class="badge">연결됨</span></div>
+        <div class="form-row">
+          <span>✅ <b>목소리 (`Mouth.swift`)</b> — 96kbps 한국어 Neural TTS + Windows SAPI</span>
+          <button class="menu-btn highlight" id="btnPreviewVoiceSetup">🔊 미리 듣기</button>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="hud-action-btn" id="btnSaveSetup">저장 후 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Full Settings Modal (Sources/MacButler/SettingsWindow.swift 1:1) -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2>⚙ 자비스 — 설정 (`SettingsWindow.swift` 1:1)</h2>
+        <button class="menu-btn" data-close="settingsModal">닫기 ✕</button>
+      </div>
+
+      <div class="form-section">
+        <h4>기본 (`Basics`)</h4>
+        <div class="form-row">
+          <span>부르는 말 (`wakeWords`, 쉼표 구분)</span>
+          <input type="text" id="cfgWakeWords" value="자비스, 헤이 자비스, 사사리사, 헤이 사사리사" />
+        </div>
+        <div class="form-row">
+          <span>인사말 (`greetingText`)</span>
+          <input type="text" id="cfgGreetingText" value="어서 오십시오, {user}. 자비스 온라인입니다." />
+        </div>
+        <div class="form-row">
+          <span>인사 화면 스타일 (`bootStyle`)</span>
+          <select id="cfgBootStyle">
+            <option value="reactor">화려하게 — 아크 리액터 풀스크린 (기본)</option>
+            <option value="calm">깔끔하게 — Calm 모드</option>
+            <option value="card">카드로만</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <span>카카오톡 메시지는 직접 수신자를 확인하고 전송해 주세요.</span>
+          <input type="checkbox" id="cfgPreviewBeforeSend" checked disabled />
+        </div>
+        <div class="form-row">
+          <span>기존 자유 모드 설정 (메시지 자동 전송에는 적용되지 않음)</span>
+          <input type="checkbox" id="cfgFreeMode" disabled />
+        </div>
+        <div class="form-row">
+          <span>Windows 시작 시 자동 실행</span>
+          <input type="checkbox" id="cfgStartup" />
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>목소리 & 생각하는 AI 두뇌 (`Mouth.swift` & `Brain.swift`)</h4>
+        <div class="form-row">
+          <span>한국어 Neural 음성 선택 (`sayVoice`)</span>
+          <select id="cfgSayVoice">
+            <option value="ko-KR-SunHiNeural">SunHi Neural (여성 · 아나운서 톤)</option>
+            <option value="ko-KR-InJoonNeural">InJoon Neural (남성 · 자비스 집사 톤)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <span>기존 AI 설정 (제공자 선택은 현재 적용되지 않음)</span>
+          <select id="cfgBrainProvider" disabled>
+            <option value="claude-code">Claude Code — 로컬 구독 연결 (기본)</option>
+            <option value="codex">Codex — ChatGPT 구독 연결</option>
+            <option value="gemini">Gemini — Google AI</option>
+            <option value="ollama">Ollama — 이 PC에서 100% 무료</option>
+            <option value="lmstudio">LM Studio — 이 PC에서 100% 무료</option>
+            <option value="combo">조합 (ComboBrain) — 코딩·웹·일반 분담</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <span>배운 말 나누기 (`GrowTogether.swift`)</span>
+          <select id="cfgGrowTogether">
+            <option value="together">다 같이 키우기 (together)</option>
+            <option value="solo">혼자 키우기 (solo)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="menu-btn" id="btnPreviewVoiceSettings">🔊 목소리 미리 듣기</button>
+        <button class="hud-action-btn" id="btnSaveSettings">설정 저장 및 즉시 적용</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. REA 4-Stage Clean-Room Reverse Engineering Inspector Modal -->
+  <div class="modal-backdrop" id="reaModal">
+    <div class="modal-window" style="width:min(960px, 96vw);">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size:21px;color:var(--lime);">🔬 REA (Reverse Engineer Anything v6.7.0) 4단계 역공학 명세서</h2>
+          <p style="font-size:12.5px;color:#94a3b8;margin-top:3px;">
+            원본 리포지토리 `C:\자비스\vendor\sasarisa` (92개 파일, 44개 Swift 모듈, 11,261줄) 실측 AST 해부 및 4분할 증거(4-Split Evidence) 리포트
+          </p>
+        </div>
+        <button class="menu-btn" data-close="reaModal">닫기 ✕</button>
+      </div>
+
+      <div id="reaModalContent" style="font-size:13px;line-height:1.6;color:#e2e8f0;">
+        REA 분석 데이터 로딩 중…
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/speech-turn-buffer.js"></script>
+  <script src="/js/media-intents.js"></script>
+  <script src="/js/jarvis-app.js"></script>
+</body>
+</html>

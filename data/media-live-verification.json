@@ -1,0 +1,94 @@
+{
+  "startedAt": "2026-10-28T09:45:33.413Z",
+  "steps": [
+    {
+      "action": "open",
+      "intent": "youtubeAutoPlay",
+      "playback": {
+        "browser": true,
+        "status": "Playing",
+        "current": false,
+        "source": "Chrome"
+      }
+    },
+    {
+      "action": "explicit-stop-without-wake",
+      "media": {
+        "source": "Chrome",
+        "changed": true,
+        "ok": true,
+        "state": "Paused",
+        "verified": true,
+        "attempts": [
+          "pause"
+        ]
+      },
+      "playback": {
+        "browser": true,
+        "status": "Paused",
+        "current": false,
+        "source": "Chrome"
+      }
+    },
+    {
+      "action": "repeated-stop",
+      "media": {
+        "changed": false,
+        "ok": true,
+        "source": "Chrome",
+        "verified": true,
+        "state": "Paused"
+      },
+      "playback": {
+        "browser": true,
+        "status": "Paused",
+        "current": false,
+        "source": "Chrome"
+      }
+    },
+    {
+      "action": "resume",
+      "media": {
+        "source": "Chrome",
+        "changed": true,
+        "ok": true,
+        "state": "Playing",
+        "verified": true,
+        "attempts": [
+          "play"
+        ]
+      },
+      "playback": {
+        "browser": true,
+        "status": "Playing",
+        "current": false,
+        "source": "Chrome"
+      }
+    },
+    {
+      "action": "context-stop-without-wake",
+      "media": {
+        "source": "Chrome",
+        "changed": true,
+        "ok": true,
+        "state": "Paused",
+        "verified": true,
+        "attempts": [
+          "pause"
+        ]
+      },
+      "playback": {
+        "browser": true,
+        "status": "Paused",
+        "current": false,
+        "source": "Chrome"
+      }
+    }
+  ],
+  "runtime": {
+    "entry": "server.verified.js",
+    "pid": 31244
+  },
+  "passed": true,
+  "finishedAt": "2026-10-28T09:45:49.083Z"
+}
