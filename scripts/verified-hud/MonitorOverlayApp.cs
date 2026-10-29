@@ -295,7 +295,7 @@ namespace JarvisSasariSa
             }
             catch { }
 
-            voiceAutoSubmitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1600) };
+            voiceAutoSubmitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(4200) };
             voiceAutoSubmitTimer.Tick += (s, e) =>
             {
                 voiceAutoSubmitTimer.Stop();
@@ -371,15 +371,13 @@ namespace JarvisSasariSa
                     string nodeExe = File.Exists("C:\\Program Files\\nodejs\\node.exe")
                         ? "C:\\Program Files\\nodejs\\node.exe"
                         : "node.exe";
-                    ProcessStartInfo psi = new ProcessStartInfo
-                    {
-                        FileName = nodeExe,
-                        Arguments = "\"C:\\자비스\\server.js\"",
-                        WorkingDirectory = "C:\\자비스",
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    };
-                    Process.Start(psi);
+                    STARTUPINFO si = new STARTUPINFO();
+                    si.cb = Marshal.SizeOf(si);
+                    si.lpDesktop = "Winsta0\\Default";
+                    si.dwFlags = 1; // STARTF_USESHOWWINDOW
+                    si.wShowWindow = 0; // SW_HIDE
+                    PROCESS_INFORMATION pi;
+                    CreateProcess(null, "\"" + nodeExe + "\" \"C:\\자비스\\server.js\"", IntPtr.Zero, IntPtr.Zero, false, 0x08000000, IntPtr.Zero, "C:\\자비스", ref si, out pi);
                 }
             }
             catch { }
@@ -3394,18 +3392,42 @@ namespace JarvisSasariSa
         private static void PromptListenNow()
         {
             if (isMiniMode) ToggleMiniMode(false);
-            SetHudAppearance(CyanColor);
-            txtStatus.Text = "● 듣는 중 — 끝까지 말씀한 뒤 Enter 또는 전송을 누르세요";
-            txtMainBody.Text = "지금 마이크로 말씀해 주세요 (예: “유튜브에서 클래식 틀어 줘”)";
-            SpeakAsync("네, 대표님. 말씀하세요.");
-
-            DispatcherTimer delayMic = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(950) };
-            delayMic.Tick += (s, e) =>
+            try
             {
-                delayMic.Stop();
-                TriggerWindowsKoreanVoiceTyping();
-            };
-            delayMic.Start();
+                koreanVoicePlayer.Stop();
+                isSpeaking = false;
+            }
+            catch { }
+
+            StartInvisibleChromeEarWorker();
+            SetHudAppearance(CyanColor);
+            txtStatus.Text = "● 집중 듣는 중 (잠시 쉬어도 끊기지 않습니다 · 끝까지 말씀하세요)";
+            txtMainBody.Text = "지금 편하게 말씀해 주세요 (예: “유튜브에서 로파이 음악 틀어줘”, “웹브라우저 켜서 네이버 열어줘”)";
+            if (secTxtStatus != null) secTxtStatus.Text = txtStatus.Text;
+            if (secTxtMainBody != null) secTxtMainBody.Text = txtMainBody.Text;
+            if (thirdTxtStatus != null) thirdTxtStatus.Text = txtStatus.Text;
+            if (thirdTxtMainBody != null) thirdTxtMainBody.Text = txtMainBody.Text;
+
+            try
+            {
+                if (hudWindow != null)
+                {
+                    hudWindow.Topmost = true;
+                    hudWindow.Activate();
+                }
+                if (inputBox != null) inputBox.Focus();
+            }
+            catch { }
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json"));
+                    await http.PostAsync("http://127.0.0.1:7788/api/ear/wake", new StringContent("{\"durationSec\":60}", Encoding.UTF8, "application/json"));
+                }
+                catch { }
+            });
         }
 
         private static void SubmitHudInput()
@@ -3414,7 +3436,7 @@ namespace JarvisSasariSa
             string text = (inputBox != null && !string.IsNullOrWhiteSpace(inputBox.Text))
                 ? inputBox.Text.Trim()
                 : (txtMainBody != null ? txtMainBody.Text.Trim() : "");
-            if (string.IsNullOrEmpty(text) || text == "무엇을 도와드릴까요?" || text.StartsWith("지금 마이크로")) return;
+            if (string.IsNullOrEmpty(text) || text == "무엇을 도와드릴까요?" || text.StartsWith("지금 마이크로") || text.StartsWith("지금 편하게")) return;
             suppressTextChanged = true;
             if (inputBox != null) inputBox.Text = "";
             suppressTextChanged = false;

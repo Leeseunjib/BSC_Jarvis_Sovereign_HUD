@@ -51,7 +51,7 @@
     return { isSpeaking, speakHd };
   }
 
-  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef) {
+  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef) {
     const [micLevel, setMicLevel] = useState(0);
     const [micActive, setMicActive] = useState(false);
     const [micDeviceLabel, setMicDeviceLabel] = useState('');
@@ -110,6 +110,10 @@
                 if (d && typeof d.isSpeaking === 'boolean' && serverSpeakingRef) {
                   serverSpeakingRef.current = d.isSpeaking;
                 }
+                if (d && typeof d.forceAwakeUntil === 'number' && d.forceAwakeUntil > Date.now() && awakeUntilRef) {
+                  awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, d.forceAwakeUntil);
+                  if (turnRef && turnRef.current) turnRef.current.pauseMs = 3500;
+                }
               })
               .catch(() => {});
           }
@@ -122,7 +126,7 @@
         reportEarHealth({ microphone: 'error', error: err.name || '마이크 연결 실패' });
         return false;
       }
-    }, [serverSpeakingRef]);
+    }, [serverSpeakingRef, awakeUntilRef, turnRef]);
 
     useEffect(() => {
       startMeter();
@@ -172,7 +176,9 @@
     const { isSpeaking, speakHd } = useStudioHdVoice();
     const audioActivityRef = useRef(null);
     const mediaContextRef = useRef(false);
-    const { micLevel, micActive, micDeviceLabel, startMeter } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef);
+    const awakeUntilRef = useRef(0);
+    const turnRef = useRef(null);
+    const { micLevel, micActive, micDeviceLabel, startMeter } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef);
     const isSpeakingRef = useRef(false);
     isSpeakingRef.current = isSpeaking;
 
@@ -180,8 +186,6 @@
     const recRunningRef = useRef(false);
     const lastExecutedRef = useRef({ text: '', ts: 0 });
     const voiceSessionRef = useRef(`worker-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    const awakeUntilRef = useRef(0);
-    const turnRef = useRef(null);
     const executeRef = useRef(null);
     const configRef = useRef(config);
     configRef.current = config;
@@ -238,6 +242,7 @@
     executeRef.current = executeCommand;
     if (!turnRef.current) {
       turnRef.current = new window.SpeechTurnBuffer({
+        pauseMs: 2400,
         onCommit: text => executeRef.current(text, 'voice'),
         onFinalize: () => { try { if (recRef.current && recRunningRef.current) recRef.current.stop(); } catch (_) {} },
         onReset: () => { try { if (recRef.current) recRef.current.abort(); } catch (_) {} },
@@ -246,6 +251,10 @@
           const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
           const cfg = configRef.current;
           const control = window.JarvisMediaIntents.classifyMediaControl(text, mediaContextRef.current);
+          if (Date.now() < awakeUntilRef.current && String(text || '').trim().length >= 2) {
+            executeRef.current(String(text || '').trim(), 'voice');
+            return;
+          }
           if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && ![...(cfg.wakeWords || []), cfg.assistantName || '자비스'].some(w => normalize(w) && normalize(text).includes(normalize(w)))) return;
           setHudColor('amber'); setHudStatus('음성 확정 실패 · 다시 말씀하거나 입력해 주세요'); setHudText(text);
           fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, status: 'recognition-error' }) }).catch(() => {});

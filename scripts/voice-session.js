@@ -18,15 +18,26 @@ class VoiceSessions {
     const normalized = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
     const phrase = normalized(text);
     const isGreeting = (config.greetings || []).some(g => phrase === normalized(g));
-    const wasAwake = (this.sessions.get(id) || 0) > now;
+    const wasAwake = (this.sessions.get(id) || 0) > now || (global.__jarvisForceAwakeUntil || 0) > now;
     const isWake = config.activation !== 'hold' && (this.engine.hasWakeWord(text) || isGreeting);
     const isMediaStop = config.activation !== 'hold' && typeof this.engine.isMediaStopRequest === 'function' && this.engine.isMediaStopRequest(text);
     if (!wasAwake && !isWake && !isMediaStop) return false;
     const seconds = this.engine.mode === 'dictation' ? 600 : Math.max(1, Math.min(120, Number(config.followUpSec) || 30));
     if (this.sessions.size >= 100 && !this.sessions.has(id)) this.sessions.delete(this.sessions.keys().next().value);
     this.sessions.set(id, now + seconds * 1000);
-    if (/^(그만|됐어|끝|잘자|bye)$/i.test(phrase)) this.sessions.delete(id);
+    if (/^(그만|됐어|끝|잘자|bye)$/i.test(phrase)) {
+      this.sessions.delete(id);
+      global.__jarvisForceAwakeUntil = 0;
+    }
     return true;
+  }
+
+  wakeAll(expiresAt) {
+    if (!Number.isFinite(expiresAt)) return;
+    global.__jarvisForceAwakeUntil = expiresAt;
+    for (const id of this.sessions.keys()) {
+      this.sessions.set(id, Math.max(this.sessions.get(id) || 0, expiresAt));
+    }
   }
 
   extend(sessionId, expiresAt) {

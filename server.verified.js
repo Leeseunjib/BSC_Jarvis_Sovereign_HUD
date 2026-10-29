@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { ButlerEngine, FILES } = require('./scripts/butler-engine.verified');
+const { sharedTerminalManager, sharedBscBridge } = require('./scripts/bsc-collaboration-bridge');
 const { VoiceSessions } = require('./scripts/voice-session');
 const { registerWindowsStartup, getStartupStatus } = require('./scripts/windows-ear-daemon');
 const { runReaAnalysis, buildReaReportObject } = require('./scripts/rea-analyzer');
@@ -399,8 +400,42 @@ const server = http.createServer(async (req, res) => {
       routines,
       memory,
       neuralTtsAvailable: Boolean(MsEdgeTTS),
-      ytList: butler.ytList
+      ytList: butler.ytList,
+      subwindows: butler.getSubwindowsState()
     });
+  }
+
+  // 1-B) GET /api/hud/subwindows (Real-time Collapsible Task & Music Sub-Windows State)
+  if (req.method === 'GET' && pathname === '/api/hud/subwindows') {
+    return sendJson(res, 200, {
+      ok: true,
+      ...butler.getSubwindowsState()
+    });
+  }
+
+  // 1-C) POST /api/tasks/run | /api/tasks/stop | /api/tasks/dismiss
+  if (req.method === 'POST' && pathname === '/api/tasks/run') {
+    try {
+      const body = await readBody(req);
+      const taskState = sharedTerminalManager.runTask({
+        title: body.title || '터미널 작업 실행',
+        command: body.command,
+        cwd: body.cwd || 'C:\\자비스',
+        chlgdPhase: body.chlgdPhase || 'Execute',
+        partnerAgent: body.partnerAgent || null
+      });
+      return sendJson(res, 200, { ok: true, taskState });
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: err.message });
+    }
+  }
+  if (req.method === 'POST' && pathname === '/api/tasks/stop') {
+    const stopped = sharedTerminalManager.stopActiveTask();
+    return sendJson(res, 200, { ok: true, stopped, activeTask: sharedTerminalManager.getActiveState() });
+  }
+  if (req.method === 'POST' && pathname === '/api/tasks/dismiss') {
+    const dismissed = sharedTerminalManager.dismissActiveTask();
+    return sendJson(res, 200, { ok: true, dismissed });
   }
 
   // 2) GET /api/rea/blueprint
@@ -524,7 +559,31 @@ const server = http.createServer(async (req, res) => {
     if (body && typeof body.level === 'number') {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.level) || 0));
     }
-    return sendJson(res, 200, { ok: true, isSpeaking: Boolean(global.__jarvisIsSpeaking), mediaActive: butler.hasMediaContext() });
+    return sendJson(res, 200, {
+      ok: true,
+      isSpeaking: Boolean(global.__jarvisIsSpeaking),
+      mediaActive: butler.hasMediaContext(),
+      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0
+    });
+  }
+  if (req.method === 'POST' && pathname === '/api/ear/wake') {
+    const body = await readBody(req);
+    const sec = Math.max(10, Math.min(180, Number((body && body.durationSec) || 60)));
+    global.__jarvisForceAwakeUntil = Date.now() + sec * 1000;
+    global.__jarvisIsSpeaking = false;
+    try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+    const item = {
+      text: '지금 편하게 말씀해 주세요 (예: “유튜브에서 로파이 음악 틀어줘”, “웹브라우저 켜서 네이버 열어줘”)',
+      isFinal: false,
+      hudTitle: '● 집중 듣는 중 (호출어 없이 바로 말씀하세요)',
+      hudColor: 'cyan',
+      ts: Date.now()
+    };
+    global.__jarvisLatestEarItem = item;
+    if (!global.__jarvisEarQueue) global.__jarvisEarQueue = [];
+    global.__jarvisEarQueue.push(item);
+    if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
+    return sendJson(res, 200, { ok: true, forceAwakeUntil: global.__jarvisForceAwakeUntil });
   }
   if (req.method === 'POST' && pathname === '/api/ear/speaking') {
     const body = await readBody(req);

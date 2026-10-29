@@ -559,7 +559,31 @@ const server = http.createServer(async (req, res) => {
     if (body && typeof body.level === 'number') {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.level) || 0));
     }
-    return sendJson(res, 200, { ok: true, isSpeaking: Boolean(global.__jarvisIsSpeaking), mediaActive: butler.hasMediaContext() });
+    return sendJson(res, 200, {
+      ok: true,
+      isSpeaking: Boolean(global.__jarvisIsSpeaking),
+      mediaActive: butler.hasMediaContext(),
+      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0
+    });
+  }
+  if (req.method === 'POST' && pathname === '/api/ear/wake') {
+    const body = await readBody(req);
+    const sec = Math.max(10, Math.min(180, Number((body && body.durationSec) || 60)));
+    global.__jarvisForceAwakeUntil = Date.now() + sec * 1000;
+    global.__jarvisIsSpeaking = false;
+    try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+    const item = {
+      text: '지금 편하게 말씀해 주세요 (예: “유튜브에서 로파이 음악 틀어줘”, “웹브라우저 켜서 네이버 열어줘”)',
+      isFinal: false,
+      hudTitle: '● 집중 듣는 중 (호출어 없이 바로 말씀하세요)',
+      hudColor: 'cyan',
+      ts: Date.now()
+    };
+    global.__jarvisLatestEarItem = item;
+    if (!global.__jarvisEarQueue) global.__jarvisEarQueue = [];
+    global.__jarvisEarQueue.push(item);
+    if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
+    return sendJson(res, 200, { ok: true, forceAwakeUntil: global.__jarvisForceAwakeUntil });
   }
   if (req.method === 'POST' && pathname === '/api/ear/speaking') {
     const body = await readBody(req);

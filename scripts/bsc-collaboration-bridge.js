@@ -311,8 +311,23 @@ class BscCollaborationBridge {
     const s = String(rawSentence || '').trim();
     const sq = s.replace(/\s+/g, '').toLowerCase();
 
-    // A) CHLGD / CI-CD / 코드 검증 / 작업 마감 스크립트 오더
-    if (/chlgd|코드검증|품질검사|verify-code|verifycode|ci\/cd|cicd점검|산출물검증/.test(sq)) {
+    // A) 직접 CLI / PowerShell / Git / Node / Python 명령어를 입력한 경우 즉시 터미널 실행
+    const directCliPrefix = /^(git\s+.+|node\s+.+|npm\s+.+|npx\s+.+|python\s+.+|py\s+.+|pip\s+.+|gh\s+.+|dir(?:\s+.*)?|ls(?:\s+.*)?|pwd|whoami|ipconfig(?:\s+.*)?|ping\s+.+|netstat(?:\s+.*)?|tasklist(?:\s+.*)?|systeminfo|Get-[A-Za-z]+.*|Test-Path\s+.+|Invoke-[A-Za-z]+.*)$/i;
+    if (directCliPrefix.test(s)) {
+      const partner = this.findPartnerAgent(s);
+      return {
+        kind: 'terminal',
+        title: `CLI 직접 실행: ${s.slice(0, 36)}`,
+        command: s,
+        cwd: s.toLowerCase().includes('beauscreators') ? BSC_ROOT : 'C:\\자비스',
+        chlgdPhase: 'Direct CLI',
+        partnerAgent: partner,
+        spoken: `네, 대표님. 입력하신 CLI 명령어 ${s.split(/\s+/)[0]} 작업을 실시간 터미널에서 실행합니다.`
+      };
+    }
+
+    // B) CHLGD / CI-CD / 코드 검증 / 작업 마감 스크립트 오더
+    if (/chlgd|코드검증|품질검사|verify-code|verifycode|ci\/cd|cicd점검|산출물검증|빌드검증|테스트돌려|검증돌려/.test(sq)) {
       const partner = this.findPartnerAgent('보안 qa 수호');
       const cmd = fs.existsSync(BSC_PATHS.verifyDeliverableJs)
         ? `node "${BSC_PATHS.verifyDeliverableJs}" "C:\\자비스\\server.js" "C:\\자비스\\scripts\\butler-engine.js"`
@@ -328,8 +343,8 @@ class BscCollaborationBridge {
       };
     }
 
-    // B) CHLGD Context 핀셋 로더 (Start-Context.js) 실행
-    if (/컨텍스트로드|start-context|출근동기화|에이전트컨텍스트| 에러로그점검|에러로그확인/.test(sq)) {
+    // C) CHLGD Context 핀셋 로더 (Start-Context.js) 실행
+    if (/컨텍스트로드|start-context|출근동기화|에이전트컨텍스트|에러로그점검|에러로그확인/.test(sq)) {
       const partner = this.findPartnerAgent(s);
       const cmd = fs.existsSync(BSC_PATHS.startContextJs)
         ? `node "${BSC_PATHS.startContextJs}" --agent=${partner.id} --dir="C:\\자비스" --query="HUD"`
@@ -345,13 +360,13 @@ class BscCollaborationBridge {
       };
     }
 
-    // C) Git 상태 / 커밋 / 브랜치 / 로그 확인 터미널 오더
-    if (/깃상태|gitstatus|깃로그|gitlog|깃확인|변경사항확인|커밋내역/.test(sq)) {
+    // D) Git 상태 / 커밋 / 브랜치 / 로그 / 원격 저장소 확인 터미널 오더
+    if (/깃상태|gitstatus|깃로그|gitlog|깃확인|깃브랜치|변경사항확인|커밋내역|깃허브상태/.test(sq)) {
       const partner = this.findPartnerAgent('거누 cto');
       return {
         kind: 'terminal',
-        title: 'Git 저장소 상태 및 최근 커밋 점검',
-        command: 'git status -s; Write-Output "--- 최근 커밋 ---"; git log -n 5 --oneline',
+        title: 'Git 저장소 상태 · 브랜치 · 최근 커밋 점검',
+        command: 'git status -s; Write-Output "--- 브랜치 및 원격 저장소 ---"; git remote -v; Write-Output "--- 최근 커밋 ---"; git log -n 5 --oneline',
         cwd: 'C:\\자비스',
         chlgdPhase: 'Context & Git',
         partnerAgent: partner,
@@ -359,33 +374,62 @@ class BscCollaborationBridge {
       };
     }
 
-    // D) 시스템/포트/프로세스/디스크 터미널 점검 오더
-    if (/터미널작업|터미널열어|터미널실행|포트확인|프로세스확인|서버점검|시스템점검실행|점검돌려/.test(sq)) {
+    // E) 파일 목록 / 폴더 구조 / 디렉토리 확인 CLI 오더
+    if (/파일목록|폴더목록|디렉토리목록|현재폴더|폴더구조|파일확인|목록보여/.test(sq)) {
+      const targetDir = /beauscreators|뷰스크리에이터|본사/.test(sq) ? BSC_ROOT : 'C:\\자비스';
       const partner = this.findPartnerAgent('거누 cto');
       return {
         kind: 'terminal',
-        title: '자비스 & BSC 실시간 시스템·포트·메모리 진단',
-        command: 'Write-Output "[1] 자비스 & BSC 활성 노드 프로세스:"; Get-Process node, JarvisHud* -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, @{N="MemMB";E={[math]::Round($_.WorkingSet64/1MB,1)}} | Format-Table -AutoSize; Write-Output "[2] C:\\BeausCreators 핵심 폴더 검증:"; Get-ChildItem "C:\\BeausCreators\\01.BSC_HQ" -Directory | Select-Object Name',
-        cwd: 'C:\\자비스',
-        chlgdPhase: 'Harness & Diagnostics',
+        title: `디렉토리 및 파일 목록 조회 (${targetDir})`,
+        command: `Get-ChildItem -LiteralPath "${targetDir}" | Select-Object Mode, LastWriteTime, Length, Name | Format-Table -AutoSize`,
+        cwd: targetDir,
+        chlgdPhase: 'CLI File Explorer',
         partnerAgent: partner,
-        spoken: '네, 대표님. 실시간 작업 미니 창에서 자비스와 BeausCreators 시스템 진단 터미널 작업을 실행합니다.'
+        spoken: `네, 대표님. ${targetDir} 경로의 파일 및 폴더 목록을 터미널 창에 출력했습니다.`
       };
     }
 
-    // E) 직접 터미널 명령어 지정 (예: "터미널에서 dir 실행해줘", "파워쉘로 ... 실행해")
-    const directTermMatch = s.match(/^(?:터미널에서|파워쉘에서|파워쉘로|콘솔에서|명령어로)\s+(.+?)\s*(?:실행해\s*줘|실행해|돌려\s*줘|돌려|해\s*줘|해)?$/i);
+    // F) 개발 환경 / Node / Python / Git 버전 및 CLI 런타임 점검
+    if (/파이썬버전|노드버전|개발환경|버전확인|cli확인|런타임점검|환경점검/.test(sq)) {
+      const partner = this.findPartnerAgent('우진 ai');
+      return {
+        kind: 'terminal',
+        title: 'CLI 개발 런타임 (Node · Python · Git · GH) 버전 점검',
+        command: 'Write-Output ("Node.js: " + (node -v)); Write-Output ("NPM: " + (npm -v)); python --version; git --version; gh --version',
+        cwd: 'C:\\자비스',
+        chlgdPhase: 'CLI Runtime Check',
+        partnerAgent: partner,
+        spoken: '네, 대표님. Node.js, Python, Git, GitHub CLI 버전을 실시간 작업 창에 출력했습니다.'
+      };
+    }
+
+    // G) 네트워크 / IP / 포트 / 디스크 용량 / 프로세스 진단 오더
+    if (/네트워크확인|아이피확인|ip확인|포트확인|열린포트|디스크용량|용량확인|프로세스확인|메모리확인|서버점검|시스템점검|터미널작업|터미널실행|점검돌려/.test(sq)) {
+      const partner = this.findPartnerAgent('거누 cto');
+      return {
+        kind: 'terminal',
+        title: '자비스 & Windows 시스템 · 포트 · 디스크 · 프로세스 CLI 진단',
+        command: 'Write-Output "[1] 자비스 활성 프로세스:"; Get-Process node, JarvisHud* -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, @{N="MemMB";E={[math]::Round($_.WorkingSet64/1MB,1)}} | Format-Table -AutoSize; Write-Output "[2] 드라이브 여유 용량:"; Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{N="Used(GB)";E={[math]::Round($_.Used/1GB,1)}}, @{N="Free(GB)";E={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize; Write-Output "[3] 7788 포트 리스닝 상태:"; Get-NetTCPConnection -LocalPort 7788 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress, LocalPort, State, OwningProcess | Format-Table -AutoSize',
+        cwd: 'C:\\자비스',
+        chlgdPhase: 'Harness & Diagnostics',
+        partnerAgent: partner,
+        spoken: '네, 대표님. 실시간 작업 미니 창에서 프로세스, 디스크 여유 용량, 포트 상태를 즉시 진단합니다.'
+      };
+    }
+
+    // H) 직접 터미널 명령어 지정 (예: "터미널에서 dir 실행해줘", "CLI로 ... 해줘", "파워쉘로 ... 실행해")
+    const directTermMatch = s.match(/^(?:터미널에서|터미널로|cli에서|cli로|파워쉘에서|파워쉘로|콘솔에서|명령어로)\s+(.+?)\s*(?:실행해\s*줘|실행해|돌려\s*줘|돌려|쳐\s*줘|해\s*줘|해)?$/i);
     if (directTermMatch) {
       const rawCmd = directTermMatch[1].trim();
       const partner = this.findPartnerAgent(rawCmd);
       return {
         kind: 'terminal',
-        title: `터미널 명령 실행: ${rawCmd.slice(0, 32)}`,
+        title: `CLI 명령 실행: ${rawCmd.slice(0, 32)}`,
         command: rawCmd,
         cwd: 'C:\\자비스',
         chlgdPhase: 'Direct Terminal',
         partnerAgent: partner,
-        spoken: `네, 대표님. 요청하신 터미널 작업을 실행하고 미니 작업 창에 진행 상황을 표시합니다.`
+        spoken: `네, 대표님. 요청하신 CLI 터미널 작업을 실행하고 미니 작업 창에 실시간 출력을 표시합니다.`
       };
     }
 

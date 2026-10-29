@@ -694,42 +694,93 @@
       toggleMusicDrawer(true);
     };
 
+    let webMicSilenceTimer = null;
+    let webMicAccumulated = '';
+    let webMicInterim = '';
+
+    function commitWebMicTranscript() {
+      if (webMicSilenceTimer) { clearTimeout(webMicSilenceTimer); webMicSilenceTimer = null; }
+      const full = `${webMicAccumulated} ${webMicInterim}`.replace(/\s+/g, ' ').trim();
+      webMicAccumulated = '';
+      webMicInterim = '';
+      if (listening && rec) {
+        listening = false;
+        try { rec.stop(); } catch (_) {}
+      }
+      document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+      if (full) {
+        document.getElementById('cmdInput').value = '';
+        runCmd(full);
+      }
+    }
+
     function toggleWebMic() {
+      fetch('http://127.0.0.1:7788/api/ear/wake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ durationSec: 60 })
+      }).catch(() => {});
+
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRec) {
-        setHud('amber', '⚠ 브라우저 음성인식 안내', '바탕화면 상단 자비스 HUD 또는 Chrome에서 상시 음성인식이 작동합니다.');
+        setHud('cyan', '● 집중 듣는 중 (60초 활성)', '바탕화면 자비스 마이크가 깨어났습니다. 끝까지 편하게 말씀하세요.');
         return;
       }
       if (listening && rec) {
-        listening = false;
-        rec.stop();
-        document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+        commitWebMicTranscript();
         return;
       }
+      webMicAccumulated = '';
+      webMicInterim = '';
       rec = new SpeechRec();
       rec.lang = 'ko-KR';
       rec.interimResults = true;
-      rec.continuous = false;
+      rec.continuous = true;
+      rec.maxAlternatives = 1;
       listening = true;
-      document.getElementById('btnMicWeb').textContent = '🛑 듣는 중…';
-      setHud('cyan', '● 받아 적는 중…', '지금 말씀하시면 자비스가 즉시 실행합니다.');
+      document.getElementById('btnMicWeb').textContent = '🛑 듣는 중 (끝나면 자동 실행)';
+      setHud('cyan', '● 집중 듣는 중 (잠시 쉬어도 끊기지 않습니다)', '끝까지 편하게 말씀하세요. 말을 마치면 자동으로 실행됩니다.');
 
       rec.onresult = ev => {
-        let interim = '';
-        let finalStr = '';
-        for (let i = ev.resultIndex; i < ev.results.length; i++) {
-          const t = ev.results[i][0].transcript;
-          if (ev.results[i].isFinal) finalStr += t;
-          else interim += t;
+        let finalPart = '';
+        let interimPart = '';
+        for (let i = 0; i < ev.results.length; i++) {
+          const t = (ev.results[i][0].transcript || '').trim();
+          if (!t) continue;
+          if (ev.results[i].isFinal) finalPart += (finalPart ? ' ' : '') + t;
+          else interimPart += (interimPart ? ' ' : '') + t;
         }
-        if (interim) document.getElementById('hudMainBody').textContent = `“${interim}”`;
-        if (finalStr.trim()) runCmd(finalStr.trim());
+        webMicAccumulated = finalPart;
+        webMicInterim = interimPart;
+        const preview = `${webMicAccumulated} ${webMicInterim}`.replace(/\s+/g, ' ').trim();
+        if (preview) {
+          document.getElementById('hudMainBody').textContent = `“${preview}”`;
+          document.getElementById('cmdInput').value = preview;
+        }
+        if (webMicSilenceTimer) clearTimeout(webMicSilenceTimer);
+        webMicSilenceTimer = setTimeout(() => {
+          commitWebMicTranscript();
+        }, 2800);
+      };
+      rec.onerror = ev => {
+        if (ev && (ev.error === 'no-speech' || ev.error === 'aborted')) return;
       };
       rec.onend = () => {
-        listening = false;
-        document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+        if (listening) {
+          const pending = `${webMicAccumulated} ${webMicInterim}`.replace(/\s+/g, ' ').trim();
+          if (pending) {
+            commitWebMicTranscript();
+          } else {
+            try { rec.start(); } catch (_) {
+              listening = false;
+              document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+            }
+          }
+        } else {
+          document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+        }
       };
-      rec.start();
+      try { rec.start(); } catch (_) {}
     }
 
     document.getElementById('btnMicWeb').onclick = toggleWebMic;

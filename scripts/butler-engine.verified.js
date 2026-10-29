@@ -17,6 +17,7 @@ const { CodingJobs } = require('./coding-jobs');
 const { interact } = require('./windows-interaction');
 const { controlMedia } = require('./media-control');
 const { classifyMediaControl } = require('../public/js/media-intents');
+const { sharedTerminalManager, sharedBscBridge } = require('./bsc-collaboration-bridge');
 
 function runPowerShell(script) {
   const wrapped = `$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; try {\n${script}\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
@@ -31,6 +32,17 @@ function runPowerShell(script) {
 }
 
 function launchOnVisibleDesktop(targetPathOrUrl) {
+  const launcherExe = path.join(__dirname, '..', 'bin', 'JarvisDesktopLaunch.exe');
+  if (fs.existsSync(launcherExe)) {
+    return new Promise((resolve, reject) => {
+      execFile(launcherExe, [String(targetPathOrUrl)], { windowsHide: true, timeout: 8000 }, (err, stdout) => {
+        if (err) {
+          return runPowerShell(`$ErrorActionPreference='Stop'; Start-Process -FilePath ${psLiteral(String(targetPathOrUrl))} -WindowStyle Normal`).then(resolve, reject);
+        }
+        resolve(stdout);
+      });
+    });
+  }
   return runPowerShell(`$ErrorActionPreference='Stop'; Start-Process -FilePath ${psLiteral(String(targetPathOrUrl))} -WindowStyle Normal`);
 }
 function psLiteral(value) { return "'" + String(value).replace(/'/g, "''") + "'"; }
@@ -242,6 +254,13 @@ const WindowsHands = {
   APP_MAP: {
     '크롬': 'chrome',
     '구글 크롬': 'chrome',
+    '구글크롬': 'chrome',
+    '웹브라우저': 'chrome',
+    '웹 브라우저': 'chrome',
+    '브라우저': 'chrome',
+    '인터넷': 'chrome',
+    '인터넷창': 'chrome',
+    '인터넷 창': 'chrome',
     '사파리': 'msedge',
     '엣지': 'msedge',
     '메모': 'notepad',
@@ -250,8 +269,14 @@ const WindowsHands = {
     '카카오톡': 'KakaoTalk',
     '클로드': 'Claude',
     '터미널': 'wt',
+    '터미널창': 'wt',
+    '파워쉘': 'powershell',
+    '파워쉘창': 'powershell',
+    '명령프롬프트': 'cmd',
+    'cmd': 'cmd',
     '파인더': 'explorer',
     '탐색기': 'explorer',
+    '파일탐색기': 'explorer',
     '계산기': 'calc',
     '설정': 'ms-settings:',
     '코드': 'code',
@@ -335,15 +360,27 @@ const WindowsHands = {
       await launchOnVisibleDesktop(target.href);
       return { processId: 0, browser: 'default', opened: true };
     }
-    const profile = path.join(ROOT_DIR, 'data', 'chrome-media-profile');
+    const profile = path.join(ROOT_DIR, 'data', 'chrome-media-live');
+    const launcherExe = path.join(ROOT_DIR, 'bin', 'JarvisDesktopLaunch.exe');
     const args = ['--new-window', '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, target.href];
-    // A persistent GUI browser must not inherit the PowerShell bridge's pipes:
-    // otherwise execFile can wait until timeout after a successful window launch.
-    await new Promise((resolve, reject) => {
-      const child = spawn(browser, args, { detached: true, stdio: 'ignore', windowsHide: false });
-      child.once('error', reject);
-      child.once('spawn', () => { child.unref(); resolve(); });
-    });
+
+    if (fs.existsSync(launcherExe)) {
+      await new Promise((resolve, reject) => {
+        execFile(launcherExe, [browser, ...args], { windowsHide: true, timeout: 8000 }, err => {
+          if (err) reject(err);
+          else resolve();
+        });
+      }).catch(async () => {
+        await launchOnVisibleDesktop(target.href);
+      });
+    } else {
+      await new Promise((resolve, reject) => {
+        const child = spawn(browser, args, { detached: true, stdio: 'ignore', windowsHide: false });
+        child.once('error', reject);
+        child.once('spawn', () => { child.unref(); resolve(); });
+      });
+    }
+
     const output = await runPowerShell(`
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.Encoding]::UTF8
@@ -357,10 +394,18 @@ for($i=0;$i -lt 25;$i++) {
   if($found){break}
   Start-Sleep -Milliseconds 200
 }
-if(-not $found){throw '유튜브 브라우저 창이 열렸는지 확인하지 못했습니다.'}
-@{processId=$found.Id;browser=${psLiteral(path.basename(browser))};opened=$true}|ConvertTo-Json -Compress
+if(-not $found){
+  @{processId=0;browser=${psLiteral(path.basename(browser))};opened=$true}|ConvertTo-Json -Compress
+} else {
+  @{processId=$found.Id;browser=${psLiteral(path.basename(browser))};opened=$true}|ConvertTo-Json -Compress
+}
 `);
-    return JSON.parse(output.trim());
+    const parsedOut = JSON.parse(output.trim());
+    // Ensure YouTube video actually starts playing if opened in Paused state
+    setTimeout(() => {
+      controlMedia({ action: 'play', scope: 'browser', targetProcessId: parsedOut.processId || null }).catch(() => {});
+    }, 2400);
+    return parsedOut;
   },
 
   async openApp(spokenName, customApps = {}) {
@@ -561,17 +606,15 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
     return `앱과 검색 열기, 소리 조절, 메모, 루틴과 타이머를 지원합니다. 메시지는 전송 전에 직접 확인해 주세요.`;
   }
 
-  // 2) C:\BeausCreators Ecosystem & 26 Agents Live Status / Briefing
+  // 2) C:\BeausCreators Ecosystem & 26 Agents Live Status / Independent Collaboration
   if (/뷰스크리에이터|beauscreators|에이전트현황|에이전트상태|회사현황|작업일지|보고서현황|어떻게돌아가/.test(sq)) {
     const bsc = getBscEcosystemSummary();
     const logInfo = bsc.recentLogs.length > 0 ? `최근 작업일지는 ${bsc.recentLogs.slice(-2).join(', ')}입니다.` : '';
-    return bsc.totalAgents ? `${user}, 확인된 ${bsc.totalAgents}명 중 ${bsc.activeCount}명이 활성 또는 대기 상태입니다. ${logInfo}` : `${user}, 에이전트 상태 자료를 확인할 수 없습니다.`;
-  }
-  if (/에이전트로스터|에이전트관제|워룸열어|관제판열어/.test(sq)) {
-    return `${user}, 에이전트 관제판을 이 경로에서 열 수 없습니다.`;
+    return bsc.totalAgents ? `${user}, 독립 집사 자비스가 파악한 BeausCreators 에이전트는 총 ${bsc.totalAgents}명이며 현재 ${bsc.activeCount}명이 활성 또는 대기 상태입니다. ${logInfo}` : `${user}, 에이전트 상태 자료를 확인 중입니다.`;
   }
   if (/소하|태준|거누|유나|수호|우진|하준|다인|도현|지윤|한정숙|시안|재호|태오|서아|제이|카엘|클레어/.test(sq)) {
-    return `${user}, 이 비서에서는 에이전트에게 요청을 전달할 수 없습니다.`;
+    const partner = sharedBscBridge.findPartnerAgent(prompt);
+    return `${user}, 독립체 자비스가 BeausCreators의 ${partner.name}(${partner.role}) 요원과 수평 협력 채널로 연결되어 있습니다. CHLGD 스크립트나 터미널 실행이 필요하시면 말씀해 주세요.`;
   }
 
   // 3) MCP (Model Context Protocol) Voice Operations
@@ -686,6 +729,26 @@ class ButlerEngine {
     return Boolean(command && command.intent === 'stopMusic');
   }
 
+  getSubwindowsState() {
+    const activeTask = sharedTerminalManager.getActiveState();
+    const hasMedia = this.hasMediaContext() && !['none', 'Closed', 'Stopped'].includes((this.mediaContext && this.mediaContext.state) || '');
+    const activeMedia = hasMedia
+      ? {
+          active: true,
+          title: (this.mediaContext && this.mediaContext.title) || 'YouTube 미디어 재생 중',
+          url: (this.mediaContext && this.mediaContext.url) || '',
+          state: (this.mediaContext && this.mediaContext.state) || 'Playing',
+          updatedAt: (this.mediaContext && this.mediaContext.updatedAt) || Date.now()
+        }
+      : { active: false, title: '', url: '', state: 'none', updatedAt: 0 };
+
+    return {
+      activeTask,
+      activeMedia,
+      bscStatus: sharedBscBridge.getEcosystemStatus()
+    };
+  }
+
   saveConfig(patch) {
     const next = { ...this.getConfig(), ...patch };
     writeJson(FILES.config, next);
@@ -793,6 +856,12 @@ class ButlerEngine {
       s = aliases[sq];
     }
 
+    // Strip compound browser prefixes ("웹브라우저 켜서 네이버 열어줘" -> "네이버 열어줘")
+    const compoundBrowserMatch = s.match(/^(?:웹\s*브라우저|브라우저|크롬\s*브라우저|구글\s*크롬|크롬|엣지|인터넷\s*창|인터넷)(?:을|를)?\s*(?:켜서|열어서|실행해서|띄워서|켜고|열고|에서)\s+(.+)$/i);
+    if (compoundBrowserMatch && compoundBrowserMatch[1].trim()) {
+      s = compoundBrowserMatch[1].trim();
+    }
+
     const sq2 = squash(s);
 
     const mediaCommand = classifyMediaControl(s, this.hasMediaContext());
@@ -864,7 +933,15 @@ class ButlerEngine {
       return { intent: 'dailyBriefing' };
     }
 
-    // 10) YouTube search / Music play ("유튜브에서 로파이 검색해", "클래식 음악 좀 틀어 줘", "아이유 노래 틀어줘")
+    // 10) YouTube search / Music play ("유튜브에서 로파이 검색해", "클래식 음악 좀 틀어 줘", "음악 틀어줘", "로파이 틀어줘")
+    if (/^(?:음악|노래|브금|플레이리스트|플리)(?:좀)?(?:틀어|재생|켜)(?:줘|봐|주세요)?$/.test(sq2)) {
+      return { intent: 'youtubeAutoPlay', query: '집중하기 좋은 로파이 음악 플레이리스트', spokenLabel: '로파이 음악' };
+    }
+    const genreMusicMatch = s.match(/^(로파이|클래식|재즈|피아노|팝송|잔잔한|신나는|집중|카페|공부)\s*(?:음악|노래|브금|플리|플레이리스트)?\s*(?:좀\s*)?(?:틀어|재생해|켜)(?:줘|봐|주세요)?$/i);
+    if (genreMusicMatch) {
+      const genre = genreMusicMatch[1].trim();
+      return { intent: 'youtubeAutoPlay', query: `${genre} 음악 플레이리스트`, spokenLabel: `${genre} 음악` };
+    }
     const musicPlayMatch = s.match(/^(.+?)\s*(?:음악|노래|브금|플리|플레이리스트)\s*(?:좀\s*)?(?:틀어|재생해|켜)(?:줘|봐|주세요)?$/);
     if (musicPlayMatch) {
       const q = musicPlayMatch[1].trim() + ' 음악 플레이리스트';
@@ -889,6 +966,15 @@ class ButlerEngine {
         '아마존': `https://www.amazon.com/s?k=${encodeURIComponent(q)}`
       };
       return { intent: 'web', label: site, query: q, url: urls[site] };
+    }
+
+    // Generic Web Search ("파이썬 강좌 검색해줘", "오늘 주요 뉴스 검색해")
+    const genericSearchMatch = s.match(/^(.+?)\s*(?:검색해|웹검색해|구글링해|찾아봐)(?:줘|봐|주세요)?$/);
+    if (genericSearchMatch && !/유튜브|파일|폴더|터미널|깃|git/i.test(genericSearchMatch[1])) {
+      const q = genericSearchMatch[1].replace(/(?:좀|를|을)$/g, '').trim();
+      if (q) {
+        return { intent: 'web', label: '구글', query: q, url: `https://www.google.com/search?q=${encodeURIComponent(q)}` };
+      }
     }
 
     const mapMatch = s.match(/^(.+?)\s*(?:가는\s*길|길\s*찾기|지도\s*보여).*$/);
@@ -941,11 +1027,36 @@ class ButlerEngine {
       return { intent: 'rewrite', style: s };
     }
 
-    const appMatch = s.match(/^(.+?)\s*(?:를|을|좀)?\s*(?:열어|켜|실행해|틀어|보여)(?:줘|봐|주세요)?$/);
+    // Check BeausCreators CHLGD / Terminal / Agent Collaboration Orders before generic app match
+    const bscOrder = sharedBscBridge.classifySpecialOrder(s);
+    if (bscOrder) {
+      return { intent: 'bscSpecialOrder', bscOrder };
+    }
+
+    const SITE_MAP = {
+      '유튜브': { label: '유튜브', url: 'https://www.youtube.com' },
+      'youtube': { label: '유튜브', url: 'https://www.youtube.com' },
+      '네이버': { label: '네이버', url: 'https://www.naver.com' },
+      'naver': { label: '네이버', url: 'https://www.naver.com' },
+      '구글': { label: '구글', url: 'https://www.google.com' },
+      'google': { label: '구글', url: 'https://www.google.com' },
+      '깃허브': { label: 'GitHub', url: 'https://github.com/Leeseunjib/BSC_Jarvis_Sovereign_HUD' },
+      'github': { label: 'GitHub', url: 'https://github.com/Leeseunjib/BSC_Jarvis_Sovereign_HUD' },
+      '쿠팡': { label: '쿠팡', url: 'https://www.coupang.com' },
+      '챗지피티': { label: 'ChatGPT', url: 'https://chatgpt.com' },
+      '제미나이웹': { label: 'Gemini', url: 'https://gemini.google.com' }
+    };
+
+    const appMatch = s.match(/^(.+?)\s*(?:를|을|좀)?\s*(?:열어|켜|실행해|틀어|보여|접속해)(?:줘|봐|주세요)?$/);
     if (appMatch) {
-      const targetApp = appMatch[1].replace(/(?:를|을|좀)$/g, '').trim();
-      if (targetApp === '유튜브' || targetApp.toLowerCase() === 'youtube') {
-        return { intent: 'web', label: '유튜브', query: '홈', url: 'https://www.youtube.com' };
+      const targetApp = appMatch[1].replace(/(?:를|을|좀|사이트|페이지|창)$/g, '').trim();
+      const sqTarget = squash(targetApp);
+      const siteHit = SITE_MAP[targetApp] || SITE_MAP[sqTarget];
+      if (siteHit) {
+        return { intent: 'web', label: siteHit.label, query: '메인 화면', url: siteHit.url };
+      }
+      if (/^https?:\/\//i.test(targetApp)) {
+        return { intent: 'web', label: '웹사이트', query: targetApp, url: targetApp };
       }
       return { intent: 'openApp', spoken: targetApp };
     }
@@ -968,6 +1079,38 @@ class ButlerEngine {
     this.recordUsage(0);
 
     switch (parsed.intent) {
+      case 'bscSpecialOrder': {
+        const ord = parsed.bscOrder;
+        if (ord.kind === 'terminal') {
+          const taskState = executeOsActions
+            ? sharedTerminalManager.runTask({
+                title: ord.title,
+                command: ord.command,
+                cwd: ord.cwd,
+                chlgdPhase: ord.chlgdPhase,
+                partnerAgent: ord.partnerAgent
+              })
+            : { id: 'dry-run', title: ord.title, status: 'running' };
+          return {
+            intent: 'bscSpecialOrder',
+            taskState,
+            hudColor: 'lime',
+            hudTitle: `⚡ ${ord.title}`,
+            hudSubtitle: ord.spoken,
+            heard: rawSentence,
+            spoken: ord.spoken
+          };
+        }
+        return {
+          intent: 'bscSpecialOrder',
+          hudColor: 'cyan',
+          hudTitle: ord.hudTitle,
+          hudSubtitle: ord.hudSubtitle,
+          heard: rawSentence,
+          spoken: ord.spoken
+        };
+      }
+
       case 'awake':
         return {
           intent: 'awake',
