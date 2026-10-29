@@ -1,15 +1,15 @@
 {
-  "createdAt": "2026-10-29T04:43:59.045Z",
+  "createdAt": "2026-10-29T06:18:33.138Z",
   "hashes": {
-    "server.verified.js": "00f09f1327e016062be86ddc627f965f98dff2a6a3f62c6abbf29a6aae534520",
-    "scripts/butler-engine.verified.js": "a1add9710681dae339ebe6b741dacf387ac8905e0fd61bcc37e76305ae147de8",
+    "server.verified.js": "806d4c5e2dac211cfd5f1eea43421d3930f12ecd6283fae8448d0c4eab8a4a62",
+    "scripts/butler-engine.verified.js": "836d2566239ca152d9a1dd5c9bed44a79a79f3d62e403f361cfa50c19ac2fa78",
     "scripts/voice-session.js": "5d056d34b83a22ff71a2f86c298c5035c952c011fda0ce68d23104871b79f0ff",
     "scripts/media-control.js": "a32eb14ed3b7e750cdd175b311f7215a551eb7bc5bcd80a72827135e57e04ae6",
-    "scripts/windows-media.ps1": "7945a3725020914672d88ccdff526f57a7fc146152a8f1b3bbe95a6828976ab2",
-    "scripts/windows-browser-media.ps1": "589c792aace894976edf33aba512b8ba628ecf4d93e55e01571be1325a5f555f",
+    "scripts/windows-media.ps1": "67a1fc75e87ffd44c8b111e041863790795de5105d239dffb94099426b65544a",
+    "scripts/windows-browser-media.ps1": "60174849c53c5742af89da1bf834883bb49d4743ea0a18309f7e8d6a8426eee7",
     "public/js/media-intents.js": "d74d70e68b460f15ad06628e0b6cf53ac53bbd763a26b9f9f40d27b077182c14",
     "public/js/speech-turn-buffer.js": "75cf7399ebcc7a67a563cd031dd81b9f592b66be26135e4d5604e5e1b11ec6cf",
-    "public/js/jarvis-react-hud.js": "411ec3f690aa6132335b7c8017ddec9b7a8eb07cde63953764a173a53acd9e4f",
+    "public/js/jarvis-react-hud.js": "8ca082ca4782e2bac0fd30df3d3be6cde80ee3363dd34338f6a4f1f9306a0cde",
     "scripts/Open-JarvisHud.ps1": "b575fe1250cd1c4bec2d29961022480f626b4d963e2181d5d39613c43b0ec0c7"
   }
 }

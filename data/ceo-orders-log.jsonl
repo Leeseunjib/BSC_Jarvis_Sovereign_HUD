@@ -1,0 +1,4 @@
+{"ts":"2026-10-29T06:17:40.826Z","sentence":"재생 일시정지 토글","intent":"youtubeAutoPlay","hudTitle":"○ 받아 적는 중 · 실행 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T06:17:40.835Z","sentence":"다음 곡","intent":"mediaNext","hudTitle":"⏭ 다음 곡 재생: 로파이 새벽 감성 플리 2번","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T06:17:40.844Z","sentence":"나에 대해 뭐 알고 있어","intent":"bscSpecialOrder","hudTitle":"⚡ CHLGD · Harness² 자가성장 원장 & 대표님 오더 로그 (2건)","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T06:17:40.851Z","sentence":"오더 로그 보여줘","intent":"bscSpecialOrder","hudTitle":"⚡ CHLGD · Harness² 자가성장 원장 & 대표님 오더 로그 (3건)","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}

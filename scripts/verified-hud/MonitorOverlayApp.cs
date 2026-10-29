@@ -1534,9 +1534,9 @@ namespace JarvisSasariSa
                             if (thirdTxtStatus != null) thirdTxtStatus.Text = txtStatus.Text;
                             if (thirdTxtMainBody != null) thirdTxtMainBody.Text = txtMainBody.Text;
 
-                            if (hudColor == "amber" && !awaitingConfirm)
+                            if (!awaitingConfirm && !showMailDraft)
                             {
-                                ScheduleAutoRecovery();
+                                ScheduleAutoRecovery(hudColor == "amber" ? 3200 : 5200);
                             }
 
                             if (!string.IsNullOrWhiteSpace(spoken) && key != lastSpokenKey)
@@ -1831,7 +1831,7 @@ namespace JarvisSasariSa
                 return b;
             };
 
-            Border btnPlayPause = makeMiniMediaBtn("⏯ 일시정지/재생", "일시정지");
+            Border btnPlayPause = makeMiniMediaBtn("⏯ 재생/일시정지", "재생 일시정지 토글");
             Grid.SetColumn(btnPlayPause, 1);
             musicHGrid.Children.Add(btnPlayPause);
 
@@ -1945,6 +1945,7 @@ namespace JarvisSasariSa
             quickChipsPanel.Children.Add(makeQuickChip("🎙 마이크 켜기", "__MIC__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
             quickChipsPanel.Children.Add(makeQuickChip("⚡ “깃 상태 확인해줘” (터미널)", "깃 상태 확인해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🛡 “CHLGD 코드 검증 돌려줘” (CI/CD)", "CHLGD 코드 검증 돌려줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("🧠 “오더 로그 & 하네스2 확인”", "오더 로그 보여줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🤝 “거누에게 시스템 점검 협력 요청해”", "거누에게 시스템 점검 협력 요청해", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🎵 “유튜브에서 로파이 음악 틀어줘”", "유튜브에서 로파이 음악 틀어줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
             quickChipsPanel.Children.Add(makeQuickChip("⏹ “음악 꺼줘”", "음악 꺼줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
@@ -1994,11 +1995,12 @@ namespace JarvisSasariSa
                 int linesIdx = sub.IndexOf("\"lines\":[");
                 if (linesIdx >= 0)
                 {
-                    int endArr = sub.IndexOf("]", linesIdx);
+                    int endArr = sub.IndexOf("],\"startedAt\"", linesIdx);
+                    if (endArr < 0) endArr = sub.IndexOf("\"]", linesIdx);
                     if (endArr > linesIdx)
                     {
                         string rawArr = sub.Substring(linesIdx + 9, endArr - (linesIdx + 9));
-                        string cleaned = rawArr.Replace("\",\"", "\n").Trim('\"').Replace("\\\"", "\"").Replace("\\\\", "\\");
+                        string cleaned = rawArr.Replace("\",\"", "\n").Trim('\"', '[', ']').Replace("\\\"", "\"").Replace("\\\\", "\\");
                         string[] splitLines = cleaned.Split('\n');
                         int startLine = Math.Max(0, splitLines.Length - 5);
                         txtTaskDrawerLogs.Text = string.Join("\n", splitLines, startLine, splitLines.Length - startLine);
@@ -3535,9 +3537,9 @@ namespace JarvisSasariSa
                     SpeakAsync(spoken);
                 }
 
-                if (hudColor == "amber" && !awaitingConfirm)
+                if (!awaitingConfirm && !showMailDraft)
                 {
-                    ScheduleAutoRecovery();
+                    ScheduleAutoRecovery(hudColor == "amber" ? 3200 : 5200);
                 }
             }
             catch (Exception ex)
@@ -3545,18 +3547,18 @@ namespace JarvisSasariSa
                 SetHudAppearance(AmberColor);
                 txtStatus.Text = "⚠ 자동 복구 중 · 잠시만 기다려 주세요";
                 txtMainBody.Text = ex.Message;
-                ScheduleAutoRecovery();
+                ScheduleAutoRecovery(3200);
             }
         }
 
         private static DispatcherTimer autoRecoveryTimer;
-        private static void ScheduleAutoRecovery()
+        private static void ScheduleAutoRecovery(int delayMs = 3200)
         {
             try
             {
                 if (autoRecoveryTimer == null)
                 {
-                    autoRecoveryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3200) };
+                    autoRecoveryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(delayMs) };
                     autoRecoveryTimer.Tick += (s, e) =>
                     {
                         autoRecoveryTimer.Stop();
@@ -3572,6 +3574,7 @@ namespace JarvisSasariSa
                     };
                 }
                 autoRecoveryTimer.Stop();
+                autoRecoveryTimer.Interval = TimeSpan.FromMilliseconds(delayMs);
                 autoRecoveryTimer.Start();
             }
             catch { }

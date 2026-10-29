@@ -1,0 +1,60 @@
+{
+  "name": "이건우 대표님",
+  "role": "BeausCreators (BSC) 최고경영자 (CEO)",
+  "mission": "사람들을 길러가고, 세상을 아름답게 만든다",
+  "philosophy": [
+    "중용 23장(지성의 원리): 작은 일에도 무시하지 않고 지극한 정성을 다하면 마침내 생육(生育)된다",
+    "위대한 사람은 위대하게 생각한다. 꿈을 꾼다면 위대하게 꿔라",
+    "기독교 세계관과 섬김의 리더십: 세상이 포기한 사람들의 용기·지지대·희망이 된다",
+    "냉정·냉철·정확·진솔 실측 수치 보고 헌장 (Zero Hype, 4대 물리 지표 검증)",
+    "소비자 심리학 5대 렌즈 (지각 가치, 인지 부하 제로, 정서적 애착, 죄책감 회피, 이케아 효과)"
+  ],
+  "prohibitions": [
+    "더미/임시/플레이스홀더 폴더 및 파일 임의 생성 절대 금지",
+    "경로 추측 및 날조(Path Hallucination) 절대 금지",
+    "데이터 유실 및 원본 파일 통째 덮어쓰기(Blind Overwrite) 절대 금지",
+    "사전 승인 없는 파일/폴더 삭제(Deletion) 절대 금지",
+    "보안 자격 증명(Credential) 평문 노출 절대 금지 (.env 격리)"
+  ],
+  "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
+  "stats": {
+    "totalOrders": 4,
+    "intentCounts": {
+      "youtubeAutoPlay": 1,
+      "mediaNext": 1,
+      "bscSpecialOrder": 2
+    },
+    "favoriteMusicQueries": [
+      "재생 일시정지 토글"
+    ],
+    "frequentCommands": [],
+    "learnedPreferences": []
+  },
+  "recentOrders": [
+    {
+      "ts": "2026-10-29 06:17:40",
+      "sentence": "오더 로그 보여줘",
+      "intent": "bscSpecialOrder",
+      "title": "⚡ CHLGD · Harness² 자가성장 원장 & 대표님 오더 로그 (3건)"
+    },
+    {
+      "ts": "2026-10-29 06:17:40",
+      "sentence": "나에 대해 뭐 알고 있어",
+      "intent": "bscSpecialOrder",
+      "title": "⚡ CHLGD · Harness² 자가성장 원장 & 대표님 오더 로그 (2건)"
+    },
+    {
+      "ts": "2026-10-29 06:17:40",
+      "sentence": "다음 곡",
+      "intent": "mediaNext",
+      "title": "⏭ 다음 곡 재생: 로파이 새벽 감성 플리 2번"
+    },
+    {
+      "ts": "2026-10-29 06:17:40",
+      "sentence": "재생 일시정지 토글",
+      "intent": "youtubeAutoPlay",
+      "title": "○ 받아 적는 중 · 실행 완료"
+    }
+  ],
+  "updatedAt": "2026-10-29T06:17:40.851Z"
+}

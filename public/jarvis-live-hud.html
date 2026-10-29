@@ -424,7 +424,7 @@
       if (e.target.closest('#btnMediaPlayPause') || e.target.closest('#btnMediaNext') || e.target.closest('#btnMediaStop')) return;
       toggleMusicDrawer();
     };
-    document.getElementById('btnMediaPlayPause').onclick = () => runCmd('일시정지');
+    document.getElementById('btnMediaPlayPause').onclick = () => runCmd('재생 일시정지 토글');
     document.getElementById('btnMediaNext').onclick = () => runCmd('다음 곡');
     document.getElementById('btnMediaStop').onclick = () => runCmd('음악 꺼줘');
     document.getElementById('btnVolDown').onclick = () => runCmd('소리 줄여');
@@ -447,7 +447,10 @@
         }
         if (data.activeMedia && data.activeMedia.active) {
           document.getElementById('musicSubWindow').classList.remove('hidden');
-          document.getElementById('musicDrawerTitle').textContent = '🎵 재생 중: ' + (data.activeMedia.title || 'YouTube 미디어');
+          const paused = data.activeMedia.state === 'Paused';
+          document.getElementById('musicDrawerTitle').textContent = (paused ? '⏸ 일시정지됨: ' : '🎵 재생 중: ') + (data.activeMedia.title || 'YouTube 미디어');
+        } else {
+          document.getElementById('musicDrawerTitle').textContent = '🎵 미니 뮤직 컨트롤러 · 재생 대기 중 (클릭 시 로파이 즉시 재생)';
         }
       } catch (_) {}
     }
@@ -762,8 +765,43 @@
           commitWebMicTranscript();
         }, 2800);
       };
-      rec.onerror = ev => {
+      rec.onerror = async ev => {
         if (ev && (ev.error === 'no-speech' || ev.error === 'aborted')) return;
+        if (ev && ev.error === 'network' && navigator.mediaDevices && typeof window.MediaRecorder === 'function') {
+          try { rec.onend = null; rec.stop(); } catch (_) {}
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const chunks = [];
+            const mr = new MediaRecorder(stream);
+            mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+            mr.onstop = () => {
+              stream.getTracks().forEach(t => t.stop());
+              listening = false;
+              document.getElementById('btnMicWeb').textContent = '🎙 마이크 켜기';
+              const blob = new Blob(chunks, { type: 'audio/webm' });
+              const reader = new FileReader();
+              reader.onloadend = async () => {
+                const b64 = String(reader.result || '').split(',')[1] || '';
+                if (!b64) return;
+                setHud('cyan', '○ AI 음성 해독 중...', '방금 말씀하신 음성을 분석하고 있습니다.');
+                const res = await fetch(`${API}/api/ear/transcribe-audio`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ audioBase64: b64, mimeType: 'audio/webm' })
+                }).then(r => r.json()).catch(() => null);
+                if (res && res.transcript) {
+                  document.getElementById('cmdInput').value = res.transcript;
+                  runCmd(res.transcript);
+                } else {
+                  setHud('cyan', '○ 상시 대기 · 받아 적는 중', '말씀하시거나 명령을 입력해 주세요');
+                }
+              };
+              reader.readAsDataURL(blob);
+            };
+            mr.start(200);
+            setTimeout(() => { try { if (mr.state !== 'inactive') mr.stop(); } catch (_) {} }, 4500);
+          } catch (_) {}
+        }
       };
       rec.onend = () => {
         if (listening) {

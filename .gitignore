@@ -1,4 +1,4 @@
-﻿# Environment & Credentials (Rule 11 Security Isolation)
+# Environment & Credentials (Rule 11 Security Isolation)
 .env
 .env.*
 *.key
@@ -20,3 +20,7 @@ data/*.log
 bin/*.bak
 JarvisHud_v*.exe
 bin/JarvisHud.next.exe
+
+data/chrome-media-live/
+data/chrome-ear-profile/
+data/jarvis_tts_*.mp3

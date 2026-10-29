@@ -33,12 +33,12 @@ try {
   $playing = @($candidates | Where-Object { $_.status -eq 'Playing' })
   $currentRows = @($candidates | Where-Object { $_.current })
   $selected = $null
-  if ($request.action -eq 'pause' -and $playing.Count -eq 1) { $selected=$playing[0] }
-  elseif ($currentRows.Count -eq 1) { $selected=$currentRows[0] }
-  elseif ($candidates.Count -eq 1) { $selected=$candidates[0] }
+  if ($request.action -eq 'pause' -and $playing.Count -ge 1) { $selected=$playing[0] }
+  elseif ($currentRows.Count -ge 1) { $selected=$currentRows[0] }
+  elseif ($candidates.Count -ge 1) { $selected=$candidates[0] }
   if ($null -eq $selected) {
     if ($candidates.Count -eq 0) { @{ ok=$true; state='none'; verified=$true; changed=$false } | ConvertTo-Json -Compress; return }
-    throw '재생 중인 앱이 여러 개여서 대상을 결정할 수 없습니다. 유튜브 음악 꺼줘처럼 앱을 지정해 주세요.'
+    $selected = $candidates[0]
   }
   $session=$selected.session
   $before=[string]$session.GetPlaybackInfo().PlaybackStatus

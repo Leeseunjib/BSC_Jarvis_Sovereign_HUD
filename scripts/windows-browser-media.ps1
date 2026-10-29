@@ -70,10 +70,9 @@ try {
   }
   $wanted=if($request.action -eq 'play'){'Paused'}else{'Playing'}
   $active=@($states|Where-Object{$_.state -eq $wanted})
-  if($active.Count -eq 0 -and $states.Count -eq 1 -and $request.action -ne 'next'){
+  if($active.Count -eq 0 -and $states.Count -ge 1 -and $request.action -ne 'next'){
     @{ok=$true;state=$states[0].state;verified=$true;changed=$false;source=$states[0].target.source;method='youtube-accessibility'}|ConvertTo-Json -Compress;return
   }
-  if($active.Count -gt 1){throw '재생 중인 유튜브 탭이 여러 개입니다. 멈출 영상 탭만 남긴 뒤 다시 말씀해 주세요.'}
   if($active.Count -eq 0){@{ok=$true;state='none';verified=$true;changed=$false;method='youtube-accessibility'}|ConvertTo-Json -Compress;return}
   $chosen=$active[0].target
   SelectTab $chosen.tab

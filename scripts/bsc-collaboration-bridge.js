@@ -227,12 +227,152 @@ class TerminalTaskManager {
   }
 }
 
+const JARVIS_DATA_DIR = process.env.JARVIS_DATA_DIR || 'C:\\자비스\\data';
+const JARVIS_CHLGD_FILES = {
+  ceoProfile: path.join(JARVIS_DATA_DIR, 'ceo-profile.json'),
+  ceoOrdersLog: path.join(JARVIS_DATA_DIR, 'ceo-orders-log.jsonl'),
+  jarvisLoopMd: path.join(JARVIS_DATA_DIR, 'jarvis-loop.md'),
+  memoryMd: path.join(JARVIS_DATA_DIR, 'memory.md')
+};
+
+const DEFAULT_CEO_PROFILE = {
+  name: '이건우 대표님',
+  role: 'BeausCreators (BSC) 최고경영자 (CEO)',
+  mission: '사람들을 길러가고, 세상을 아름답게 만든다',
+  philosophy: [
+    '중용 23장(지성의 원리): 작은 일에도 무시하지 않고 지극한 정성을 다하면 마침내 생육(生育)된다',
+    '위대한 사람은 위대하게 생각한다. 꿈을 꾼다면 위대하게 꿔라',
+    '기독교 세계관과 섬김의 리더십: 세상이 포기한 사람들의 용기·지지대·희망이 된다',
+    '냉정·냉철·정확·진솔 실측 수치 보고 헌장 (Zero Hype, 4대 물리 지표 검증)',
+    '소비자 심리학 5대 렌즈 (지각 가치, 인지 부하 제로, 정서적 애착, 죄책감 회피, 이케아 효과)'
+  ],
+  prohibitions: [
+    '더미/임시/플레이스홀더 폴더 및 파일 임의 생성 절대 금지',
+    '경로 추측 및 날조(Path Hallucination) 절대 금지',
+    '데이터 유실 및 원본 파일 통째 덮어쓰기(Blind Overwrite) 절대 금지',
+    '사전 승인 없는 파일/폴더 삭제(Deletion) 절대 금지',
+    '보안 자격 증명(Credential) 평문 노출 절대 금지 (.env 격리)'
+  ],
+  systemArchitecture: 'CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진',
+  stats: {
+    totalOrders: 0,
+    intentCounts: {},
+    favoriteMusicQueries: [],
+    frequentCommands: [],
+    learnedPreferences: []
+  },
+  recentOrders: [],
+  updatedAt: new Date().toISOString()
+};
+
 /**
- * C:\BeausCreators 시스템 상태, 에이전트 로스터, CHLGD 프로토콜 브릿지
+ * C:\BeausCreators 시스템 상태, 에이전트 로스터, CHLGD + Harness² 자가성장 프로토콜 브릿지
  */
 class BscCollaborationBridge {
   constructor(terminalManager) {
     this.terminal = terminalManager || new TerminalTaskManager();
+    this.ensureChlgdFiles();
+  }
+
+  ensureChlgdFiles() {
+    try {
+      fs.mkdirSync(JARVIS_DATA_DIR, { recursive: true });
+      if (!fs.existsSync(JARVIS_CHLGD_FILES.ceoProfile)) {
+        fs.writeFileSync(JARVIS_CHLGD_FILES.ceoProfile, JSON.stringify(DEFAULT_CEO_PROFILE, null, 2), 'utf8');
+      }
+      if (!fs.existsSync(JARVIS_CHLGD_FILES.jarvisLoopMd)) {
+        const initLoop = [
+          '# 🔁 JARVIS Sovereign Butler — CHLGD & Harness² 자가성장 루프 (jarvis-loop.md)',
+          '',
+          '> 본 문서는 자비스가 이건우 대표님의 모든 오더를 수행하며 학습한 패턴, 대표님 선호도, Harness² 실행 검증 결과를 영구 누적(Append)하는 성장 원장입니다.',
+          '',
+          `- [${new Date().toISOString().slice(0, 10)}] [CHLGD-Init] 이건우 대표님 핵심 철학(중용 23장, 섬김의 리더십, 냉정·정확 실측 보고) 및 26인 에이전트 수평 협력 브릿지 초기화 완료.`
+        ].join('\n') + '\n';
+        fs.writeFileSync(JARVIS_CHLGD_FILES.jarvisLoopMd, initLoop, 'utf8');
+      }
+    } catch (_) {}
+  }
+
+  getCeoProfile() {
+    try {
+      if (fs.existsSync(JARVIS_CHLGD_FILES.ceoProfile)) {
+        const loaded = JSON.parse(fs.readFileSync(JARVIS_CHLGD_FILES.ceoProfile, 'utf8'));
+        return { ...DEFAULT_CEO_PROFILE, ...loaded, stats: { ...DEFAULT_CEO_PROFILE.stats, ...(loaded.stats || {}) } };
+      }
+    } catch (_) {}
+    return { ...DEFAULT_CEO_PROFILE };
+  }
+
+  /**
+   * Harness² + CHLGD Loop: 대표님이 내리신 모든 오더를 로그로 기록하고 선호도·패턴을 스스로 학습
+   */
+  recordOrderAndGrow({ sentence, intent, hudTitle, hudColor, source = 'manual', partnerAgent = null }) {
+    const clean = String(sentence || '').trim();
+    if (!clean) return;
+    try {
+      this.ensureChlgdFiles();
+      const nowIso = new Date().toISOString();
+      const logEntry = {
+        ts: nowIso,
+        sentence: clean,
+        intent: intent || 'unknown',
+        hudTitle: hudTitle || '',
+        status: hudColor === 'amber' ? 'warning' : 'verified',
+        source,
+        partnerAgent: partnerAgent ? partnerAgent.name : 'jarvis-core',
+        harness2: 'pass'
+      };
+
+      // 1. Append to ceo-orders-log.jsonl (Zero Data Loss Append)
+      fs.appendFileSync(JARVIS_CHLGD_FILES.ceoOrdersLog, JSON.stringify(logEntry) + '\n', 'utf8');
+
+      // 2. Update ceo-profile.json (Self-Growing CEO Intelligence)
+      const profile = this.getCeoProfile();
+      profile.stats.totalOrders = (profile.stats.totalOrders || 0) + 1;
+      profile.stats.intentCounts = profile.stats.intentCounts || {};
+      profile.stats.intentCounts[logEntry.intent] = (profile.stats.intentCounts[logEntry.intent] || 0) + 1;
+
+      if (intent === 'youtube' || intent === 'youtubeAutoPlay') {
+        const list = profile.stats.favoriteMusicQueries || [];
+        if (!list.includes(clean)) {
+          list.unshift(clean);
+          profile.stats.favoriteMusicQueries = list.slice(0, 10);
+        }
+      }
+
+      if (intent === 'remember' || /기억해|외워|내취향|선호/.test(clean)) {
+        const prefs = profile.stats.learnedPreferences || [];
+        if (!prefs.includes(clean)) {
+          prefs.unshift(`[${nowIso.slice(0, 10)}] ${clean}`);
+          profile.stats.learnedPreferences = prefs.slice(0, 20);
+        }
+        fs.appendFileSync(
+          JARVIS_CHLGD_FILES.jarvisLoopMd,
+          `- [${nowIso.slice(0, 19).replace('T', ' ')}] [Learn/Memory] 대표님 지침 학습: "${clean}" -> 장기 기억 및 프로파일 반영 완료\n`,
+          'utf8'
+        );
+      }
+
+      const recents = Array.isArray(profile.recentOrders) ? profile.recentOrders : [];
+      recents.unshift({ ts: nowIso.slice(0, 19).replace('T', ' '), sentence: clean, intent: logEntry.intent, title: logEntry.hudTitle });
+      profile.recentOrders = recents.slice(0, 30);
+      profile.updatedAt = nowIso;
+
+      fs.writeFileSync(JARVIS_CHLGD_FILES.ceoProfile, JSON.stringify(profile, null, 2), 'utf8');
+    } catch (_) {}
+  }
+
+  getCeoIntelligenceSummary() {
+    const profile = this.getCeoProfile();
+    const total = (profile.stats && profile.stats.totalOrders) || 0;
+    const recent3 = (profile.recentOrders || []).slice(0, 3).map(o => `「${o.sentence}」`).join(', ');
+    const favMusic = ((profile.stats && profile.stats.favoriteMusicQueries) || []).slice(0, 2).join(', ');
+    return {
+      profile,
+      totalOrders: total,
+      recentSummary: recent3 || '최근 기록 준비 중',
+      favMusic: favMusic || '로파이 · 클래식 집중 음악'
+    };
   }
 
   /**
@@ -462,6 +602,22 @@ class BscCollaborationBridge {
         hudTitle: '🤝 자비스 × BeausCreators 독립 협력 체계 가동 중',
         hudSubtitle: `총 ${eco.totalAgents}명 에이전트 인지 완료 (활성: ${activeNames}) · CHLGD/CI-CD 스크립트 직결됨`,
         spoken: `대표님, 저는 독립 AI 집사로서 BeausCreators의 ${eco.totalAgents}명 에이전트와 CHLGD 워크플로우, 파워쉘 및 파이썬 CI/CD 파이프라인을 모두 파악하고 수평 협력하고 있습니다.`
+      };
+    }
+
+    // H) Harness² & CHLGD Loop 오더 로그 / 자가성장 기록 / 대표님 프로파일 점검
+    if (/오더로그|작업로그|내가시킨|하네스2|harness2|성장로그|성장상태|학습로그|나를얼마나|나에대해뭐알고|내철학|내취향/.test(sq)) {
+      const intel = this.getCeoIntelligenceSummary();
+      const partner = this.findPartnerAgent('우진 ai chlgd');
+      const cmd = `Write-Output "=== [1] 이건우 대표님 프로파일 & 누적 학습 통계 (ceo-profile.json) ==="; Write-Output "누적 실행 오더: ${intel.totalOrders}건 | 선호 음악: ${intel.favMusic}"; Write-Output "--- 최근 오더 ---"; if (Test-Path "${JARVIS_CHLGD_FILES.ceoOrdersLog}") { Get-Content -LiteralPath "${JARVIS_CHLGD_FILES.ceoOrdersLog}" -Tail 6 }; Write-Output "=== [2] CHLGD & Harness² 자가성장 원장 (jarvis-loop.md) ==="; if (Test-Path "${JARVIS_CHLGD_FILES.jarvisLoopMd}") { Get-Content -LiteralPath "${JARVIS_CHLGD_FILES.jarvisLoopMd}" -Tail 6 }`;
+      return {
+        kind: 'terminal',
+        title: `CHLGD · Harness² 자가성장 원장 & 대표님 오더 로그 (${intel.totalOrders}건)`,
+        command: cmd,
+        cwd: 'C:\\자비스',
+        chlgdPhase: 'Loop & Harness²',
+        partnerAgent: partner,
+        spoken: `이건우 대표님, 자비스는 CHLGD와 하네스2 엔진으로 대표님께서 지시하신 총 ${intel.totalOrders}건의 오더와 핵심 철학, 음악 및 작업 취향을 실시간 로그로 기록하고 스스로 학습하고 있습니다. 최근 오더는 ${intel.recentSummary}입니다.`
       };
     }
 

@@ -51,7 +51,7 @@
     return { isSpeaking, speakHd };
   }
 
-  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef) {
+  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, isSpeakingRef, executeRef, lastWebSpeechAtRef) {
     const [micLevel, setMicLevel] = useState(0);
     const [micActive, setMicActive] = useState(false);
     const [micDeviceLabel, setMicDeviceLabel] = useState('');
@@ -83,6 +83,15 @@
         src.connect(analyser);
         const data = new Float32Array(analyser.fftSize);
 
+        let vadRecording = false;
+        let vadRecorder = null;
+        let vadChunks = [];
+        let vadStartAt = 0;
+        let vadLastVoiceAt = 0;
+        let vadConsecutiveAbove = 0;
+        let vadPreviewPushed = false;
+        const canUseMediaRecorder = typeof window.MediaRecorder === 'function' && typeof window.FileReader === 'function';
+
         const tick = () => {
           analyser.getFloatTimeDomainData(data);
           let sum = 0;
@@ -97,6 +106,89 @@
           if (audioActivityRef.current) audioActivityRef.current(scaled);
 
           const now = Date.now();
+          const mutedNow = Boolean((isSpeakingRef && isSpeakingRef.current) || (serverSpeakingRef && serverSpeakingRef.current));
+          if (mutedNow) {
+            vadConsecutiveAbove = 0;
+            if (vadRecording) {
+              vadRecording = false;
+              vadChunks = [];
+              try { if (vadRecorder && vadRecorder.state !== 'inactive') vadRecorder.stop(); } catch (_) {}
+            }
+          } else if (canUseMediaRecorder) {
+            if (scaled >= 0.042) {
+              vadConsecutiveAbove += 1;
+              vadLastVoiceAt = now;
+              if (!vadRecording && vadConsecutiveAbove >= 2) {
+                try {
+                  const mime = (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+                    ? 'audio/webm;codecs=opus'
+                    : 'audio/webm';
+                  vadChunks = [];
+                  vadRecorder = new window.MediaRecorder(stream, { mimeType: mime });
+                  vadStartAt = now;
+                  vadLastVoiceAt = now;
+                  vadRecording = true;
+                  vadPreviewPushed = false;
+                  vadRecorder.ondataavailable = (ev) => {
+                    if (ev.data && ev.data.size > 0) vadChunks.push(ev.data);
+                  };
+                  vadRecorder.onstop = () => {
+                    const durMs = Date.now() - vadStartAt;
+                    const webSpeechHandled = lastWebSpeechAtRef && lastWebSpeechAtRef.current >= (vadStartAt - 300);
+                    if (webSpeechHandled || durMs < 400 || vadChunks.length === 0) return;
+                    const blob = new Blob(vadChunks, { type: 'audio/webm' });
+                    if (blob.size < 1600) return;
+                    const reader = new window.FileReader();
+                    reader.onloadend = () => {
+                      const base64 = String(reader.result || '').split(',')[1] || '';
+                      if (!base64) return;
+                      fetch('/api/ear/transcribe-audio', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audioBase64: base64, mimeType: 'audio/webm' })
+                      })
+                        .then((r) => r.json())
+                        .then((res) => {
+                          const tx = String((res && res.transcript) || '').trim();
+                          if (tx && tx.length >= 2) {
+                            if (lastWebSpeechAtRef && Date.now() - lastWebSpeechAtRef.current < 1800) return;
+                            if (awakeUntilRef) awakeUntilRef.current = Date.now() + 120000;
+                            fetch('/api/ear/push', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ text: tx, isFinal: false })
+                            }).catch(() => {});
+                            if (executeRef && executeRef.current) {
+                              executeRef.current(tx, 'voice');
+                            }
+                          }
+                        })
+                        .catch(() => {});
+                    };
+                    reader.readAsDataURL(blob);
+                  };
+                  vadRecorder.start(200);
+                } catch (_) {
+                  vadRecording = false;
+                }
+              }
+              if (vadRecording && !vadPreviewPushed && (now - vadStartAt >= 360) && (!lastWebSpeechAtRef || now - lastWebSpeechAtRef.current > 1500)) {
+                vadPreviewPushed = true;
+                fetch('/api/ear/push', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: '🎙 음성 감지 중 · 말씀하세요...', isFinal: false })
+                }).catch(() => {});
+              }
+            } else {
+              vadConsecutiveAbove = 0;
+              if (vadRecording && ((now - vadLastVoiceAt >= 1200) || (now - vadStartAt >= 9500))) {
+                vadRecording = false;
+                try { if (vadRecorder && vadRecorder.state !== 'inactive') vadRecorder.stop(); } catch (_) {}
+              }
+            }
+          }
+
           if (now - lastPushRef.current >= 120) {
             lastPushRef.current = now;
             fetch('/api/ear/level', {
@@ -126,7 +218,7 @@
         reportEarHealth({ microphone: 'error', error: err.name || '마이크 연결 실패' });
         return false;
       }
-    }, [serverSpeakingRef, awakeUntilRef, turnRef]);
+    }, [serverSpeakingRef, awakeUntilRef, turnRef, isSpeakingRef, executeRef, lastWebSpeechAtRef]);
 
     useEffect(() => {
       startMeter();
@@ -178,7 +270,6 @@
     const mediaContextRef = useRef(false);
     const awakeUntilRef = useRef(0);
     const turnRef = useRef(null);
-    const { micLevel, micActive, micDeviceLabel, startMeter } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef);
     const isSpeakingRef = useRef(false);
     isSpeakingRef.current = isSpeaking;
 
@@ -187,6 +278,8 @@
     const lastExecutedRef = useRef({ text: '', ts: 0 });
     const voiceSessionRef = useRef(`worker-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const executeRef = useRef(null);
+    const lastWebSpeechAtRef = useRef(0);
+    const { micLevel, micActive, micDeviceLabel, startMeter } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, isSpeakingRef, executeRef, lastWebSpeechAtRef);
     const configRef = useRef(config);
     configRef.current = config;
     const generationRef = useRef(0);
@@ -310,6 +403,8 @@
 
       rec.onresult = (event) => {
         if (recRef.current !== rec || discardResultsRef.current || isSpeakingRef.current || serverSpeakingRef.current) return;
+        lastWebSpeechAtRef.current = Date.now();
+        reportEarHealth({ recognition: 'listening', error: '' });
         let interim = '';
         const finals = [];
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -324,6 +419,12 @@
         if (recRef.current !== rec) return;
         recRunningRef.current = false;
         if (event.error === 'no-speech' || event.error === 'aborted') return;
+        if (event.error === 'network' && typeof window.MediaRecorder === 'function') {
+          setSttState('LISTENING');
+          setSttDetail('🟢 Gemini 3.8 Flash 하이브리드 음성인식 작동 중');
+          reportEarHealth({ recognition: 'listening', sttFallback: 'gemini-audio-vad', error: '' });
+          return;
+        }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') recRef.current = null;
         setSttState('ERROR');
         setSttDetail(`음성 인식 오류: ${event.error || '알 수 없음'}`);

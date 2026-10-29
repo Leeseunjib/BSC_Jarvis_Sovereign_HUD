@@ -362,7 +362,12 @@ const WindowsHands = {
     }
     const profile = path.join(ROOT_DIR, 'data', 'chrome-media-live');
     const launcherExe = path.join(ROOT_DIR, 'bin', 'JarvisDesktopLaunch.exe');
-    const args = ['--new-window', '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, target.href];
+    const args = ['--new-window', '--no-first-run', '--no-default-browser-check', '--force-renderer-accessibility', '--autoplay-policy=no-user-gesture-required', `--user-data-dir=${profile}`, target.href];
+
+    // Pause any previously playing YouTube browser session before opening the new track
+    try {
+      await controlMedia({ action: 'pause', scope: 'browser' });
+    } catch (_) {}
 
     if (fs.existsSync(launcherExe)) {
       await new Promise((resolve, reject) => {
@@ -598,6 +603,10 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
   }
   if (/넌누구|누구야|이름이뭐|자기소개|정체가뭐/.test(sq)) {
     return `저는 ${user}의 Windows 음성 비서 ${name}입니다.`;
+  }
+  if (/내가누구|나에대해|나를얼마나|내취향|내철학|내정보/.test(sq)) {
+    const intel = sharedBscBridge.getCeoIntelligenceSummary();
+    return `${user}은 BeausCreators(BSC)의 최고경영자이신 이건우 대표님이십니다. '사람들을 길러가고 세상을 아름답게 만든다'는 미션과 중용 23장의 정성, 냉정·정확 실측 보고 원칙을 지키고 계시며, 지금까지 자비스에게 총 ${intel.totalOrders}건의 오더를 내리셨습니다.`;
   }
   if (/안녕|반가워|좋은아침|굿모닝|하이|헬로/.test(sq)) {
     return `안녕하세요, ${user}! 오늘 컨디션은 어떠신가요? 필요하신 작업이 있으시면 언제든 말씀해 주세요.`;
@@ -998,6 +1007,9 @@ class ButlerEngine {
     }
     if (/다음영상|다음곡|스킵|next/.test(sq2)) {
       return { intent: 'mediaNext' };
+    }
+    if (/^(재생일시정지|일시정지재생|재생일시정지토글|음악토글|플레이포즈)$/.test(sq2)) {
+      return { intent: 'togglePlayPause' };
     }
     if (/일시정지|영상멈춰|다시틀어|재생해/.test(sq2)) {
       return { intent: 'media', play: /다시|재생/.test(sq2) };
@@ -1469,10 +1481,92 @@ class ButlerEngine {
         };
       }
 
+      case 'togglePlayPause': {
+        if (!this.hasMediaContext()) {
+          return await this.execute('유튜브에서 로파이 음악 틀어줘', executeOsActions);
+        }
+        if (!executeOsActions) {
+          return { intent: 'togglePlayPause', hudColor: 'cyan', hudTitle: '⏯ 재생/일시정지 전환 시험', heard: rawSentence, spoken: '시험 모드에서는 재생 상태를 변경하지 않습니다.' };
+        }
+        const wantPlay = this.mediaContext && this.mediaContext.state === 'Paused';
+        try {
+          const outcome = await this.mediaControl({
+            action: wantPlay ? 'play' : 'pause',
+            scope: 'browser',
+            preferredSource: this.mediaContext && this.mediaContext.source,
+            targetProcessId: this.mediaContext && this.mediaContext.processId
+          });
+          if (outcome.state === 'none') {
+            const reopenUrl = (this.mediaContext && this.mediaContext.url) || '';
+            if (reopenUrl) {
+              const browser = await WindowsHands.openMediaUrl(reopenUrl);
+              const title = (this.mediaContext && this.mediaContext.title) || 'YouTube 음악';
+              this.rememberMedia(reopenUrl, title, 'Playing', browser);
+              return {
+                intent: 'togglePlayPause',
+                hudColor: 'lime',
+                hudTitle: `▶ 음악 다시 재생: ${title}`,
+                hudSubtitle: reopenUrl,
+                heard: rawSentence,
+                spoken: `${title} 음악을 다시 재생합니다.`
+              };
+            }
+            return await this.execute('유튜브에서 로파이 음악 틀어줘', executeOsActions);
+          }
+          if (this.mediaContext) {
+            this.mediaContext.state = wantPlay ? 'Playing' : 'Paused';
+            this.mediaContext.updatedAt = Date.now();
+            writeJson(FILES.media, this.mediaContext);
+          }
+          return {
+            intent: 'togglePlayPause',
+            hudColor: 'lime',
+            hudTitle: wantPlay ? '▶ 음악 재생 확인' : '⏸ 음악 일시정지 확인',
+            hudSubtitle: wantPlay ? '미디어를 다시 재생했습니다.' : '미디어를 일시정지했습니다. 다시 누르시면 이어서 재생됩니다.',
+            heard: rawSentence,
+            spoken: wantPlay ? '음악을 다시 재생했습니다.' : '음악을 일시정지했습니다.'
+          };
+        } catch (_) {
+          if (wantPlay && this.mediaContext && this.mediaContext.url) {
+            const browser = await WindowsHands.openMediaUrl(this.mediaContext.url);
+            this.rememberMedia(this.mediaContext.url, this.mediaContext.title || 'YouTube 음악', 'Playing', browser);
+            return {
+              intent: 'togglePlayPause',
+              hudColor: 'lime',
+              hudTitle: `▶ 음악 다시 재생: ${this.mediaContext.title || 'YouTube 음악'}`,
+              hudSubtitle: this.mediaContext.url,
+              heard: rawSentence,
+              spoken: '음악을 다시 재생했습니다.'
+            };
+          }
+          return await this.execute('유튜브에서 로파이 음악 틀어줘', executeOsActions);
+        }
+      }
+
       case 'media':
       case 'mediaNext': {
         if (!executeOsActions) return { intent: parsed.intent, hudColor: 'cyan', hudTitle: '미디어 제어 시험', heard: rawSentence, spoken: '시험 모드에서는 재생 상태를 변경하지 않습니다.' };
         const next = parsed.intent === 'mediaNext';
+        if (next) {
+          if (!this.ytList || this.ytList.length === 0) {
+            this.ytList = await this.searchYouTube('집중하기 좋은 로파이 음악 플레이리스트');
+          }
+          if (this.ytList && this.ytList.length > 0) {
+            this.ytCursor = ((typeof this.ytCursor === 'number' ? this.ytCursor : 0) + 1) % this.ytList.length;
+            const pick = this.ytList[this.ytCursor] || this.ytList[0];
+            const browser = await WindowsHands.openMediaUrl(pick.url);
+            this.rememberMedia(pick.url, pick.title, 'Playing', browser);
+            return {
+              intent: 'mediaNext',
+              pickedVideo: pick,
+              hudColor: 'lime',
+              hudTitle: `⏭ 다음 곡 재생: ${pick.title}`,
+              hudSubtitle: pick.url,
+              heard: rawSentence,
+              spoken: `다음 곡으로 ${pick.title} 영상을 재생합니다.`
+            };
+          }
+        }
         const outcome = await this.mediaControl({ action: next ? 'next' : parsed.play ? 'play' : 'pause', scope: this.hasMediaContext() ? 'browser' : 'any', preferredSource: this.mediaContext && this.mediaContext.source });
         if (!next && !outcome.verified) throw new Error('요청한 재생 상태를 확인하지 못했습니다.');
         return {

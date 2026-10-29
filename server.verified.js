@@ -241,12 +241,12 @@ const MIME_TYPES = {
 // Same-origin browser access only. Native local clients do not send Origin.
 const CORS_HEADERS = { 'X-Content-Type-Options': 'nosniff' };
 
-function readBody(req) {
+function readBody(req, maxBytes = 65536) {
   return new Promise(resolve => {
     let data = '';
     req.on('data', chunk => {
       data += chunk;
-      if (data.length > 65536) req.destroy();
+      if (data.length > maxBytes) req.destroy();
     });
     req.on('end', () => {
       try {
@@ -256,6 +256,114 @@ function readBody(req) {
       }
     });
   });
+}
+
+function resolveGeminiApiKey() {
+  try {
+    const cfg = butler.getConfig();
+    if (cfg && cfg.geminiApiKey && String(cfg.geminiApiKey).trim()) {
+      return String(cfg.geminiApiKey).trim();
+    }
+  } catch (_) {}
+  if (process.env.GEMINI_API_KEY) return String(process.env.GEMINI_API_KEY).trim();
+  if (process.env.GOOGLE_AI_STUDIO_API_KEY) return String(process.env.GOOGLE_AI_STUDIO_API_KEY).trim();
+  try {
+    const envFiles = ['C:\\자비스\\.env', 'C:\\BeausCreators\\.env', 'C:\\BeausCreators\\.env.dev'];
+    for (const f of envFiles) {
+      if (fs.existsSync(f)) {
+        const raw = fs.readFileSync(f, 'utf8');
+        const m = raw.match(/^(?:GEMINI_API_KEY|GOOGLE_AI_STUDIO_API_KEY)=(.+)$/m);
+        if (m && m[1]) {
+          return m[1].trim().replace(/^["']|["']$/g, '');
+        }
+      }
+    }
+  } catch (_) {}
+  return '';
+}
+
+function callGeminiAudioSttOnce(apiKey, modelName, audioBase64, mimeType) {
+  return new Promise(resolve => {
+    const payload = JSON.stringify({
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType || 'audio/webm',
+                data: audioBase64
+              }
+            },
+            {
+              text: '이 한국어 음성 오디오에서 화자가 말한 한국어 문장을 들리는 그대로 정확히 한 줄로 받아적으세요. 부연 설명이나 따옴표 없이 오직 발화된 한국어 문장만 출력하세요. 아무 말도 없거나 숨소리/배경잡음뿐이면 빈 문자열만 출력하세요.'
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.0,
+        maxOutputTokens: 120
+      }
+    });
+    const req = https.request(
+      {
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        method: 'POST',
+        timeout: 6500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      },
+      res => {
+        let out = '';
+        res.on('data', d => (out += d.toString('utf8')));
+        res.on('end', () => {
+          if (res.statusCode !== 200) return resolve('');
+          try {
+            const parsed = JSON.parse(out);
+            const text =
+              parsed &&
+              parsed.candidates &&
+              parsed.candidates[0] &&
+              parsed.candidates[0].content &&
+              parsed.candidates[0].content.parts &&
+              parsed.candidates[0].content.parts[0] &&
+              parsed.candidates[0].content.parts[0].text;
+            if (text) {
+              const cleaned = String(text)
+                .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+                .replace(/\r?\n+/g, ' ')
+                .trim();
+              if (cleaned && !/^(없음|무음|빈 문자열|none|silence|null)$/i.test(cleaned)) {
+                return resolve(cleaned);
+              }
+            }
+          } catch (_) {}
+          resolve('');
+        });
+      }
+    );
+    req.on('error', () => resolve(''));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve('');
+    });
+    req.write(payload);
+    req.end();
+  });
+}
+
+async function transcribeAudioBufferWithGemini(audioBase64, mimeType = 'audio/webm') {
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey || !audioBase64 || audioBase64.length < 400) return '';
+  const models = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+  for (const m of models) {
+    const text = await callGeminiAudioSttOnce(apiKey, m, audioBase64, mimeType);
+    if (text) return text;
+  }
+  return '';
 }
 
 function sendJson(res, status, obj) {
@@ -482,6 +590,16 @@ const server = http.createServer(async (req, res) => {
     if (body.source === 'voice' && result && result.intent === 'dictation') {
       voiceSessions.extend(body.voiceSession, Date.now() + 600000);
     }
+    try {
+      sharedBscBridge.recordOrderAndGrow({
+        sentence,
+        intent: result && result.intent,
+        hudTitle: result && result.hudTitle,
+        hudColor: result && result.hudColor,
+        source: body.source || 'manual',
+        partnerAgent: result && result.taskState && result.taskState.partnerAgent
+      });
+    } catch (_) {}
     if (!global.__jarvisEarQueue) global.__jarvisEarQueue = [];
     const syncItem = {
       text: sentence,
@@ -584,6 +702,31 @@ const server = http.createServer(async (req, res) => {
     global.__jarvisEarQueue.push(item);
     if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
     return sendJson(res, 200, { ok: true, forceAwakeUntil: global.__jarvisForceAwakeUntil });
+  }
+  if (req.method === 'POST' && pathname === '/api/ear/transcribe-audio') {
+    const body = await readBody(req, 3 * 1024 * 1024);
+    if (global.__jarvisIsSpeaking) {
+      return sendJson(res, 200, { ok: true, transcript: '', skipped: 'speaking' });
+    }
+    const audioBase64 = String((body && body.audioBase64) || '').trim();
+    const mimeType = String((body && body.mimeType) || 'audio/webm').trim();
+    const transcript = await transcribeAudioBufferWithGemini(audioBase64, mimeType);
+    if (transcript) {
+      global.__jarvisForceAwakeUntil = Math.max(global.__jarvisForceAwakeUntil || 0, Date.now() + 120000);
+      try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+      const item = {
+        text: transcript,
+        isFinal: false,
+        hudTitle: '○ 받아 적는 중',
+        hudColor: 'cyan',
+        ts: Date.now()
+      };
+      global.__jarvisLatestEarItem = item;
+      if (!global.__jarvisEarQueue) global.__jarvisEarQueue = [];
+      global.__jarvisEarQueue.push(item);
+      if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
+    }
+    return sendJson(res, 200, { ok: true, transcript });
   }
   if (req.method === 'POST' && pathname === '/api/ear/speaking') {
     const body = await readBody(req);
