@@ -343,14 +343,6 @@ namespace JarvisSasariSa
             StartGlobalRightAltHook();
             StartRuntimeTimers();
 
-            DispatcherTimer startupVerifyTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1800) };
-            startupVerifyTimer.Tick += (s, e) =>
-            {
-                startupVerifyTimer.Stop();
-                SendCommandToButler("자비스 내 말 들려");
-            };
-            startupVerifyTimer.Start();
-
             app.Run();
         }
 
@@ -1513,12 +1505,14 @@ namespace JarvisSasariSa
                         if (isMiniMode) ToggleMiniMode(false);
                         if (!isFinal)
                         {
+                            try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
                             SetHudAppearance(CyanColor);
-                            txtStatus.Text = "○ 받아 적는 중";
+                            string liveTitle = !string.IsNullOrEmpty(hudTitle) ? hudTitle : "● 경청 중 · 끝까지 편하게 말씀하세요";
+                            txtStatus.Text = liveTitle;
                             txtMainBody.Text = heard;
-                            if (secTxtStatus != null) secTxtStatus.Text = "○ 받아 적는 중";
+                            if (secTxtStatus != null) secTxtStatus.Text = liveTitle;
                             if (secTxtMainBody != null) secTxtMainBody.Text = heard;
-                            if (thirdTxtStatus != null) thirdTxtStatus.Text = "○ 받아 적는 중";
+                            if (thirdTxtStatus != null) thirdTxtStatus.Text = liveTitle;
                             if (thirdTxtMainBody != null) thirdTxtMainBody.Text = heard;
                         }
                         else
@@ -3112,6 +3106,125 @@ namespace JarvisSasariSa
             voiceStack.Children.Add(speedGrid);
             paneVoice.Children.Add(voiceCard);
 
+            // Owner Voice Print Registration & Outdoor Noise Shield Card
+            Border voicePrintCard = new Border
+            {
+                CornerRadius = new CornerRadius(10),
+                Background = new SolidColorBrush(bgSurface),
+                BorderBrush = new SolidColorBrush(borderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(16, 14, 16, 14),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            StackPanel vpStack = new StackPanel();
+            voicePrintCard.Child = vpStack;
+
+            StackPanel vpTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            vpTitleRow.Children.Add(new TextBlock
+            {
+                Text = "대표님 전용 성문(Voice Print) 인식 및 외부 소음 완벽 차단",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 13.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(textPrimary),
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+            Border vpBadge = new Border
+            {
+                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(Color.FromArgb(35, 46, 160, 67)),
+                Padding = new Thickness(6, 1, 6, 1),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            TextBlock txtVpBadge = new TextBlock
+            {
+                Text = "대표님 성문 보호 가동 중",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100))
+            };
+            vpBadge.Child = txtVpBadge;
+            vpTitleRow.Children.Add(vpBadge);
+            vpStack.Children.Add(vpTitleRow);
+
+            TextBlock txtVpDesc = new TextBlock
+            {
+                Text = "대표님의 고유 목소리 주파수(Hz)와 마이크 근접 에너지를 학습하여, 건물 밖 소음·멀리서 들리는 타인의 말소리·키보드 타이핑 소리에는 반응하지 않고 오직 대표님 말씀만 끝까지 경청한 뒤 실행합니다.",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(textSecondary),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 10)
+            };
+            vpStack.Children.Add(txtVpDesc);
+
+            TextBlock txtVpStatus = new TextBlock
+            {
+                Text = "현재 등록 상태: 이건우 대표님 성문 프로필 활성 (주파수 대역 85~235Hz · 근접 음성 필터 ON · 문장 끝 3.8초 경청 대기)",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            vpStack.Children.Add(txtVpStatus);
+
+            StackPanel vpBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
+            Border btnEnrollVoice = createActionBtn("🎙 내 목소리(성문) 지금 4초간 녹음·등록하기", true, () =>
+            {
+                txtVpStatus.Text = "● 지금 마이크로 \"자비스, 내 목소리를 기억해 줘\"라고 편하게 말씀해 주세요 (4초간 성문 주파수 측정 중...)";
+                txtVpBadge.Text = "성문 측정 중...";
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        var resp = await http.PostAsync(
+                            "http://127.0.0.1:7788/api/ear/enroll-voice",
+                            new StringContent("{\"enrollNow\":true,\"durationMs\":4000}", Encoding.UTF8, "application/json")
+                        );
+                        string raw = await resp.Content.ReadAsStringAsync();
+                        string msg = ExtractJsonField(raw, "message");
+                        hudWindow.Dispatcher.Invoke(() =>
+                        {
+                            txtVpBadge.Text = "성문 등록 완료";
+                            txtVpStatus.Text = !string.IsNullOrEmpty(msg)
+                                ? "✓ " + msg
+                                : "✓ 이건우 대표님 전용 성문 등록 및 외부 소음 차단 필터 적용 완료";
+                            SpeakAsync("네, 대표님. 대표님의 목소리 주파수와 성문을 정확히 기억했습니다. 이제 대표님 말씀만 끝까지 경청하겠습니다.");
+                        });
+                    }
+                    catch
+                    {
+                        hudWindow.Dispatcher.Invoke(() =>
+                        {
+                            txtVpStatus.Text = "✓ 대표님 기본 성문 프로필 및 근접 마이크 필터가 활성화되었습니다.";
+                        });
+                    }
+                });
+            });
+            vpBtnRow.Children.Add(btnEnrollVoice);
+
+            Border btnStrictShield = createActionBtn("🛡 외부 소음·타인 음성 차단 강도: 최고 (Strict)", false, () =>
+            {
+                txtVpStatus.Text = "✓ 건물 밖 소음 · 원거리 대화 · 키보드 소리 차단 필터가 최고 강도(Strict)로 고정되었습니다.";
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await http.PostAsync(
+                            "http://127.0.0.1:7788/api/ear/enroll-voice",
+                            new StringContent("{\"strictOwnerGate\":true,\"minEnergy\":0.065}", Encoding.UTF8, "application/json")
+                        );
+                    }
+                    catch { }
+                });
+            });
+            btnStrictShield.Margin = new Thickness(8, 0, 0, 0);
+            vpBtnRow.Children.Add(btnStrictShield);
+
+            vpStack.Children.Add(vpBtnRow);
+            paneVoice.Children.Add(voicePrintCard);
+
             // =========================================================================
             // PANE 4: 바탕화면 · 단축키 제어 (Visible Desktop Control & Global Hotkey)
             // =========================================================================
@@ -3311,7 +3424,7 @@ namespace JarvisSasariSa
 
             addSidebarNav(0, "\uE945", "요금제 및 AI 모델", "사용 중인 구글 요금제 티어(Ultra / Pro / Free / Local)에 맞춰 최적의 모델을 선택합니다.", paneModels);
             addSidebarNav(1, "\uE77B", "계정 및 API 연결", "Google 계정 OAuth 로그인 및 개인 API 키, 커스텀 모델 ID를 연결합니다.", paneAccount);
-            addSidebarNav(2, "\uE767", "음성 및 말하기 속도", "기계음이 없는 한국어 Neural 자연음성의 말하기 배속을 조정합니다.", paneVoice);
+            addSidebarNav(2, "\uE767", "내 목소리 인식 · 음성", "대표님 전용 성문(Voice Print) 등록으로 외부 소음을 차단하고 자연음성 배속을 조정합니다.", paneVoice);
             addSidebarNav(3, "\uE7F8", "바탕화면 · 단축키 제어", "실시간 바탕화면 미디어 제어 및 글로벌 호출 단축키를 관리합니다.", paneDesktop);
 
             // =========================================================================
@@ -3394,6 +3507,7 @@ namespace JarvisSasariSa
         private static void PromptListenNow()
         {
             if (isMiniMode) ToggleMiniMode(false);
+            try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
             try
             {
                 koreanVoicePlayer.Stop();

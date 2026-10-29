@@ -340,7 +340,7 @@ class BscCollaborationBridge {
         }
       }
 
-      if (intent === 'remember' || /기억해|외워|내취향|선호/.test(clean)) {
+      if (intent === 'remember' || /기억해|외워|내취향|선호|좋아하거든|좋아해|주의할점|하지마|필요없어|스킬로/.test(clean)) {
         const prefs = profile.stats.learnedPreferences || [];
         if (!prefs.includes(clean)) {
           prefs.unshift(`[${nowIso.slice(0, 10)}] ${clean}`);

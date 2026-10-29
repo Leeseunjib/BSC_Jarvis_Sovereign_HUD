@@ -51,13 +51,17 @@
     return { isSpeaking, speakHd };
   }
 
-  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, isSpeakingRef, executeRef, lastWebSpeechAtRef) {
+  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef) {
     const [micLevel, setMicLevel] = useState(0);
     const [micActive, setMicActive] = useState(false);
     const [micDeviceLabel, setMicDeviceLabel] = useState('');
     const streamRef = useRef(null);
     const rafRef = useRef(null);
     const lastPushRef = useRef(0);
+    const voiceFeaturesRef = useRef({ pitchHz: 0, energy: 0, zcr: 0, matchScore: 100, isOwnerVoice: true });
+    const pitchHistoryRef = useRef([]);
+    const energyHistoryRef = useRef([]);
+    const zcrHistoryRef = useRef([]);
 
     const startMeter = useCallback(async () => {
       try {
@@ -82,15 +86,33 @@
         analyser.fftSize = 256;
         src.connect(analyser);
         const data = new Float32Array(analyser.fftSize);
+        const sampleRate = ctx.sampleRate || 48000;
 
-        let vadRecording = false;
-        let vadRecorder = null;
-        let vadChunks = [];
-        let vadStartAt = 0;
-        let vadLastVoiceAt = 0;
-        let vadConsecutiveAbove = 0;
-        let vadPreviewPushed = false;
-        const canUseMediaRecorder = typeof window.MediaRecorder === 'function' && typeof window.FileReader === 'function';
+        const estimateVoiceCharacteristics = (buf, rmsVal) => {
+          let zeroCrossings = 0;
+          for (let i = 1; i < buf.length; i++) {
+            if ((buf[i - 1] >= 0 && buf[i] < 0) || (buf[i - 1] < 0 && buf[i] >= 0)) zeroCrossings++;
+          }
+          const zcr = zeroCrossings / buf.length;
+          if (rmsVal < 0.008) return { pitchHz: 0, zcr };
+          // Autocorrelation fundamental frequency (F0: 75Hz ~ 320Hz human vocal range)
+          const minLag = Math.max(2, Math.floor(sampleRate / 320));
+          const maxLag = Math.min(buf.length - 2, Math.floor(sampleRate / 75));
+          let bestLag = 0;
+          let bestCorr = 0;
+          for (let lag = minLag; lag <= maxLag; lag++) {
+            let corr = 0;
+            for (let i = 0; i < buf.length - lag; i++) {
+              corr += buf[i] * buf[i + lag];
+            }
+            if (corr > bestCorr) {
+              bestCorr = corr;
+              bestLag = lag;
+            }
+          }
+          const pitchHz = bestLag > 0 ? Math.round(sampleRate / bestLag) : 0;
+          return { pitchHz, zcr: Number(zcr.toFixed(3)) };
+        };
 
         const tick = () => {
           analyser.getFloatTimeDomainData(data);
@@ -103,98 +125,53 @@
           // HUD.swift line 52: min(v * 18, 0.6) normalized to 0..1
           const scaled = Math.min(1, rms * 18);
           setMicLevel(scaled);
-          if (audioActivityRef.current) audioActivityRef.current(scaled);
 
-          const now = Date.now();
-          const mutedNow = Boolean((isSpeakingRef && isSpeakingRef.current) || (serverSpeakingRef && serverSpeakingRef.current));
-          if (mutedNow) {
-            vadConsecutiveAbove = 0;
-            if (vadRecording) {
-              vadRecording = false;
-              vadChunks = [];
-              try { if (vadRecorder && vadRecorder.state !== 'inactive') vadRecorder.stop(); } catch (_) {}
-            }
-          } else if (canUseMediaRecorder) {
-            if (scaled >= 0.042) {
-              vadConsecutiveAbove += 1;
-              vadLastVoiceAt = now;
-              if (!vadRecording && vadConsecutiveAbove >= 2) {
-                try {
-                  const mime = (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
-                    ? 'audio/webm;codecs=opus'
-                    : 'audio/webm';
-                  vadChunks = [];
-                  vadRecorder = new window.MediaRecorder(stream, { mimeType: mime });
-                  vadStartAt = now;
-                  vadLastVoiceAt = now;
-                  vadRecording = true;
-                  vadPreviewPushed = false;
-                  vadRecorder.ondataavailable = (ev) => {
-                    if (ev.data && ev.data.size > 0) vadChunks.push(ev.data);
-                  };
-                  vadRecorder.onstop = () => {
-                    const durMs = Date.now() - vadStartAt;
-                    const webSpeechHandled = lastWebSpeechAtRef && lastWebSpeechAtRef.current >= (vadStartAt - 300);
-                    if (webSpeechHandled || durMs < 400 || vadChunks.length === 0) return;
-                    const blob = new Blob(vadChunks, { type: 'audio/webm' });
-                    if (blob.size < 1600) return;
-                    const reader = new window.FileReader();
-                    reader.onloadend = () => {
-                      const base64 = String(reader.result || '').split(',')[1] || '';
-                      if (!base64) return;
-                      fetch('/api/ear/transcribe-audio', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ audioBase64: base64, mimeType: 'audio/webm' })
-                      })
-                        .then((r) => r.json())
-                        .then((res) => {
-                          const tx = String((res && res.transcript) || '').trim();
-                          if (tx && tx.length >= 2) {
-                            if (lastWebSpeechAtRef && Date.now() - lastWebSpeechAtRef.current < 1800) return;
-                            if (awakeUntilRef) awakeUntilRef.current = Date.now() + 120000;
-                            fetch('/api/ear/push', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ text: tx, isFinal: false })
-                            }).catch(() => {});
-                            if (executeRef && executeRef.current) {
-                              executeRef.current(tx, 'voice');
-                            }
-                          }
-                        })
-                        .catch(() => {});
-                    };
-                    reader.readAsDataURL(blob);
-                  };
-                  vadRecorder.start(200);
-                } catch (_) {
-                  vadRecording = false;
-                }
-              }
-              if (vadRecording && !vadPreviewPushed && (now - vadStartAt >= 360) && (!lastWebSpeechAtRef || now - lastWebSpeechAtRef.current > 1500)) {
-                vadPreviewPushed = true;
-                fetch('/api/ear/push', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ text: '🎙 음성 감지 중 · 말씀하세요...', isFinal: false })
-                }).catch(() => {});
-              }
-            } else {
-              vadConsecutiveAbove = 0;
-              if (vadRecording && ((now - vadLastVoiceAt >= 1200) || (now - vadStartAt >= 9500))) {
-                vadRecording = false;
-                try { if (vadRecorder && vadRecorder.state !== 'inactive') vadRecorder.stop(); } catch (_) {}
-              }
-            }
+          const { pitchHz, zcr } = estimateVoiceCharacteristics(data, rms);
+          if (scaled >= 0.045 && pitchHz >= 75 && pitchHz <= 310) {
+            pitchHistoryRef.current.push(pitchHz);
+            if (pitchHistoryRef.current.length > 18) pitchHistoryRef.current.shift();
+            energyHistoryRef.current.push(scaled);
+            if (energyHistoryRef.current.length > 18) energyHistoryRef.current.shift();
+            zcrHistoryRef.current.push(zcr);
+            if (zcrHistoryRef.current.length > 18) zcrHistoryRef.current.shift();
           }
 
+          const avgPitch = pitchHistoryRef.current.length
+            ? Math.round(pitchHistoryRef.current.reduce((a, b) => a + b, 0) / pitchHistoryRef.current.length)
+            : pitchHz;
+          const avgEnergy = energyHistoryRef.current.length
+            ? Number((energyHistoryRef.current.reduce((a, b) => a + b, 0) / energyHistoryRef.current.length).toFixed(3))
+            : Number(scaled.toFixed(3));
+          const avgZcr = zcrHistoryRef.current.length
+            ? Number((zcrHistoryRef.current.reduce((a, b) => a + b, 0) / zcrHistoryRef.current.length).toFixed(3))
+            : zcr;
+
+          voiceFeaturesRef.current = {
+            pitchHz: avgPitch,
+            energy: avgEnergy,
+            zcr: avgZcr,
+            liveEnergy: Number(scaled.toFixed(3)),
+            matchScore: voiceFeaturesRef.current.matchScore || 100,
+            isOwnerVoice: voiceFeaturesRef.current.isOwnerVoice !== false
+          };
+
+          // Boost active human voice above 0.12 threshold so SpeechTurnBuffer never cuts off mid-sentence
+          if (audioActivityRef.current) {
+            audioActivityRef.current(scaled >= 0.045 ? Math.max(0.18, scaled) : scaled);
+          }
+
+          const now = Date.now();
           if (now - lastPushRef.current >= 120) {
             lastPushRef.current = now;
             fetch('/api/ear/level', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ level: scaled })
+              body: JSON.stringify({
+                level: scaled,
+                pitchHz: avgPitch,
+                energy: avgEnergy,
+                zcr: avgZcr
+              })
             })
               .then((r) => r.json())
               .then((d) => {
@@ -202,9 +179,13 @@
                 if (d && typeof d.isSpeaking === 'boolean' && serverSpeakingRef) {
                   serverSpeakingRef.current = d.isSpeaking;
                 }
+                if (d && typeof d.matchScore === 'number') {
+                  voiceFeaturesRef.current.matchScore = d.matchScore;
+                  voiceFeaturesRef.current.isOwnerVoice = Boolean(d.isOwnerVoice);
+                }
                 if (d && typeof d.forceAwakeUntil === 'number' && d.forceAwakeUntil > Date.now() && awakeUntilRef) {
                   awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, d.forceAwakeUntil);
-                  if (turnRef && turnRef.current) turnRef.current.pauseMs = 3500;
+                  if (turnRef && turnRef.current) turnRef.current.pauseMs = 4200;
                 }
               })
               .catch(() => {});
@@ -218,7 +199,7 @@
         reportEarHealth({ microphone: 'error', error: err.name || '마이크 연결 실패' });
         return false;
       }
-    }, [serverSpeakingRef, awakeUntilRef, turnRef, isSpeakingRef, executeRef, lastWebSpeechAtRef]);
+    }, [serverSpeakingRef, awakeUntilRef, turnRef]);
 
     useEffect(() => {
       startMeter();
@@ -227,7 +208,7 @@
       };
     }, [startMeter]);
 
-    return { micLevel, micActive, micDeviceLabel, startMeter };
+    return { micLevel, micActive, micDeviceLabel, voiceFeaturesRef, startMeter };
   }
 
   function JarvisOrbView({ hudColor, micLevel, onClick }) {
@@ -278,8 +259,7 @@
     const lastExecutedRef = useRef({ text: '', ts: 0 });
     const voiceSessionRef = useRef(`worker-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const executeRef = useRef(null);
-    const lastWebSpeechAtRef = useRef(0);
-    const { micLevel, micActive, micDeviceLabel, startMeter } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, isSpeakingRef, executeRef, lastWebSpeechAtRef);
+    const { micLevel, micActive, micDeviceLabel, voiceFeaturesRef, startMeter } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef);
     const configRef = useRef(config);
     configRef.current = config;
     const generationRef = useRef(0);
@@ -288,6 +268,14 @@
     const executeCommand = useCallback(async (rawSentence, source = 'manual') => {
       const sentence = String(rawSentence || '').trim();
       if (!sentence) return;
+
+      // Owner Voice Print & Proximity Gate: reject distant / outdoor / non-owner background speech
+      if (source === 'voice' && voiceFeaturesRef && voiceFeaturesRef.current) {
+        const vf = voiceFeaturesRef.current;
+        if (vf.isOwnerVoice === false && vf.energy > 0 && vf.energy < 0.045) {
+          return;
+        }
+      }
 
       const now = Date.now();
       if (lastExecutedRef.current.text === sentence && now - lastExecutedRef.current.ts < 2500) {
@@ -317,7 +305,10 @@
         }
         if (data && data.ok && data.result) {
           const r = data.result;
-          if (source === 'voice') awakeUntilRef.current = Date.now() + Math.max(1, Math.min(120, Number(config.followUpSec) || 30)) * 1000;
+          if (source === 'voice') {
+            const followSec = r.intent === 'awake' ? 45 : Math.max(1, Math.min(60, Number(config.followUpSec) || 15));
+            awakeUntilRef.current = Date.now() + followSec * 1000;
+          }
           setHudColor(r.hudColor || 'lime');
           setHudStatus(r.hudTitle || '✓ 실행 완료');
           setHudText((r.awaitingConfirm || r.intent === 'draftMailReply') ? (r.hudSubtitle || r.spoken || sentence) : (r.spoken || r.hudSubtitle || sentence));
@@ -343,23 +334,28 @@
           discardResultsRef.current = true;
           const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
           const cfg = configRef.current;
-          const control = window.JarvisMediaIntents.classifyMediaControl(text, mediaContextRef.current);
-          if (Date.now() < awakeUntilRef.current && String(text || '').trim().length >= 2) {
-            executeRef.current(String(text || '').trim(), 'voice');
-            return;
-          }
-          if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && ![...(cfg.wakeWords || []), cfg.assistantName || '자비스'].some(w => normalize(w) && normalize(text).includes(normalize(w)))) return;
-          setHudColor('amber'); setHudStatus('음성 확정 실패 · 다시 말씀하거나 입력해 주세요'); setHudText(text);
-          fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, status: 'recognition-error' }) }).catch(() => {});
+          const clean = String(text || '').trim();
+          const control = window.JarvisMediaIntents.classifyMediaControl(clean, mediaContextRef.current);
+          const hasWake = [...(cfg.wakeWords || []), cfg.assistantName || '자비스', '헤이자비스'].some(w => normalize(w) && normalize(clean).includes(normalize(w)));
+          if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
+          setHudColor('amber'); setHudStatus('음성 확정 실패 · 다시 말씀하거나 입력해 주세요'); setHudText(clean);
+          fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: clean, status: 'recognition-error' }) }).catch(() => {});
         },
         isMuted: () => isSpeakingRef.current || serverSpeakingRef.current,
         onPreview: text => {
           const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
           const cfg = configRef.current;
-          const wakeWords = [...(cfg.wakeWords || []), cfg.assistantName || '자비스'];
+          const wakeWords = [...(cfg.wakeWords || []), cfg.assistantName || '자비스', '헤이자비스'];
           const control = window.JarvisMediaIntents.classifyMediaControl(text, mediaContextRef.current);
-          if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !wakeWords.some(w => normalize(w) && normalize(text).includes(normalize(w)))) return;
-          setHudColor('cyan'); setHudStatus('○ 계속 듣는 중'); setHudText(text);
+          const hasWake = wakeWords.some(w => normalize(w) && normalize(text).includes(normalize(w)));
+          if (hasWake) {
+            awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, Date.now() + 45000);
+            if (turnRef.current && cfg.speechPauseMs) {
+              turnRef.current.pauseMs = Math.max(3600, Number(cfg.speechPauseMs) || 3800);
+            }
+          }
+          if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
+          setHudColor('cyan'); setHudStatus('● 경청 중 · 끝까지 편하게 말씀하세요'); setHudText(text);
           fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, isFinal: false }) }).catch(() => {});
         }
       });
@@ -403,7 +399,6 @@
 
       rec.onresult = (event) => {
         if (recRef.current !== rec || discardResultsRef.current || isSpeakingRef.current || serverSpeakingRef.current) return;
-        lastWebSpeechAtRef.current = Date.now();
         reportEarHealth({ recognition: 'listening', error: '' });
         let interim = '';
         const finals = [];
@@ -412,6 +407,9 @@
           if (event.results[i].isFinal) finals.push({ id: `${generation}:${i}`, text: t });
           else interim += `${t} `;
         }
+        if (Date.now() < awakeUntilRef.current) {
+          awakeUntilRef.current = Math.max(awakeUntilRef.current, Date.now() + 30000);
+        }
         turnRef.current.push(finals, interim.trim());
       };
 
@@ -419,12 +417,6 @@
         if (recRef.current !== rec) return;
         recRunningRef.current = false;
         if (event.error === 'no-speech' || event.error === 'aborted') return;
-        if (event.error === 'network' && typeof window.MediaRecorder === 'function') {
-          setSttState('LISTENING');
-          setSttDetail('🟢 Gemini 3.8 Flash 하이브리드 음성인식 작동 중');
-          reportEarHealth({ recognition: 'listening', sttFallback: 'gemini-audio-vad', error: '' });
-          return;
-        }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') recRef.current = null;
         setSttState('ERROR');
         setSttDetail(`음성 인식 오류: ${event.error || '알 수 없음'}`);
@@ -471,7 +463,12 @@
       fetch('/api/butler/state')
         .then((r) => r.json())
         .then((d) => {
-          if (d && d.ok && d.config) setConfig(d.config);
+          if (d && d.ok && d.config) {
+            setConfig(d.config);
+            if (d.config.speechPauseMs && turnRef.current) {
+              turnRef.current.pauseMs = Math.max(2400, Number(d.config.speechPauseMs) || 3800);
+            }
+          }
         })
         .catch(() => {});
     }, []);

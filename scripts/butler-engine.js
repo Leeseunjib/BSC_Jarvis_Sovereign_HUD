@@ -467,20 +467,21 @@ function searchYouTubeTop5(query) {
           let html = '';
           const parse = () => {
             const list = [];
-            const regex = /"videoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{"runs":\[\{"text":"([^"]+)"/g;
+            const regex = /"videoRenderer":\{"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{(?:"runs":\[\{"text":"([^"]+)"|"simpleText":"([^"]+)")/g;
             let match;
             const seen = new Set();
             while ((match = regex.exec(html)) !== null && list.length < 5) {
+              const titleText = match[2] || match[3] || 'YouTube 미디어';
               if (!seen.has(match[1])) {
                 seen.add(match[1]);
-                list.push({ index: list.length + 1, id: match[1], title: match[2].replace(/\\u0026/g, '&'), url: `https://www.youtube.com/watch?v=${match[1]}` });
+                list.push({ index: list.length + 1, id: match[1], title: titleText.replace(/\\u0026/g, '&'), url: `https://www.youtube.com/watch?v=${match[1]}` });
               }
             }
             resolve(list);
           };
           res.on('data', chunk => {
             html += chunk;
-            if (html.length > 900000) { parse(); res.destroy(); }
+            if (html.length > 2500000) { parse(); res.destroy(); }
           });
           res.on('end', parse);
           res.on('error', () => resolve([]));
@@ -890,11 +891,14 @@ class ButlerEngine {
       return { intent: 'whatDid' };
     }
 
-    if (/^(멈춰|스톱|조용|조용히해|시끄러|잠깐|stop|quiet|hush)$/.test(sq2)) {
+    if (/^(멈춰|스톱|조용|조용히해|시끄러|잠깐|하지마|아니하지마|stop|quiet|hush)$/.test(sq2) || /자비.*없.*조용|아무것도하지말고.*대답하지말|스스로말하거나그러지마/.test(sq2)) {
       return { intent: 'hush' };
     }
     if (/^(됐어|그만|고마워|끝|잘자|쉬어|수고했어|thanks|bye)$/.test(sq2)) {
       return { intent: 'bye' };
+    }
+    if (/^(할말있어|내말잘들어|궁금한게있는데|물어볼게있는데)$/.test(sq2)) {
+      return { intent: 'awake', title: '● 경청 중 · 네, 대표님 말씀하세요', subtitle: '끝까지 편하게 말씀해 주세요', color: 'cyan' };
     }
 
     if (/받아써|받아적어|받아쓰기|타이핑모드|dictation/.test(sq2)) {
@@ -942,24 +946,34 @@ class ButlerEngine {
       return { intent: 'dailyBriefing' };
     }
 
-    // 10) YouTube search / Music play ("유튜브에서 로파이 검색해", "클래식 음악 좀 틀어 줘", "음악 틀어줘", "로파이 틀어줘")
-    if (/^(?:음악|노래|브금|플레이리스트|플리)(?:좀)?(?:틀어|재생|켜)(?:줘|봐|주세요)?$/.test(sq2)) {
+    // 10) YouTube search / Music play ("유튜브에서 로파이 검색해", "클래식 음악 좀 틀어 줘", "음악 틀어줘", "로파이 틀어줘", "버즈라는 가수의 노래를 틀어 달라고")
+    if (/^(?:음악|노래|브금|플레이리스트|플리)(?:좀|를|을)?(?:틀어|재생|켜|들려)(?:줘|봐|주세요|달라고|줄래)?$/.test(sq2)) {
       return { intent: 'youtubeAutoPlay', query: '집중하기 좋은 로파이 음악 플레이리스트', spokenLabel: '로파이 음악' };
     }
-    const genreMusicMatch = s.match(/^(로파이|클래식|재즈|피아노|팝송|잔잔한|신나는|집중|카페|공부)\s*(?:음악|노래|브금|플리|플레이리스트)?\s*(?:좀\s*)?(?:틀어|재생해|켜)(?:줘|봐|주세요)?$/i);
+    const genreMusicMatch = s.match(/^(로파이|클래식|재즈|피아노|팝송|잔잔한|신나는|집중|카페|공부)\s*(?:음악|노래|브금|플리|플레이리스트)?(?:를|을)?\s*(?:좀\s*)?(?:틀어|재생해|켜|들려)(?:\s*줘|\s*봐|\s*주세요|\s*달라고|\s*줄래)?$/i);
     if (genreMusicMatch) {
       const genre = genreMusicMatch[1].trim();
       return { intent: 'youtubeAutoPlay', query: `${genre} 음악 플레이리스트`, spokenLabel: `${genre} 음악` };
     }
-    const musicPlayMatch = s.match(/^(.+?)\s*(?:음악|노래|브금|플리|플레이리스트)\s*(?:좀\s*)?(?:틀어|재생해|켜)(?:줘|봐|주세요)?$/);
+    const musicPlayMatch = s.match(/^(?:유튜브(?:에서)?\s*)?(.+?)\s*(?:음악|노래|곡|브금|플리|플레이리스트)(?:를|을)?\s*(?:좀\s*)?(?:틀어|재생해|재생|켜|들려)(?:\s*줘|\s*봐|\s*주세요|\s*달라고|\s*줄래)?$/);
     if (musicPlayMatch) {
-      const q = musicPlayMatch[1].trim() + ' 음악 플레이리스트';
-      return { intent: 'youtubeAutoPlay', query: q, spokenLabel: musicPlayMatch[1].trim() + ' 음악' };
+      const artistOrGenre = musicPlayMatch[1]
+        .replace(/(?:이?라는\s*가수의|이?라는\s*가수|가수의|가수)\s*/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const q = `${artistOrGenre} 노래 모음 플레이리스트`;
+      return { intent: 'youtubeAutoPlay', query: q, spokenLabel: `${artistOrGenre} 노래` };
     }
 
-    const ytMatch = s.match(/(?:유튜브(?:에서)?\s*(.+?)\s*(?:검색|찾아|틀어|재생|보여).*|(.+?)\s*(?:유튜브에서\s*찾아|노래\s*틀어|영상\s*틀어).*)/);
+    const ytMatch = s.match(/(?:유튜브(?:에서)?\s*(.+?)\s*(?:검색|찾아|틀어|재생|보여|들려).*|(.+?)\s*(?:유튜브에서\s*찾아|노래(?:를|을)?\s*틀어|영상(?:을|를)?\s*틀어).*)/);
     if (ytMatch) {
-      const q = (ytMatch[1] || ytMatch[2] || '').replace(/(해줘|해봐|줘|좀)$/g, '').trim();
+      const q = (ytMatch[1] || ytMatch[2] || '')
+        .replace(/(?:이?라는\s*가수의|이?라는\s*가수)\s*/g, ' ')
+        .replace(/(?:를|을|해줘|해봐|줘|좀|달라고|줄래)$/g, '')
+        .trim();
+      if (/틀어|재생|켜|들려/.test(s)) {
+        return { intent: 'youtubeAutoPlay', query: q, spokenLabel: q };
+      }
       return { intent: 'youtube', query: q };
     }
 
@@ -1127,8 +1141,8 @@ class ButlerEngine {
         return {
           intent: 'awake',
           hudColor: 'cyan',
-          hudTitle: `● 네, ${cfg.userName || '대표님'} 듣고 있어요`,
-          hudSubtitle: '지금 이어서 말씀하세요 (8초간 호출어 없이 연속 대화 가능)',
+          hudTitle: `● 경청 중 · 네, ${cfg.userName || '대표님'} 말씀하세요`,
+          hudSubtitle: '지금 이어서 끝까지 편하게 말씀하세요 (45초간 경청 모드 유지)',
           heard: rawSentence,
           spoken: `네, ${cfg.userName || '대표님'}. 말씀하세요.`
         };

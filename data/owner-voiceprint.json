@@ -1,0 +1,12 @@
+{
+  "enrolled": true,
+  "ownerName": "이건우 대표님",
+  "pitchHz": 132,
+  "pitchRange": [
+    82,
+    235
+  ],
+  "minEnergy": 0.055,
+  "strictOwnerGate": true,
+  "updatedAt": "2026-10-29T07:02:16.632Z"
+}

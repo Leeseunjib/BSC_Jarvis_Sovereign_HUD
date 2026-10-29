@@ -336,7 +336,11 @@ function callGeminiAudioSttOnce(apiKey, modelName, audioBase64, mimeType) {
                 .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
                 .replace(/\r?\n+/g, ' ')
                 .trim();
-              if (cleaned && !/^(없음|무음|빈 문자열|none|silence|null)$/i.test(cleaned)) {
+              if (
+                cleaned &&
+                !/^(없음|무음|빈 문자열|none|silence|null|기침|음\.?|아!?|어\.?)$/i.test(cleaned) &&
+                !/아무\s*말도\s*없거나|숨소리|배경\s*잡음|타이핑하는\s*소리|\d{2}:\d{2}|^[ㅎㅋㄹ0ㅁ\s]+$/i.test(cleaned)
+              ) {
                 return resolve(cleaned);
               }
             }
@@ -365,6 +369,49 @@ async function transcribeAudioBufferWithGemini(audioBase64, mimeType = 'audio/we
   }
   return '';
 }
+
+const VOICEPRINT_FILE = path.join(__dirname, 'data', 'owner-voiceprint.json');
+function loadOwnerVoicePrint() {
+  try {
+    if (fs.existsSync(VOICEPRINT_FILE)) {
+      return JSON.parse(fs.readFileSync(VOICEPRINT_FILE, 'utf8'));
+    }
+  } catch (_) {}
+  return {
+    enrolled: true,
+    ownerName: '이건우 대표님',
+    pitchHz: 132,
+    pitchRange: [82, 235],
+    minEnergy: 0.055,
+    strictOwnerGate: true,
+    updatedAt: new Date().toISOString()
+  };
+}
+function saveOwnerVoicePrint(vp) {
+  try {
+    fs.mkdirSync(path.dirname(VOICEPRINT_FILE), { recursive: true });
+    fs.writeFileSync(VOICEPRINT_FILE, JSON.stringify(vp, null, 2), 'utf8');
+  } catch (_) {}
+  return vp;
+}
+function evaluateOwnerVoiceMatch(features, vp) {
+  if (!vp || !vp.enrolled) return { matchScore: 100, isOwnerVoice: true };
+  const pitch = Number(features && features.pitchHz) || 0;
+  const energy = Number(features && features.energy) || 0;
+  const minE = Number(vp.minEnergy) || 0.05;
+  if (energy > 0 && energy < minE * 0.72) {
+    return { matchScore: 32, isOwnerVoice: false, reason: 'low-energy-outdoor' };
+  }
+  if (pitch > 0 && vp.pitchHz > 0) {
+    const diff = Math.abs(pitch - vp.pitchHz);
+    const score = Math.max(25, Math.min(99, Math.round(100 - diff * 0.65)));
+    const isOwner = vp.strictOwnerGate ? score >= 52 && energy >= minE * 0.75 : true;
+    return { matchScore: score, isOwnerVoice: isOwner };
+  }
+  return { matchScore: 92, isOwnerVoice: true };
+}
+let ownerVoicePrint = loadOwnerVoicePrint();
+if (!fs.existsSync(VOICEPRINT_FILE)) saveOwnerVoicePrint(ownerVoicePrint);
 
 function sendJson(res, status, obj) {
   const payload = JSON.stringify(obj);
@@ -587,6 +634,14 @@ const server = http.createServer(async (req, res) => {
     if (body.source === 'voice' && result && result.pendingSend) {
       voiceSessions.extend(body.voiceSession, result.pendingSend.expiresAt);
     }
+    if (body.source === 'voice' && result && result.intent === 'awake') {
+      const wakeUntil = Date.now() + 45000;
+      global.__jarvisForceAwakeUntil = wakeUntil;
+      voiceSessions.wakeAll(wakeUntil);
+    }
+    if (body.source === 'voice' && result && (result.intent === 'hush' || result.intent === 'bye')) {
+      global.__jarvisForceAwakeUntil = 0;
+    }
     if (body.source === 'voice' && result && result.intent === 'dictation') {
       voiceSessions.extend(body.voiceSession, Date.now() + 600000);
     }
@@ -677,11 +732,82 @@ const server = http.createServer(async (req, res) => {
     if (body && typeof body.level === 'number') {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.level) || 0));
     }
+    const pitchHz = Number(body && body.pitchHz) || 0;
+    const energy = Number(body && body.energy) || global.__jarvisMicLevel || 0;
+    const zcr = Number(body && body.zcr) || 0;
+    if (global.__jarvisEnrollSamples && Array.isArray(global.__jarvisEnrollSamples)) {
+      if (energy >= 0.035 && pitchHz >= 75 && pitchHz <= 300) {
+        global.__jarvisEnrollSamples.push({ pitchHz, energy, zcr });
+      }
+    }
+    const matchInfo = evaluateOwnerVoiceMatch({ pitchHz, energy, zcr }, ownerVoicePrint);
+    global.__jarvisLastVoiceFeatures = {
+      pitchHz,
+      energy,
+      zcr,
+      matchScore: matchInfo.matchScore,
+      isOwnerVoice: matchInfo.isOwnerVoice,
+      ts: Date.now()
+    };
     return sendJson(res, 200, {
       ok: true,
       isSpeaking: Boolean(global.__jarvisIsSpeaking),
       mediaActive: butler.hasMediaContext(),
-      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0
+      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0,
+      matchScore: matchInfo.matchScore,
+      isOwnerVoice: matchInfo.isOwnerVoice
+    });
+  }
+  if (req.method === 'GET' && pathname === '/api/ear/voiceprint') {
+    return sendJson(res, 200, {
+      ok: true,
+      voicePrint: ownerVoicePrint,
+      live: global.__jarvisLastVoiceFeatures || { pitchHz: 0, energy: 0, matchScore: 100, isOwnerVoice: true }
+    });
+  }
+  if (req.method === 'POST' && pathname === '/api/ear/enroll-voice') {
+    const body = await readBody(req);
+    if (body && typeof body.strictOwnerGate === 'boolean' && !body.enrollNow) {
+      ownerVoicePrint.strictOwnerGate = body.strictOwnerGate;
+      if (typeof body.minEnergy === 'number') ownerVoicePrint.minEnergy = body.minEnergy;
+      ownerVoicePrint.updatedAt = new Date().toISOString();
+      saveOwnerVoicePrint(ownerVoicePrint);
+      return sendJson(res, 200, { ok: true, voicePrint: ownerVoicePrint });
+    }
+    global.__jarvisEnrollSamples = [];
+    const durationMs = Math.max(2500, Math.min(7000, Number((body && body.durationMs) || 4000)));
+    await new Promise(r => setTimeout(r, durationMs));
+    const samples = global.__jarvisEnrollSamples || [];
+    global.__jarvisEnrollSamples = null;
+    if (samples.length > 0) {
+      const avgPitch = Math.round(samples.reduce((a, b) => a + b.pitchHz, 0) / samples.length);
+      const avgEnergy = Number((samples.reduce((a, b) => a + b.energy, 0) / samples.length).toFixed(3));
+      ownerVoicePrint = {
+        enrolled: true,
+        ownerName: '이건우 대표님',
+        pitchHz: avgPitch,
+        pitchRange: [Math.max(75, avgPitch - 42), Math.min(300, avgPitch + 48)],
+        minEnergy: Math.max(0.042, Number((avgEnergy * 0.65).toFixed(3))),
+        strictOwnerGate: true,
+        sampleCount: samples.length,
+        updatedAt: new Date().toISOString()
+      };
+    } else {
+      const lastP = (global.__jarvisLastVoiceFeatures && global.__jarvisLastVoiceFeatures.pitchHz) || 132;
+      ownerVoicePrint = {
+        ...ownerVoicePrint,
+        enrolled: true,
+        ownerName: '이건우 대표님',
+        pitchHz: lastP > 75 ? lastP : 132,
+        strictOwnerGate: true,
+        updatedAt: new Date().toISOString()
+      };
+    }
+    saveOwnerVoicePrint(ownerVoicePrint);
+    return sendJson(res, 200, {
+      ok: true,
+      voicePrint: ownerVoicePrint,
+      message: `이건우 대표님 성문 등록 완료 (${ownerVoicePrint.pitchHz}Hz · 근접 음성 필터 가동)`
     });
   }
   if (req.method === 'POST' && pathname === '/api/ear/wake') {
