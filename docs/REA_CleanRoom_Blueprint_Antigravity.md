@@ -1,0 +1,34 @@
+# 🔬 Antigravity 2.0 × Google Harness² — REA 4-Stage Clean-Room Architecture Blueprint for JARVIS
+
+> **생성 시각**: `2026-10-29T07:23:32.293Z`  
+> **적용 대상**: `C:\자비스` ↔ `Antigravity 2.0 IDE` ↔ `C:\BeausCreators` ↔ `C:\Warehouse`
+
+---
+
+## 1. 4-Split Evidence Provenance (REA 4분할 증거 추적)
+
+### ① Observations (관찰된 구조적 팩트)
+- [Obs-1 · Antigravity Sidecar & Artifact Separation] Antigravity 2.0은 메인 대화창과 별도로 우측/독립 창(Artifact & Sidecar Pane)에서 implementation_plan.md, walkthrough.md, 터미널, 서브에이전트 상태를 분리 렌더링하여 긴 문서가 대화창을 가리지 않게 설계됨.
+- [Obs-2 · Progressive Skill Disclosure] Antigravity는 .agents/skills/<name>/SKILL.md의 YAML frontmatter(name, description)만 상시 인지하고, 작업이 매칭될 때만 본문을 로드하여 컨텍스트 오염을 방지함.
+- [Obs-3 · Model Context Protocol (MCP) Bridge] mcp_config.json을 통해 외부 도구를 Stdio 또는 Streamable HTTP(/mcp) JSON-RPC 2.0 서버로 연결하여 에이전트 간 도구와 상태를 양방향 공유함.
+- [Obs-4 · Google Research Harness² 8-Surface] arXiv:2610.14224 Harness²는 에이전트 하네스를 8개 편집 가능 표면(c1~c8)으로 정의하고, 항상 켜진 파일(c1~c4, guardrails)은 20KB 캡을 두며, 도메인 경험(Experience Library R)과 태스크 재귀(Ledger R=4k, P=3k)로 자가 진화함.
+
+### ② Derivations (자비스 아키텍처 도출)
+- [Der-1 · 자비스 전용 📋 Plan & 문서 HUD 창 도출] 대표님과 Plan(기획/설계/규칙/아키텍처)을 논의할 때 680x114 상단 바 안에 긴 글을 우겨넣지 않고, Antigravity의 Artifact Pane처럼 독립된 "📋 자비스 Plan · CHLGD 문서 뷰어 HUD 창"을 띄워 깔끔하게 열람하도록 설계.
+- [Der-2 · 대화 규칙 & CHLGD 로그 실시간 정제소] 대표님과의 대화에서 발생하는 규칙("앞으로 ~해", "~하지 마"), 새로 생성된 스킬, CHLGD 작업 로그를 날것의 JSON이 아닌 카테고리별 정제된 UI 카드로 메뉴에서 즉시 열람 가능하게 구성.
+- [Der-3 · 자비스의 MCP Server화] 자비스(C:\자비스\scripts\jarvis-mcp-server.js 및 POST /mcp)를 Antigravity의 mcp_config.json에 등록하여, Antigravity에서 짠 Plan을 자비스 HUD 창에 즉시 띄우거나 자비스의 음성/터미널/CHLGD 엔진을 Antigravity가 직접 호출 가능.
+
+### ③ Inferences (시스템 진화 추론)
+- [Inf-1 · 대표님 맞춤형 초개인화 성장 루프] 대화가 누적될수록 c3(LongTermMEMORY.md), c6(guardrails.md & skills), domains/*/EXPERIENCE.md가 함께 진화하여 BeausCreators 본사 수준의 업무 이해도를 자비스가 동일하게 보유하게 됨.
+- [Inf-2 · C:\BeausCreators + C:\Warehouse 통합 시너지] 본사 26인 에이전트 스킬과 Warehouse의 Imported/Original 스킬을 자비스가 단일 인덱스로 파악하여 대표님의 음성 한마디로 복합 엔지니어링(.ps1, .py, CI/CD)을 완수함.
+
+### ④ Unknowns & Mitigations (리스크 통제)
+- [Unk-1 · 외부 클라우드 LLM 네트워크 지연] 네트워크 상태에 따라 클라우드 모델 응답 시간이 변동될 수 있으므로, 결정론적 인텐트 라우터(0ms) + 로컬/캐시 브리핑을 1차 방어선으로 유지함.
+
+---
+
+## 2. 자비스(JARVIS) 시스템 이식 완료 내역
+- **1. [Antigravity Artifact Sidecar 이식] ➔ 자비스 바탕화면 "📋 Plan · 설계 문서 & CHLGD 규칙 뷰어 HUD 창" 신설 (메뉴 버튼 또는 "플랜 창 열어줘" 음성 명령으로 즉시 팝업)**
+- **2. [Antigravity MCP Server 브릿지 이식] ➔ C:\자비스\scripts\jarvis-mcp-server.js (Stdio) + http://127.0.0.1:7788/mcp (HTTP) 양방향 서버 구축 및 mcp_config.json 등록 완료**
+- **3. [Google Harness² 8-Surface 이식] ➔ C:\자비스\harness2\base_harness (c1~c8) + Experience Library R + R=4k, P=3k Ledger 검증 엔진 탑재**
+- **4. [C:\BeausCreators & C:\Warehouse 스킬 연동] ➔ 전사 26인 에이전트 + Warehouse 스킬 인덱스 직결 및 자비스 전용 4대 스킬(.agents/skills) 생성 완료**

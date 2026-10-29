@@ -15,6 +15,14 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const {
+  getChlgdAndPlanDashboard,
+  addConversationRule,
+  createOrUpdatePlanDocument,
+  triggerHudPlanWindowOpen,
+  runJarvisHarness2EvolutionCycle,
+  loadPlansAndRulesState
+} = require('./jarvis-harness2-engine');
 
 const BSC_ROOT = 'C:\\BeausCreators';
 const BSC_HQ = path.join(BSC_ROOT, '01.BSC_HQ');
@@ -340,12 +348,19 @@ class BscCollaborationBridge {
         }
       }
 
-      if (intent === 'remember' || /기억해|외워|내취향|선호|좋아하거든|좋아해|주의할점|하지마|필요없어|스킬로/.test(clean)) {
+      if (intent === 'remember' || /기억해|외워|내취향|선호|좋아하거든|좋아해|주의할점|하지마|필요없어|스킬로|규칙으로|앞으로.*해|이렇게하면좋겠어/.test(clean)) {
         const prefs = profile.stats.learnedPreferences || [];
         if (!prefs.includes(clean)) {
           prefs.unshift(`[${nowIso.slice(0, 10)}] ${clean}`);
           profile.stats.learnedPreferences = prefs.slice(0, 20);
         }
+        try {
+          addConversationRule({
+            ruleText: clean,
+            category: /음성|말|목소리|듣|소음/.test(clean) ? '음성 · 경청 규칙' : /스킬|chlgd|하네스|코딩|ps1|py|cicd/i.test(clean) ? 'CHLGD · 스킬 규칙' : '대화 학습 규칙',
+            source: '대표님 실시간 대화 학습'
+          });
+        } catch (_) {}
         fs.appendFileSync(
           JARVIS_CHLGD_FILES.jarvisLoopMd,
           `- [${nowIso.slice(0, 19).replace('T', ' ')}] [Learn/Memory] 대표님 지침 학습: "${clean}" -> 장기 기억 및 프로파일 반영 완료\n`,
@@ -605,19 +620,79 @@ class BscCollaborationBridge {
       };
     }
 
-    // H) Harness² & CHLGD Loop 오더 로그 / 자가성장 기록 / 대표님 프로파일 점검
-    if (/오더로그|작업로그|내가시킨|하네스2|harness2|성장로그|성장상태|학습로그|나를얼마나|나에대해뭐알고|내철학|내취향/.test(sq)) {
+    // H) Harness² & CHLGD Loop 오더 로그 / 자가성장 기록 / 대표님 프로파일 / 대화 규칙 원장 점검
+    if (/오더로그|작업로그|내가시킨|하네스2|harness2|성장로그|성장상태|학습로그|나를얼마나|나에대해뭐알고|내철학|내취향|대화규칙|규칙정리|규칙보여|로그창|규칙창/.test(sq)) {
       const intel = this.getCeoIntelligenceSummary();
       const partner = this.findPartnerAgent('우진 ai chlgd');
+      const targetTab = /하네스2|harness2|웨어하우스|warehouse|스킬목록/.test(sq) ? 'harness2' : 'rules';
+      const updatedState = triggerHudPlanWindowOpen(targetTab);
       const cmd = `Write-Output "=== [1] 이건우 대표님 프로파일 & 누적 학습 통계 (ceo-profile.json) ==="; Write-Output "누적 실행 오더: ${intel.totalOrders}건 | 선호 음악: ${intel.favMusic}"; Write-Output "--- 최근 오더 ---"; if (Test-Path "${JARVIS_CHLGD_FILES.ceoOrdersLog}") { Get-Content -LiteralPath "${JARVIS_CHLGD_FILES.ceoOrdersLog}" -Tail 6 }; Write-Output "=== [2] CHLGD & Harness² 자가성장 원장 (jarvis-loop.md) ==="; if (Test-Path "${JARVIS_CHLGD_FILES.jarvisLoopMd}") { Get-Content -LiteralPath "${JARVIS_CHLGD_FILES.jarvisLoopMd}" -Tail 6 }`;
       return {
         kind: 'terminal',
-        title: `CHLGD · Harness² 자가성장 원장 & 대표님 오더 로그 (${intel.totalOrders}건)`,
+        openPlanWindow: true,
+        openWindowSeq: updatedState.openWindowSeq,
+        activeTab: targetTab,
+        title: `CHLGD · Harness² 자가성장 원장 & 대표님 대화 규칙 (${intel.totalOrders}건)`,
         command: cmd,
         cwd: 'C:\\자비스',
         chlgdPhase: 'Loop & Harness²',
         partnerAgent: partner,
-        spoken: `이건우 대표님, 자비스는 CHLGD와 하네스2 엔진으로 대표님께서 지시하신 총 ${intel.totalOrders}건의 오더와 핵심 철학, 음악 및 작업 취향을 실시간 로그로 기록하고 스스로 학습하고 있습니다. 최근 오더는 ${intel.recentSummary}입니다.`
+        spoken: `이건우 대표님, 전용 HUD 문서 창을 열어 대표님과의 대화 규칙 원장과 CHLGD 작업 로그, 그리고 구글 하네스2 학습 내역을 깔끔하게 표시했습니다.`
+      };
+    }
+
+    // I) Plan / 기획 / 설계 / 문서 뷰어 HUD 창 열기 또는 새 Plan 작성 오더
+    if (/플랜|plan|계획세워|계획짜|기획안|설계서|문서창|문서보여|프리뷰창|안티그래비티분석|rea분석|아키텍처보여/.test(sq)) {
+      if (/안티그래비티|rea분석/.test(sq)) {
+        const st = triggerHudPlanWindowOpen('rea');
+        return {
+          kind: 'planDoc',
+          openPlanWindow: true,
+          openWindowSeq: st.openWindowSeq,
+          activeTab: 'rea',
+          hudTitle: '🔬 Antigravity 2.0 REA 분석 & MCP 연동 HUD 창 열기',
+          hudSubtitle: '4-Split REA 역공학 블루프린트 및 양방향 MCP 서버 연동 현황을 HUD 문서 창에 표시했습니다.',
+          spoken: '대표님, 안티그래비티 2.0 REA 4분할 역공학 분석과 MCP 연동 문서를 전용 HUD 창에 띄워 드렸습니다.'
+        };
+      }
+      const isJustOpen = /^(?:플랜창|문서창|플랜뷰어|계획창|플랜|문서)\s*(?:열어줘|열어|보여줘|보여|띄워줘|띄워|켜줘|켜)$/.test(sq);
+      const st = isJustOpen
+        ? triggerHudPlanWindowOpen('plan')
+        : createOrUpdatePlanDocument({
+            title: `📋 [Plan] ${s}`,
+            category: 'CEO Requested CHLGD Plan',
+            rawTopic: s,
+            triggerOpenWindow: true,
+            targetTab: 'plan'
+          });
+      return {
+        kind: 'planDoc',
+        openPlanWindow: true,
+        openWindowSeq: st.openWindowSeq,
+        activeTab: 'plan',
+        hudTitle: `📋 ${st.activePlanDoc.title}`,
+        hudSubtitle: '전용 UI HUD 문서 뷰어 창에 Plan 문서를 띄웠습니다.',
+        spoken: `네, 대표님. 말씀하신 Plan 문서를 정리하여 바탕화면 전용 HUD 문서 뷰어 창에 띄워 드렸습니다.`
+      };
+    }
+
+    // J) 새로운 대화 규칙 명시적 추가 오더 (예: "규칙 추가: 앞으로 ...", "앞으로 ~하는 규칙 만들어줘")
+    if (/규칙추가|규칙등록|규칙으로저장|규칙만들어/.test(sq)) {
+      const ruleBody = s.replace(/^(?:규칙\s*추가|규칙\s*등록|규칙으로\s*저장)\s*[:：]?\s*/i, '').trim();
+      addConversationRule({
+        ruleText: ruleBody || s,
+        category: '대표님 지정 대화 규칙',
+        source: '대표님 직접 추가'
+      });
+      const st = triggerHudPlanWindowOpen('rules');
+      return {
+        kind: 'planDoc',
+        openPlanWindow: true,
+        openWindowSeq: st.openWindowSeq,
+        activeTab: 'rules',
+        hudTitle: '📓 대표님 대화 규칙 원장 & Google Harness² 등록 완료',
+        hudSubtitle: `「${ruleBody || s}」 규칙이 CHLGD 원장 및 Harness² 가드레일에 영구 저장되었습니다.`,
+        spoken: '네, 대표님. 말씀하신 규칙을 대화 규칙 원장과 구글 하네스2 가드레일에 깔끔하게 기록하고 HUD 창에 표시했습니다.'
       };
     }
 

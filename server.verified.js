@@ -21,6 +21,14 @@ const { sharedTerminalManager, sharedBscBridge } = require('./scripts/bsc-collab
 const { VoiceSessions } = require('./scripts/voice-session');
 const { registerWindowsStartup, getStartupStatus } = require('./scripts/windows-ear-daemon');
 const { runReaAnalysis, buildReaReportObject } = require('./scripts/rea-analyzer');
+const {
+  getChlgdAndPlanDashboard,
+  addConversationRule,
+  createOrUpdatePlanDocument,
+  triggerHudPlanWindowOpen,
+  runJarvisHarness2EvolutionCycle
+} = require('./scripts/jarvis-harness2-engine');
+const { handleMcpJsonRpcRequest, MCP_SERVER_INFO, MCP_TOOLS } = require('./scripts/jarvis-mcp-server');
 
 let MsEdgeTTS = null;
 let OUTPUT_FORMAT = null;
@@ -566,6 +574,76 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       ...butler.getSubwindowsState()
     });
+  }
+
+  // 1-D) GET /api/hud/chlgd-dashboard (CHLGD Rules, Logs, Google Harness² & Active Plan Document)
+  if (req.method === 'GET' && pathname === '/api/hud/chlgd-dashboard') {
+    return sendJson(res, 200, getChlgdAndPlanDashboard(sharedBscBridge));
+  }
+
+  // 1-E) GET & POST /api/hud/plan-doc (Plan & Document HUD Viewer Window)
+  if (req.method === 'GET' && pathname === '/api/hud/plan-doc') {
+    const dash = getChlgdAndPlanDashboard(sharedBscBridge);
+    return sendJson(res, 200, {
+      ok: true,
+      openWindowSeq: dash.openWindowSeq,
+      activeTab: dash.activeTab,
+      activePlanDoc: dash.activePlanDoc
+    });
+  }
+  if (req.method === 'POST' && pathname === '/api/hud/plan-doc') {
+    const body = await readBody(req);
+    if (body && body.onlyOpenWindow) {
+      const st = triggerHudPlanWindowOpen(body.targetTab || 'plan');
+      return sendJson(res, 200, { ok: true, openWindowSeq: st.openWindowSeq, activeTab: st.activeTab, activePlanDoc: st.activePlanDoc });
+    }
+    const st = createOrUpdatePlanDocument({
+      title: body.title || '📋 자비스 Plan · 설계 문서',
+      category: body.category || 'CHLGD Plan & Architecture',
+      summary: body.summary || '',
+      sections: Array.isArray(body.sections) ? body.sections : null,
+      rawTopic: body.rawTopic || body.title || '',
+      triggerOpenWindow: body.openWindow !== false,
+      targetTab: body.targetTab || 'plan'
+    });
+    return sendJson(res, 200, { ok: true, openWindowSeq: st.openWindowSeq, activeTab: st.activeTab, activePlanDoc: st.activePlanDoc });
+  }
+
+  // 1-F) POST /api/hud/rules (Add new CEO Conversation Rule & CHLGD Guardrail)
+  if (req.method === 'POST' && pathname === '/api/hud/rules') {
+    const body = await readBody(req);
+    const updated = addConversationRule({
+      ruleText: body.ruleText || '',
+      category: body.category || '대화 학습 규칙',
+      source: body.source || 'HUD 직접 등록'
+    });
+    return sendJson(res, 200, {
+      ok: true,
+      conversationRules: updated ? updated.conversationRules : []
+    });
+  }
+
+  // 1-G) POST /api/hud/harness2-evolve (Run Google Harness² 8-Surface Validation & Recursion Pass)
+  if (req.method === 'POST' && pathname === '/api/hud/harness2-evolve') {
+    const body = await readBody(req);
+    const resObj = runJarvisHarness2EvolutionCycle((body && body.reason) || 'HUD Manual Evolution Trigger');
+    return sendJson(res, 200, resObj);
+  }
+
+  // 1-H) GET & POST /mcp (Model Context Protocol JSON-RPC 2.0 Endpoint for Antigravity IDE)
+  if (pathname === '/mcp') {
+    if (req.method === 'GET') {
+      return sendJson(res, 200, {
+        ok: true,
+        serverInfo: MCP_SERVER_INFO,
+        tools: MCP_TOOLS
+      });
+    }
+    if (req.method === 'POST') {
+      const rpcReq = await readBody(req, 512 * 1024);
+      const rpcResp = await handleMcpJsonRpcRequest(rpcReq, butler);
+      return sendJson(res, 200, rpcResp || { jsonrpc: '2.0', result: {} });
+    }
   }
 
   // 1-C) POST /api/tasks/run | /api/tasks/stop | /api/tasks/dismiss

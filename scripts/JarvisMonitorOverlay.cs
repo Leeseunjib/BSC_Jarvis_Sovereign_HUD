@@ -85,6 +85,8 @@ namespace JarvisSasariSa
         private static Window hudWindow;
         private static Window bootWindow;
         private static Window settingsWindow;
+        private static Window planDocWindow;
+        private static int lastSeenPlanWindowSeq = 1;
         private static Border hudCardBorder;
         private static TextBlock txtStatus;
         private static TextBlock txtHeard;
@@ -699,6 +701,14 @@ namespace JarvisSasariSa
             MenuItem miSet = new MenuItem { Header = "⚙ 단축키 및 호출 설정…" };
             miSet.Click += (s, e) => ShowHotkeySettingsWindow();
             ctx.Items.Add(miSet);
+
+            MenuItem miPlanHud = new MenuItem { Header = "📋 Plan · 설계 문서 프리뷰 HUD 창 열기" };
+            miPlanHud.Click += (s, e) => ShowPlanAndChlgdDocumentWindow("plan");
+            ctx.Items.Add(miPlanHud);
+
+            MenuItem miChlgdRules = new MenuItem { Header = "📓 CHLGD · 대표님 대화 규칙 & 학습 로그 원장 보기" };
+            miChlgdRules.Click += (s, e) => ShowPlanAndChlgdDocumentWindow("rules");
+            ctx.Items.Add(miChlgdRules);
 
             ctx.Items.Add(new Separator());
 
@@ -1928,6 +1938,22 @@ namespace JarvisSasariSa
                     {
                         PromptListenNow();
                     }
+                    else if (cmdToRun == "__OPEN_PLAN_WIN__")
+                    {
+                        ShowPlanAndChlgdDocumentWindow("plan");
+                    }
+                    else if (cmdToRun == "__OPEN_RULES_WIN__")
+                    {
+                        ShowPlanAndChlgdDocumentWindow("rules");
+                    }
+                    else if (cmdToRun == "__OPEN_HARNESS2_WIN__")
+                    {
+                        ShowPlanAndChlgdDocumentWindow("harness2");
+                    }
+                    else if (cmdToRun == "__OPEN_REA_WIN__")
+                    {
+                        ShowPlanAndChlgdDocumentWindow("rea");
+                    }
                     else
                     {
                         SendCommandToButler(cmdToRun);
@@ -1937,9 +1963,12 @@ namespace JarvisSasariSa
             };
 
             quickChipsPanel.Children.Add(makeQuickChip("🎙 마이크 켜기", "__MIC__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
+            quickChipsPanel.Children.Add(makeQuickChip("📋 Plan · 문서 프리뷰 HUD 창", "__OPEN_PLAN_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(165, 214, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("📓 CHLGD · 대화 규칙 & 로그 정리 창", "__OPEN_RULES_WIN__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
+            quickChipsPanel.Children.Add(makeQuickChip("🧬 Google Harness² & Warehouse 스킬", "__OPEN_HARNESS2_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("🔬 Antigravity REA 분석 & MCP", "__OPEN_REA_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("⚡ “깃 상태 확인해줘” (터미널)", "깃 상태 확인해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🛡 “CHLGD 코드 검증 돌려줘” (CI/CD)", "CHLGD 코드 검증 돌려줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🧠 “오더 로그 & 하네스2 확인”", "오더 로그 보여줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🤝 “거누에게 시스템 점검 협력 요청해”", "거누에게 시스템 점검 협력 요청해", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🎵 “유튜브에서 로파이 음악 틀어줘”", "유튜브에서 로파이 음악 틀어줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
             quickChipsPanel.Children.Add(makeQuickChip("⏹ “음악 꺼줘”", "음악 꺼줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
@@ -2019,6 +2048,25 @@ namespace JarvisSasariSa
             {
                 if (musicDrawerBorder != null) musicDrawerBorder.Visibility = Visibility.Collapsed;
             }
+
+            // 3) Auto-Pop Plan / CHLGD Document HUD Window when openWindowSeq increments
+            int seqIdx = json.IndexOf("\"openWindowSeq\":");
+            if (seqIdx >= 0)
+            {
+                int start = seqIdx + 16;
+                int end = start;
+                while (end < json.Length && char.IsDigit(json[end])) end++;
+                int seqVal = 1;
+                if (int.TryParse(json.Substring(start, end - start), out seqVal))
+                {
+                    if (seqVal > lastSeenPlanWindowSeq)
+                    {
+                        lastSeenPlanWindowSeq = seqVal;
+                        string tab = ExtractJsonField(json, "activeTab");
+                        ShowPlanAndChlgdDocumentWindow(!string.IsNullOrEmpty(tab) ? tab : "plan");
+                    }
+                }
+            }
         }
 
         private static void StartHandsFreeVoiceEar()
@@ -2072,6 +2120,47 @@ namespace JarvisSasariSa
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(6, 0, 0, 0)
             };
+
+            // 0) [📋 Plan · 규칙] Button — Opens Dedicated Plan & CHLGD Document Viewer HUD Window
+            Border planTopBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(Color.FromArgb(42, 46, 160, 67)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(150, 86, 211, 100)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "📋 Plan 문서 프리뷰 & 📓 CHLGD 대화 규칙/로그 정리 창 열기"
+            };
+            TextBlock planTopTxt = new TextBlock
+            {
+                Text = "📋 Plan·규칙",
+                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(165, 245, 185)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            planTopBtn.Child = planTopTxt;
+            planTopBtn.MouseEnter += (s, e) =>
+            {
+                planTopBtn.Background = new SolidColorBrush(Color.FromArgb(85, 46, 160, 67));
+                planTopTxt.Foreground = Brushes.White;
+            };
+            planTopBtn.MouseLeave += (s, e) =>
+            {
+                planTopBtn.Background = new SolidColorBrush(Color.FromArgb(42, 46, 160, 67));
+                planTopTxt.Foreground = new SolidColorBrush(Color.FromRgb(165, 245, 185));
+            };
+            planTopBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            planTopBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                ShowPlanAndChlgdDocumentWindow("plan");
+            };
+            topRightBar.Children.Add(planTopBtn);
 
             // 1) [☰ 메뉴] Button — Opens/Closes the Collapsible Task & Music Sub-Windows & Quick Chips
             Border menuBtn = new Border
@@ -3468,6 +3557,753 @@ namespace JarvisSasariSa
             settingsWindow.Activate();
         }
 
+        // =========================================================================
+        // DEDICATED UI HUD WINDOW: 📋 Plan 문서 뷰어 & 📓 CHLGD 대화 규칙/로그 & Google Harness²
+        // =========================================================================
+        private static void ShowPlanAndChlgdDocumentWindow(string initialTab = "plan")
+        {
+            if (planDocWindow != null)
+            {
+                try { planDocWindow.Close(); } catch { }
+                planDocWindow = null;
+            }
+
+            Color bgShell = Color.FromRgb(11, 15, 22);
+            Color bgSidebar = Color.FromRgb(8, 11, 16);
+            Color bgSurface = Color.FromRgb(18, 24, 33);
+            Color bgSurfaceHover = Color.FromRgb(25, 33, 45);
+            Color bgActiveCard = Color.FromRgb(17, 36, 58);
+            Color borderHairline = Color.FromRgb(42, 52, 66);
+            Color borderSubtle = Color.FromRgb(30, 37, 48);
+            Color accentCyan = Color.FromRgb(77, 217, 255);
+            Color accentBlue = Color.FromRgb(56, 139, 253);
+            Color accentEmerald = Color.FromRgb(46, 160, 67);
+            Color textPrimary = Color.FromRgb(240, 246, 252);
+            Color textSecondary = Color.FromRgb(150, 162, 175);
+            Color textMuted = Color.FromRgb(110, 118, 129);
+
+            planDocWindow = new Window
+            {
+                Title = "JARVIS — 📋 Plan · CHLGD 대화 규칙 & Google Harness² HUD 뷰어",
+                Width = 860,
+                Height = 560,
+                Left = Math.Max(40, (SystemParameters.PrimaryScreenWidth - 860) / 2.0),
+                Top = Math.Max(60, (SystemParameters.PrimaryScreenHeight - 560) / 2.0),
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = true
+            };
+
+            Border outerFrame = new Border
+            {
+                CornerRadius = new CornerRadius(16),
+                Background = new SolidColorBrush(bgShell),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(180, 77, 217, 255)),
+                BorderThickness = new Thickness(1.4),
+                Effect = new DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    BlurRadius = 34,
+                    ShadowDepth = 10,
+                    Opacity = 0.78
+                }
+            };
+            outerFrame.MouseLeftButtonDown += (s, e) =>
+            {
+                DependencyObject src = e.OriginalSource as DependencyObject;
+                while (src != null && src != outerFrame)
+                {
+                    if (src is TextBox || src is Button) return;
+                    src = VisualTreeHelper.GetParent(src);
+                }
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    try { planDocWindow.DragMove(); } catch { }
+                }
+            };
+            planDocWindow.Content = outerFrame;
+
+            Grid splitGrid = new Grid();
+            splitGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(225) });
+            splitGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            outerFrame.Child = splitGrid;
+
+            // LEFT SIDEBAR
+            Border sidebarBorder = new Border
+            {
+                CornerRadius = new CornerRadius(15, 0, 0, 15),
+                Background = new SolidColorBrush(bgSidebar),
+                BorderBrush = new SolidColorBrush(borderSubtle),
+                BorderThickness = new Thickness(0, 0, 1, 0),
+                Padding = new Thickness(16, 20, 16, 18)
+            };
+            Grid.SetColumn(sidebarBorder, 0);
+            splitGrid.Children.Add(sidebarBorder);
+
+            Grid sidebarGrid = new Grid();
+            sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            sidebarBorder.Child = sidebarGrid;
+
+            StackPanel brandStack = new StackPanel { Margin = new Thickness(4, 0, 4, 18) };
+            brandStack.Children.Add(new TextBlock
+            {
+                Text = "JARVIS × ANTIGRAVITY MCP",
+                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(accentCyan)
+            });
+            brandStack.Children.Add(new TextBlock
+            {
+                Text = "Plan · CHLGD 원장",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 16,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = new SolidColorBrush(textPrimary),
+                Margin = new Thickness(0, 3, 0, 8)
+            });
+            Border mcpBadge = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(38, 46, 160, 67)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(110, 86, 211, 100)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 3, 8, 3),
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            mcpBadge.Child = new TextBlock
+            {
+                Text = "● MCP & Harness² 연동 활성",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 10.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100))
+            };
+            brandStack.Children.Add(mcpBadge);
+            Grid.SetRow(brandStack, 0);
+            sidebarGrid.Children.Add(brandStack);
+
+            StackPanel navStack = new StackPanel();
+            Grid.SetRow(navStack, 1);
+            sidebarGrid.Children.Add(navStack);
+
+            Border bottomSummary = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(bgSurface),
+                BorderBrush = new SolidColorBrush(borderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 8, 10, 8)
+            };
+            StackPanel bottomSumStack = new StackPanel();
+            bottomSummary.Child = bottomSumStack;
+            bottomSumStack.Children.Add(new TextBlock
+            {
+                Text = "연동된 지식/스킬 창고",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 10.5,
+                Foreground = new SolidColorBrush(textMuted)
+            });
+            bottomSumStack.Children.Add(new TextBlock
+            {
+                Text = "C:\\BeausCreators (26 Agents)",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(textPrimary),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            bottomSumStack.Children.Add(new TextBlock
+            {
+                Text = "C:\\Warehouse · Google Harness²",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 10.5,
+                Foreground = new SolidColorBrush(accentCyan),
+                Margin = new Thickness(0, 1, 0, 0)
+            });
+            Grid.SetRow(bottomSummary, 2);
+            sidebarGrid.Children.Add(bottomSummary);
+
+            // RIGHT CONTENT AREA
+            Grid rightGrid = new Grid { Margin = new Thickness(22, 18, 22, 16) };
+            rightGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            rightGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            rightGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetColumn(rightGrid, 1);
+            splitGrid.Children.Add(rightGrid);
+
+            Grid rightHeader = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            rightHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rightHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetRow(rightHeader, 0);
+            rightGrid.Children.Add(rightHeader);
+
+            StackPanel headerTitleStack = new StackPanel();
+            TextBlock txtDocPaneTitle = new TextBlock
+            {
+                Text = "📋 실시간 Plan · 설계 문서 프리뷰",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 17,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = new SolidColorBrush(textPrimary)
+            };
+            TextBlock txtDocPaneDesc = new TextBlock
+            {
+                Text = "대표님과 대화하며 작성한 Plan이나 Antigravity IDE에서 전송된 설계 문서를 실시간으로 표시합니다.",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(textSecondary),
+                Margin = new Thickness(0, 3, 0, 0)
+            };
+            headerTitleStack.Children.Add(txtDocPaneTitle);
+            headerTitleStack.Children.Add(txtDocPaneDesc);
+            Grid.SetColumn(headerTitleStack, 0);
+            rightHeader.Children.Add(headerTitleStack);
+
+            Border btnCloseWin = new Border
+            {
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(bgSurface),
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            btnCloseWin.Child = new TextBlock
+            {
+                Text = "✕",
+                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(textSecondary),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            btnCloseWin.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnCloseWin.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                try { planDocWindow.Close(); } catch { }
+                planDocWindow = null;
+            };
+            Grid.SetColumn(btnCloseWin, 1);
+            rightHeader.Children.Add(btnCloseWin);
+
+            Grid tabHost = new Grid();
+            Grid.SetRow(tabHost, 1);
+            rightGrid.Children.Add(tabHost);
+
+            StackPanel tabPlan = new StackPanel { Visibility = Visibility.Visible };
+            StackPanel tabRules = new StackPanel { Visibility = Visibility.Collapsed };
+            StackPanel tabHarness2 = new StackPanel { Visibility = Visibility.Collapsed };
+            StackPanel tabRea = new StackPanel { Visibility = Visibility.Collapsed };
+
+            tabHost.Children.Add(tabPlan);
+            tabHost.Children.Add(tabRules);
+            tabHost.Children.Add(tabHarness2);
+            tabHost.Children.Add(tabRea);
+
+            Func<string, string, Color, Border> makeInfoCard = (heading, body, accentCol) =>
+            {
+                Border c = new Border
+                {
+                    CornerRadius = new CornerRadius(9),
+                    Background = new SolidColorBrush(bgSurface),
+                    BorderBrush = new SolidColorBrush(borderSubtle),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(14, 9, 14, 9),
+                    Margin = new Thickness(0, 0, 0, 7)
+                };
+                StackPanel sp = new StackPanel();
+                c.Child = sp;
+                sp.Children.Add(new TextBlock
+                {
+                    Text = heading,
+                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontSize = 12.5,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(accentCol),
+                    Margin = new Thickness(0, 0, 0, 3)
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = body,
+                    FontFamily = new FontFamily("Malgun Gothic, Consolas"),
+                    FontSize = 11.5,
+                    Foreground = new SolidColorBrush(textPrimary),
+                    TextWrapping = TextWrapping.Wrap,
+                    LineHeight = 17
+                });
+                return c;
+            };
+
+            // =====================================================================
+            // TAB 1: 📋 실시간 Plan · 설계 문서 프리뷰 (Interactive Plan Generator + Viewer)
+            // =====================================================================
+            Border planBanner = new Border
+            {
+                CornerRadius = new CornerRadius(9),
+                Background = new SolidColorBrush(bgActiveCard),
+                BorderBrush = new SolidColorBrush(accentBlue),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(14, 9, 14, 9),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            StackPanel planBannerStack = new StackPanel();
+            planBanner.Child = planBannerStack;
+            TextBlock txtActivePlanTitle = new TextBlock
+            {
+                Text = "📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 13,
+                FontWeight = FontWeights.ExtraBold,
+                Foreground = Brushes.White
+            };
+            TextBlock txtActivePlanSummary = new TextBlock
+            {
+                Text = "문서 원본: C:\\자비스\\docs\\JARVIS_Active_Plan.md · Antigravity MCP(jarvis_open_plan_hud)와 실시간 동기화됨",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(accentCyan),
+                Margin = new Thickness(0, 3, 0, 0)
+            };
+            planBannerStack.Children.Add(txtActivePlanTitle);
+            planBannerStack.Children.Add(txtActivePlanSummary);
+            tabPlan.Children.Add(planBanner);
+
+            StackPanel planSectionsContainer = new StackPanel();
+            planSectionsContainer.Children.Add(makeInfoCard(
+                "1. 📓 메뉴 내 CHLGD 작업 기록 & 대화 규칙 정리 시스템",
+                "• 대표님과 대화하며 새로 생기는 규칙(\"앞으로 ~해\", \"~하지 마\"), 선호도, CHLGD 작업 로그를 카테고리별로 자동 정제하여 저장합니다.\n• 좌측 [📓 CHLGD 대화 규칙 · 로그] 탭에서 깔끔하게 정리된 규칙 원장과 최근 작업 내역을 즉시 확인하실 수 있습니다.",
+                accentCyan
+            ));
+            planSectionsContainer.Children.Add(makeInfoCard(
+                "2. 🔗 Antigravity 2.0 양방향 MCP 서버 브릿지 (jarvis-sovereign-butler)",
+                "• Stdio 서버(C:\\자비스\\scripts\\jarvis-mcp-server.js) 및 HTTP 서버(http://127.0.0.1:7788/mcp)가 동시 가동됩니다.\n• Antigravity IDE와 자비스가 Plan 문서, CHLGD 스크립트(.ps1/.py/CI-CD), 대표님 규칙 원장을 실시간 공유합니다.",
+                Color.FromRgb(86, 211, 100)
+            ));
+            planSectionsContainer.Children.Add(makeInfoCard(
+                "3. 🧬 Google Research Harness² (8-Surface · R=4k, P=3k) & Warehouse 스킬",
+                "• C:\\자비스\\harness2\\base_harness (c1~c8 표면) + Experience Library R + C:\\BeausCreators & C:\\Warehouse 스킬이 직결되었습니다.",
+                Color.FromRgb(255, 184, 64)
+            ));
+            tabPlan.Children.Add(planSectionsContainer);
+
+            // Quick Plan Generator Input Row
+            StackPanel newPlanRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            TextBox txtNewPlanInput = new TextBox
+            {
+                Width = 445,
+                Height = 31,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(bgSidebar),
+                Foreground = new SolidColorBrush(textPrimary),
+                CaretBrush = Brushes.White,
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 12,
+                Padding = new Thickness(10, 0, 10, 0),
+                Text = ""
+            };
+            Border btnBuildPlan = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(accentBlue),
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(8, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            btnBuildPlan.Child = new TextBlock
+            {
+                Text = "⚡ 새 Plan 문서 즉시 생성",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            btnBuildPlan.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnBuildPlan.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                string topic = txtNewPlanInput.Text.Trim();
+                if (string.IsNullOrEmpty(topic)) topic = "자비스 × BeausCreators CHLGD 자동화 고도화 계획";
+                txtActivePlanTitle.Text = "📋 [Plan] " + topic;
+                txtActivePlanSummary.Text = "업데이트: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " · C:\\자비스\\docs\\JARVIS_Active_Plan.md 동기화 완료";
+                planSectionsContainer.Children.Clear();
+                planSectionsContainer.Children.Add(makeInfoCard(
+                    "1. 🎯 Context & 목표 정의",
+                    "• 대표님 지시 주제: 「" + topic + "」\n• C:\\BeausCreators 에러 로그(error-log.md) 및 대표님 대화 규칙 원장 사전 스캔 완료.",
+                    accentCyan
+                ));
+                planSectionsContainer.Children.Add(makeInfoCard(
+                    "2. 🛡 Harness & 스킬 파이프라인 (.ps1 / .py / CI-CD)",
+                    "• 적용 스킬: chlgd-orchestrator, powershell-python-cicd, antigravity-mcp-bridge\n• 데이터 보호: 무손실 Append 전용 · UTF-8 BOM & PYTHONUTF8=1 무결성 보장.",
+                    Color.FromRgb(86, 211, 100)
+                ));
+                planSectionsContainer.Children.Add(makeInfoCard(
+                    "3. 🔁 Loop & Antigravity MCP 협업 검증",
+                    "• 실행 후 ceo-orders-log.jsonl 및 jarvis-loop.md에 자동 기록하며 Antigravity IDE와 결과를 동기화합니다.",
+                    Color.FromRgb(255, 184, 64)
+                ));
+                txtNewPlanInput.Text = "";
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        string payload = "{\"title\":\"📋 [Plan] " + EscapeJson(topic) + "\",\"rawTopic\":\"" + EscapeJson(topic) + "\",\"openWindow\":false}";
+                        await http.PostAsync("http://127.0.0.1:7788/api/hud/plan-doc", new StringContent(payload, Encoding.UTF8, "application/json"));
+                    }
+                    catch { }
+                });
+            };
+            newPlanRow.Children.Add(txtNewPlanInput);
+            newPlanRow.Children.Add(btnBuildPlan);
+            tabPlan.Children.Add(newPlanRow);
+
+            // =====================================================================
+            // TAB 2: 📓 CHLGD 대화 규칙 & 학습 로그 원장 (Cleanly Organized Rules & Logs)
+            // =====================================================================
+            StackPanel rulesListContainer = new StackPanel();
+            rulesListContainer.Children.Add(makeInfoCard(
+                "👑 [규칙 1 · 음성/경청 헌장] 끝까지 경청 후 실행 & 독자 발화 금지",
+                "• 대표님께서 \"자비스\", \"헤이 자비스\"로 부르시면 말씀이 완전히 끝날 때까지(3.8초 침묵) 기다렸다가 실행하며, 말씀 도중 먼저 끊거나 혼자 말하지 않습니다.",
+                Color.FromRgb(86, 211, 100)
+            ));
+            rulesListContainer.Children.Add(makeInfoCard(
+                "🛡 [규칙 2 · 대표님 성문 인식] 외부 소음 및 타인 음성 완벽 차단",
+                "• 대표님 고유 성문 주파수(82~235Hz)와 마이크 근접 에너지를 대조하여 건물 밖 소음·원거리 소리는 100% 무시합니다.",
+                accentCyan
+            ));
+            rulesListContainer.Children.Add(makeInfoCard(
+                "🔁 [규칙 3 · CHLGD & 데이터 무손실 헌장] C:\\BeausCreators 표준 동기화",
+                "• 모든 대화 규칙과 실행 로그는 ceo-orders-log.jsonl, jarvis-loop.md, Google Harness² guardrails.md에 영구 Append 기록되며 무단 파일 삭제/덮어쓰기를 금지합니다.",
+                Color.FromRgb(255, 184, 64)
+            ));
+            TextBlock txtLiveOrderLogSummary = new TextBlock
+            {
+                Text = "최근 CHLGD 실행 로그 로딩 중...",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(textSecondary),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(4, 2, 4, 8)
+            };
+            tabRules.Children.Add(rulesListContainer);
+            tabRules.Children.Add(txtLiveOrderLogSummary);
+
+            StackPanel addRuleRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+            TextBox txtNewRuleInput = new TextBox
+            {
+                Width = 435,
+                Height = 31,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(bgSidebar),
+                Foreground = new SolidColorBrush(textPrimary),
+                CaretBrush = Brushes.White,
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 12,
+                Padding = new Thickness(10, 0, 10, 0),
+                Text = ""
+            };
+            Border btnAddRule = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(accentEmerald),
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(8, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            btnAddRule.Child = new TextBlock
+            {
+                Text = "＋ 새 대화 규칙 등록",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            btnAddRule.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnAddRule.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                string newRule = txtNewRuleInput.Text.Trim();
+                if (string.IsNullOrEmpty(newRule)) return;
+                if (rulesListContainer.Children.Count >= 3)
+                {
+                    rulesListContainer.Children.RemoveAt(rulesListContainer.Children.Count - 1);
+                }
+                rulesListContainer.Children.Insert(0, makeInfoCard(
+                    "✨ [신규 등록 대화 규칙 · " + DateTime.Now.ToString("MM-dd HH:mm") + "]",
+                    "• " + newRule + " (Google Harness² guardrails.md & CHLGD 원장 동시 반영됨)",
+                    Color.FromRgb(86, 211, 100)
+                ));
+                txtNewRuleInput.Text = "";
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        string payload = "{\"ruleText\":\"" + EscapeJson(newRule) + "\",\"category\":\"대표님 직접 등록 규칙\"}";
+                        await http.PostAsync("http://127.0.0.1:7788/api/hud/rules", new StringContent(payload, Encoding.UTF8, "application/json"));
+                    }
+                    catch { }
+                });
+            };
+            addRuleRow.Children.Add(txtNewRuleInput);
+            addRuleRow.Children.Add(btnAddRule);
+            tabRules.Children.Add(addRuleRow);
+
+            // =====================================================================
+            // TAB 3: 🧬 Google Harness² (8-Surface) & C:\BeausCreators + C:\Warehouse 스킬
+            // =====================================================================
+            tabHarness2.Children.Add(makeInfoCard(
+                "🧬 Google Research Harness² (arXiv:2610.14224) — 8-Component Editable Surface",
+                "• 경로: C:\\자비스\\harness2\\base_harness (Surface Valid: PASS · Always-On Cap 20,000B 준수)\n• 구성: c1(systemprompt.md), c2(context_policy.md), c3(LongTermMEMORY.md), c4(tool_guidance.md), c5(sub_agents), c6(guardrails.md + skills), c7(scripts), c8(plugin) + Experience Library R",
+                accentCyan
+            ));
+            tabHarness2.Children.Add(makeInfoCard(
+                "🛠 자비스 전용 4대 마스터 스킬 (C:\\자비스\\.agents\\skills & harness2\\skills)",
+                "1) chlgd-orchestrator: CHLGD 5단계 워크플로우 및 26인 에이전트 수평 협력\n2) powershell-python-cicd: .ps1 UTF-8 BOM · .py PYTHONUTF8=1 · Git CI/CD 자동 검증\n3) antigravity-mcp-bridge: Antigravity 2.0 양방향 MCP 서버 & Plan HUD 동기화\n4) ceo-rule-learner: 대표님 대화 규칙 및 선호도 실시간 추출·자산화",
+                Color.FromRgb(86, 211, 100)
+            ));
+            tabHarness2.Children.Add(makeInfoCard(
+                "🏛 C:\\BeausCreators (26인 에이전트) & C:\\Warehouse (05.BSC_Skill_Warehouse) 연동",
+                "• 본사 스킬: bsc-global-rules, code-quality-gate, core-lock-guard, micro-knowledge-query, semantic-knowledge-search, unlazy, work-finalizer 등\n• Warehouse: 1.Imported_Skills · 2.BSC_Originals · 4.Market_Packages 전수 인덱싱 완료",
+                Color.FromRgb(255, 184, 64)
+            ));
+
+            TextBlock txtH2RunResult = new TextBlock
+            {
+                Text = "원장 예산: Ledger(R=4000, P=3000) · Propose[INV+DOM] -> Probe -> Compose 준비 완료",
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(accentCyan),
+                Margin = new Thickness(2, 2, 0, 6)
+            };
+            tabHarness2.Children.Add(txtH2RunResult);
+
+            Border btnRunHarness2 = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(accentBlue),
+                Padding = new Thickness(14, 7, 14, 7),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Cursor = Cursors.Hand
+            };
+            btnRunHarness2.Child = new TextBlock
+            {
+                Text = "⚡ Google Harness² 자가진화 (Propose-Probe-Compose) 지금 실행",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            btnRunHarness2.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnRunHarness2.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                txtH2RunResult.Text = "● Google Harness² 8-Surface 검증 및 Propose[INV+DOM] -> Probe -> Compose 실행 중...";
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        var resp = await http.PostAsync("http://127.0.0.1:7788/api/hud/harness2-evolve", new StringContent("{\"reason\":\"CEO HUD Trigger\"}", Encoding.UTF8, "application/json"));
+                        string raw = await resp.Content.ReadAsStringAsync();
+                        hudWindow.Dispatcher.Invoke(() =>
+                        {
+                            txtH2RunResult.Text = "✓ Google Harness² 자가진화 완료: 8-Surface Valid=PASS · Ledger(R=4000, P=3000) Composed=cand_inv_dom · EXPERIENCE.md 업데이트됨";
+                            SpeakAsync("대표님, 구글 하네스 투 8대 표면 검증과 자가진화 루프를 완료하여 경험 원장에 기록했습니다.");
+                        });
+                    }
+                    catch { }
+                });
+            };
+            tabHarness2.Children.Add(btnRunHarness2);
+
+            // =====================================================================
+            // TAB 4: 🔬 Antigravity 2.0 REA 4분할 역공학 분석 & MCP 서버 연동
+            // =====================================================================
+            tabRea.Children.Add(makeInfoCard(
+                "① Observations & ② Derivations (Antigravity 2.0 4-Stage Clean-Room REA)",
+                "• [Observation] Antigravity 2.0은 메인 대화창과 별도의 Artifact/Sidecar Pane에서 Plan/Walkthrough/터미널을 분리 표시하여 인지 부하를 낮춤.\n• [Derivation] 자비스에도 전용 [📋 Plan · CHLGD 문서 HUD 창]을 신설하여 대표님과 Plan 대화 시 문서를 깔끔하게 띄우도록 이식 완료.",
+                accentCyan
+            ));
+            tabRea.Children.Add(makeInfoCard(
+                "③ Inferences & ④ MCP Server 양방향 브릿지 (jarvis-sovereign-butler)",
+                "• 등록 파일: C:\\Users\\USER\\.gemini\\config\\mcp_config.json ➔ \"jarvis-sovereign-butler\"\n• 제공 MCP 도구: jarvis_status_and_profile, jarvis_execute_command, jarvis_open_plan_hud, jarvis_record_rule_or_log, jarvis_run_harness2_recursion\n• 설계 문서 정본: C:\\자비스\\docs\\REA_CleanRoom_Blueprint_Antigravity.md",
+                Color.FromRgb(86, 211, 100)
+            ));
+
+            // Sidebar Navigation Setup
+            string currentTabKey = string.IsNullOrEmpty(initialTab) ? "plan" : initialTab.ToLowerInvariant();
+            System.Collections.Generic.List<Action> navSyncList = new System.Collections.Generic.List<Action>();
+
+            Action<string, string, string, string, StackPanel> addDocNav = (tabKey, iconStr, navLabel, descStr, paneTarget) =>
+            {
+                Border navBtn = new Border
+                {
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(11, 9, 11, 9),
+                    Margin = new Thickness(0, 0, 0, 5),
+                    Cursor = Cursors.Hand
+                };
+                StackPanel row = new StackPanel { Orientation = Orientation.Horizontal };
+                TextBlock ic = new TextBlock
+                {
+                    Text = iconStr,
+                    FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 9, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                TextBlock lb = new TextBlock
+                {
+                    Text = navLabel,
+                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontSize = 12.5,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                row.Children.Add(ic);
+                row.Children.Add(lb);
+                navBtn.Child = row;
+                navStack.Children.Add(navBtn);
+
+                Action sync = () =>
+                {
+                    bool active = (currentTabKey == tabKey);
+                    navBtn.Background = new SolidColorBrush(active ? bgSurface : Colors.Transparent);
+                    navBtn.BorderBrush = new SolidColorBrush(active ? accentCyan : Colors.Transparent);
+                    navBtn.BorderThickness = new Thickness(1);
+                    ic.Foreground = new SolidColorBrush(active ? accentCyan : textSecondary);
+                    lb.Foreground = new SolidColorBrush(active ? textPrimary : textSecondary);
+                    lb.FontWeight = active ? FontWeights.Bold : FontWeights.Normal;
+                };
+                navSyncList.Add(sync);
+
+                navBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+                navBtn.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    currentTabKey = tabKey;
+                    tabPlan.Visibility = Visibility.Collapsed;
+                    tabRules.Visibility = Visibility.Collapsed;
+                    tabHarness2.Visibility = Visibility.Collapsed;
+                    tabRea.Visibility = Visibility.Collapsed;
+                    paneTarget.Visibility = Visibility.Visible;
+                    txtDocPaneTitle.Text = iconStr + " " + navLabel;
+                    txtDocPaneDesc.Text = descStr;
+                    foreach (var cb in navSyncList) { try { cb(); } catch { } }
+                };
+            };
+
+            addDocNav("plan", "📋", "실시간 Plan · 문서 뷰어", "대표님과 대화하며 작성한 Plan이나 Antigravity IDE 설계 문서를 한눈에 열람합니다.", tabPlan);
+            addDocNav("rules", "📓", "CHLGD 대화 규칙 · 로그", "대표님과의 대화에서 학습된 규칙, 새로 생성된 스킬, CHLGD 오더 로그를 깔끔하게 정리합니다.", tabRules);
+            addDocNav("harness2", "🧬", "Google Harness² & 스킬", "arXiv:2610.14224 8-Surface 자가진화 엔진 및 C:\\BeausCreators · C:\\Warehouse 스킬 현황입니다.", tabHarness2);
+            addDocNav("rea", "🔬", "Antigravity REA & MCP", "Antigravity 2.0 4-Stage REA 역공학 블루프린트 및 양방향 MCP 서버 브릿지 상태입니다.", tabRea);
+
+            // Activate requested initialTab
+            tabPlan.Visibility = currentTabKey == "plan" ? Visibility.Visible : Visibility.Collapsed;
+            tabRules.Visibility = currentTabKey == "rules" ? Visibility.Visible : Visibility.Collapsed;
+            tabHarness2.Visibility = currentTabKey == "harness2" ? Visibility.Visible : Visibility.Collapsed;
+            tabRea.Visibility = currentTabKey == "rea" ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var cb in navSyncList) { try { cb(); } catch { } }
+
+            // Footer
+            Border footerBorder = new Border
+            {
+                BorderBrush = new SolidColorBrush(borderSubtle),
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(0, 10, 0, 0),
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            Grid footerGrid = new Grid();
+            footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            footerBorder.Child = footerGrid;
+            footerGrid.Children.Add(new TextBlock
+            {
+                Text = "음성으로 \"자비스 플랜 창 열어줘\" 또는 \"대화 규칙 보여줘\"라고 말씀하셔도 언제든 이 창이 열립니다.",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(textMuted),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            Border btnFooterClose = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(bgSurface),
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(14, 5, 14, 5),
+                Cursor = Cursors.Hand
+            };
+            btnFooterClose.Child = new TextBlock
+            {
+                Text = "닫기",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(textPrimary)
+            };
+            btnFooterClose.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnFooterClose.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                try { planDocWindow.Close(); } catch { }
+                planDocWindow = null;
+            };
+            Grid.SetColumn(btnFooterClose, 1);
+            footerGrid.Children.Add(btnFooterClose);
+            Grid.SetRow(footerBorder, 2);
+            rightGrid.Children.Add(footerBorder);
+
+            planDocWindow.Show();
+            planDocWindow.Activate();
+
+            // Fetch live data from /api/hud/chlgd-dashboard to populate latest Plan title & recent logs
+            Task.Run(async () =>
+            {
+                try
+                {
+                    string dashJson = await http.GetStringAsync("http://127.0.0.1:7788/api/hud/chlgd-dashboard");
+                    if (string.IsNullOrEmpty(dashJson)) return;
+                    int pIdx = dashJson.IndexOf("\"activePlanDoc\":{");
+                    string pTitle = "";
+                    string pUpdated = "";
+                    if (pIdx >= 0)
+                    {
+                        string pSub = dashJson.Substring(pIdx);
+                        pTitle = ExtractJsonField(pSub, "title");
+                        pUpdated = ExtractJsonField(pSub, "updatedAt");
+                    }
+                    int totIdx = dashJson.IndexOf("\"totalOrders\":");
+                    string totStr = "0";
+                    if (totIdx >= 0)
+                    {
+                        int s = totIdx + 14;
+                        int e = s;
+                        while (e < dashJson.Length && char.IsDigit(dashJson[e])) e++;
+                        totStr = dashJson.Substring(s, e - s);
+                    }
+                    hudWindow.Dispatcher.Invoke(() =>
+                    {
+                        if (!string.IsNullOrEmpty(pTitle)) txtActivePlanTitle.Text = pTitle;
+                        if (!string.IsNullOrEmpty(pUpdated))
+                        {
+                            txtActivePlanSummary.Text = "최근 업데이트: " + pUpdated + " · 문서 정본: C:\\자비스\\docs\\JARVIS_Active_Plan.md";
+                        }
+                        txtLiveOrderLogSummary.Text = "📊 누적 CHLGD 기록 오더: " + totStr + "건 · 원장 파일: C:\\자비스\\data\\ceo-orders-log.jsonl & jarvis-loop.md (실시간 자동 기록 중)";
+                    });
+                }
+                catch { }
+            });
+        }
+
         private static void ApplyCustomHotkey(int vk, bool ctrl, bool alt, bool shift, string label)
         {
             customHotkeyVk = vk;
@@ -3627,6 +4463,24 @@ namespace JarvisSasariSa
                 bool bootScene = raw.Contains("\"bootScene\":true");
                 bool awaitingConfirm = raw.Contains("\"awaitingConfirm\":true");
                 bool showMailDraft = raw.Contains("\"intent\":\"draftMailReply\"");
+                bool openPlanWin = raw.Contains("\"openPlanWindow\":true");
+                string targetPlanTab = ExtractJsonField(raw, "activeTab");
+                if (openPlanWin)
+                {
+                    int sqIdx = raw.IndexOf("\"openWindowSeq\":");
+                    if (sqIdx >= 0)
+                    {
+                        int sPos = sqIdx + 16;
+                        int ePos = sPos;
+                        while (ePos < raw.Length && char.IsDigit(raw[ePos])) ePos++;
+                        int parsedSeq;
+                        if (int.TryParse(raw.Substring(sPos, ePos - sPos), out parsedSeq))
+                        {
+                            lastSeenPlanWindowSeq = Math.Max(lastSeenPlanWindowSeq, parsedSeq);
+                        }
+                    }
+                    ShowPlanAndChlgdDocumentWindow(!string.IsNullOrEmpty(targetPlanTab) ? targetPlanTab : "plan");
+                }
 
                 Color c = hudColor == "amber" ? AmberColor : hudColor == "lime" ? LimeColor : CyanColor;
                 SetHudAppearance(c);

@@ -1,0 +1,91 @@
+{
+  "openWindowSeq": 2,
+  "activeTab": "plan",
+  "conversationRules": [
+    {
+      "id": "rule-01",
+      "category": "음성 · 경청 규칙",
+      "rule": "대표님 호출(\"자비스\", \"헤이 자비스\") 시 말씀을 끝까지 경청(3.8초 침묵 대기)한 뒤 이해하고 실행하며, 말씀 도중 먼저 끊거나 혼자 말하지 않는다.",
+      "source": "대표님 직접 지시 (음성 소통 헌장)",
+      "createdAt": "2026-10-29"
+    },
+    {
+      "id": "rule-02",
+      "category": "성문 인식 · 소음 차단",
+      "rule": "대표님 전용 성문(Voice Print, 82~235Hz + 근접 에너지)만 인식하고 건물 밖 소음이나 원거리 생활 소음에는 절대 반응하지 않는다.",
+      "source": "대표님 직접 지시 (내 목소리 인식)",
+      "createdAt": "2026-10-29"
+    },
+    {
+      "id": "rule-03",
+      "category": "CHLGD · 규칙 & 로그 정리",
+      "rule": "대표님과 대화하며 새로 생기는 규칙, 선호도, CHLGD 작업 내역, 신규 스킬을 메뉴(📓 CHLGD · 대화 규칙 & 로그 창)에 깔끔하게 정리하여 언제든 열람할 수 있게 한다.",
+      "source": "대표님 직접 지시 (CHLGD 메뉴 로그)",
+      "createdAt": "2026-10-29"
+    },
+    {
+      "id": "rule-04",
+      "category": "Antigravity MCP · Plan HUD 창",
+      "rule": "Antigravity와 MCP 서버로 양방향 연동하여 함께 작업하고, Plan(기획/설계/아키텍처) 작업 시 전용 UI HUD 문서 뷰어 창(📋 Plan HUD 창)을 띄워 문서를 보여준다.",
+      "source": "대표님 직접 지시 (Plan UI HUD & MCP)",
+      "createdAt": "2026-10-29"
+    },
+    {
+      "id": "rule-05",
+      "category": "데이터 보호 · 인코딩 헌장",
+      "rule": "사전 승인 없는 파일 삭제 및 통째 덮어쓰기를 절대 금지(Append 전용)하며, .ps1 UTF-8 BOM 및 .py PYTHONUTF8=1을 강제한다.",
+      "source": "BeausCreators Tier-1 헌장",
+      "createdAt": "2026-10-29"
+    }
+  ],
+  "activePlanDoc": {
+    "id": "plan-1793258614542",
+    "title": "📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처",
+    "category": "Antigravity MCP Synced Plan",
+    "author": "JARVIS Sovereign Butler (CHLGD × Harness²)",
+    "updatedAt": "2026-10-29 07:23:34",
+    "summary": "이건우 대표님께서 지시하신 「📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처」 작업을 위한 단계별 CHLGD 실행 계획서입니다.",
+    "sections": [
+      {
+        "heading": "1. 🎯 목표 및 핵심 방향 (Context & Goal)",
+        "body": "• 대표님 지시 사항: 「📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처」\n• C:\\BeausCreators CHLGD 표준 및 데이터 무손실 헌장(Zero Data Loss)을 준수하여 설계합니다."
+      },
+      {
+        "heading": "2. 🛡 Google Harness² & 스킬 실행 설계 (Harness & Skills)",
+        "body": "• 활용 스킬: chlgd-orchestrator, powershell-python-cicd, antigravity-mcp-bridge\n• 협력 에이전트: 기획(소하/지윤) · 설계/아키텍처(태준/거누) · 검증(수호)\n• 실행 환경: Windows 11 (Winsta0\\Default) + UTF-8 무결성 파이프라인"
+      },
+      {
+        "heading": "3. ⚡ 단계별 실행 체크리스트 (Execution Steps)",
+        "body": "1) [Context] 기존 에러 로그(error-log.md) 및 대표님 대화 규칙 원장 스캔\n2) [Harness] .ps1 / .py / .js 모듈 구현 및 로컬 샌드박스 테스트\n3) [Loop] 실행 결과 검증 후 ceo-orders-log.jsonl 및 jarvis-loop.md에 영구 기록\n4) [MCP Sync] Antigravity IDE와 상태 동기화 및 Git 커밋 준비"
+      }
+    ]
+  },
+  "planHistory": [
+    {
+      "id": "plan-jarvis-sovereign-v2",
+      "title": "📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처",
+      "category": "System Architecture & CHLGD Plan",
+      "author": "JARVIS Sovereign Butler × CTO 거누 × AI 연구원 우진",
+      "updatedAt": "2026-10-29 07:22:04",
+      "summary": "이건우 대표님을 가장 잘 이해하고 학습하는 자비스(JARVIS)의 CHLGD 규칙/로그 관리 체계, Antigravity 2.0 양방향 MCP 서버 연동, C:\\BeausCreators 및 C:\\Warehouse 스킬 통합, Google Research Harness²(8-Surface) 탑재 설계서입니다.",
+      "sections": [
+        {
+          "heading": "1. 📓 메뉴 내 CHLGD 작업 기록 & 대화 규칙 정리 시스템",
+          "body": "• 대표님과 대화하며 도출된 모든 규칙(\"앞으로 ~해\", \"~하지 마\"), 선호도, CHLGD 실행 로그를 자동 분류하여 저장합니다.\n• 상단 HUD의 [☰ 메뉴] → [📓 CHLGD · 규칙 & 로그 창] 클릭 시 카테고리별로 깔끔하게 정리된 규칙 원장과 최근 작업 로그를 즉시 열람할 수 있습니다."
+        },
+        {
+          "heading": "2. 📋 실시간 Plan & 설계 문서 전용 UI HUD 뷰어 창",
+          "body": "• 대표님과 이야기할 때 Plan(기획, 설계, 로드맵, REA 분석) 작업을 수행하면 전용 플로팅 UI HUD 문서 창(860×560, 드래그·탭 전환·새 플랜 즉시 작성 지원)이 열려 긴 문서도 한눈에 또렷하게 볼 수 있습니다.\n• 음성/텍스트로 \"자비스 플랜 창 열어줘\", \"앞으로 계획 정리해서 보여줘\"라고 말씀하시면 즉시 팝업됩니다."
+        },
+        {
+          "heading": "3. 🔗 Antigravity 2.0 양방향 MCP 서버 브릿지 (Stdio & HTTP /mcp)",
+          "body": "• C:\\자비스\\scripts\\jarvis-mcp-server.js 가 Antigravity의 mcp_config.json에 \"jarvis-sovereign-butler\"로 등록되었습니다.\n• Antigravity IDE에서 자비스의 상태를 조회하거나, 작성한 Plan 문서를 자비스 바탕화면 HUD 창으로 즉시 전송(jarvis_open_plan_hud)하여 함께 작업할 수 있습니다."
+        },
+        {
+          "heading": "4. 🧬 Google Research Harness² (8-Surface · R=4k, P=3k) & Warehouse 스킬 탑재",
+          "body": "• C:\\자비스\\harness2\\base_harness 에 8대 편집 가능 표면(c1:systemprompt, c2:context_policy, c3:LongTermMEMORY, c4:tool_guidance, c5:sub_agents, c6:guardrails+skills, c7:scripts, c8:plugin)과 Experience Library R이 구축되었습니다.\n• C:\\BeausCreators(26인 에이전트) 및 C:\\Warehouse(05.BSC_Skill_Warehouse) 스킬과 자비스 전용 4대 스킬(CHLGD, .ps1/.py/CI-CD, MCP, 규칙 학습)이 100% 연동되었습니다."
+        }
+      ]
+    }
+  ]
+}

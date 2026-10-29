@@ -629,7 +629,7 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
 
   // 3) MCP (Model Context Protocol) Voice Operations
   if (/mcp|엠씨피|노션mcp|블렌더mcp|컴피|스티치|파이어베이스|노트북엘엠|notebooklm/.test(sq)) {
-    return `${user}, 이 비서에서는 MCP 연결 상태를 확인하거나 해당 작업을 실행할 수 없습니다.`;
+    return `${user}, 자비스는 jarvis-sovereign-butler MCP 서버(Stdio 및 http://127.0.0.1:7788/mcp)로 Antigravity 2.0 IDE 및 BeausCreators 생태계와 양방향 연결되어 있습니다.`;
   }
 
   if (/상태어때|시스템상태|메모리얼마|컴퓨터상태/.test(sq)) {
@@ -752,9 +752,21 @@ class ButlerEngine {
         }
       : { active: false, title: '', url: '', state: 'none', updatedAt: 0 };
 
+    let planWindowSignal = { openWindowSeq: 1, activeTab: 'plan', activePlanTitle: '' };
+    try {
+      const { loadPlansAndRulesState } = require('./jarvis-harness2-engine');
+      const st = loadPlansAndRulesState();
+      planWindowSignal = {
+        openWindowSeq: st.openWindowSeq || 1,
+        activeTab: st.activeTab || 'plan',
+        activePlanTitle: (st.activePlanDoc && st.activePlanDoc.title) || ''
+      };
+    } catch (_) {}
+
     return {
       activeTask,
       activeMedia,
+      planWindowSignal,
       bscStatus: sharedBscBridge.getEcosystemStatus()
     };
   }
@@ -1120,6 +1132,9 @@ class ButlerEngine {
           return {
             intent: 'bscSpecialOrder',
             taskState,
+            openPlanWindow: Boolean(ord.openPlanWindow),
+            openWindowSeq: ord.openWindowSeq || 0,
+            activeTab: ord.activeTab || 'plan',
             hudColor: 'lime',
             hudTitle: `⚡ ${ord.title}`,
             hudSubtitle: ord.spoken,
@@ -1129,6 +1144,9 @@ class ButlerEngine {
         }
         return {
           intent: 'bscSpecialOrder',
+          openPlanWindow: Boolean(ord.openPlanWindow),
+          openWindowSeq: ord.openWindowSeq || 0,
+          activeTab: ord.activeTab || 'plan',
           hudColor: 'cyan',
           hudTitle: ord.hudTitle,
           hudSubtitle: ord.hudSubtitle,
@@ -1632,11 +1650,18 @@ class ButlerEngine {
       case 'remember': {
         try {
           fs.appendFileSync(FILES.memory, `- [${new Date().toISOString().slice(0, 10)}] ${parsed.note}\n`, 'utf8');
+          sharedBscBridge.recordOrderAndGrow({
+            sentence: parsed.note,
+            intent: 'remember',
+            hudTitle: '장기 기억 및 대화 규칙 저장',
+            hudColor: 'lime',
+            source: 'remember'
+          });
         } catch (_) {}
         return {
           intent: 'remember',
           hudColor: 'lime',
-          hudTitle: '🧠 장기 기억(memory.md)에 저장했습니다',
+          hudTitle: '🧠 장기 기억 & CHLGD 대화 규칙에 저장했습니다',
           hudSubtitle: `「${parsed.note}」`,
           heard: rawSentence,
           spoken: '기억해 두었습니다.'
