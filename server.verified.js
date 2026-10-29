@@ -170,19 +170,19 @@ async function synthesizeGoogleNeuralKoreanMp3(cleanText = '', speed = 1.2) {
   return Buffer.alloc(0);
 }
 
+const ttsAudioCache = new Map();
+
 async function synthesizeStudioNeuralMp3Buffer(rawText, voice = 'ko-KR-HyunsuMultilingualNeural') {
   const clean = humanizeKoreanSpeechText(rawText);
   if (!clean) return Buffer.alloc(0);
   const cfg = butler ? butler.getConfig() : {};
   const userSpeed = Number(cfg.ttsSpeed) || 1.25;
-
-  // Tier 1: Fast Google Neural Korean MP3 (0ms handshake delay, 100% natural human voice)
-  const googleMp3 = await synthesizeGoogleNeuralKoreanMp3(clean, Math.min(1.5, Math.max(0.9, userSpeed)));
-  if (googleMp3 && googleMp3.length > 256) {
-    return googleMp3;
+  const cacheKey = `${voice}|${userSpeed}|${clean}`;
+  if (ttsAudioCache.has(cacheKey)) {
+    return ttsAudioCache.get(cacheKey);
   }
 
-  // Tier 2: Microsoft Edge Studio Neural MP3
+  // Tier 1: Microsoft Edge Studio Neural MP3 (Single unbroken 24kHz 96kbps studio MP3 stream)
   if (MsEdgeTTS) {
     await ensureEdgeTtsClockSync();
     const ratePct = `${userSpeed >= 1 ? '+' : ''}${Math.round((userSpeed - 1) * 100)}%`;
@@ -196,19 +196,32 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice = 'ko-KR-HyunsuMul
         const { audioStream } = tts.toStream(clean, { rate: ratePct, pitch: '+0Hz' });
         const parts = [];
         await new Promise((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error('timeout')), 6000);
+          const t = setTimeout(() => reject(new Error('timeout')), 5000);
           audioStream.on('data', d => parts.push(d));
           audioStream.on('end', () => { clearTimeout(t); resolve(); });
           audioStream.on('error', err => { clearTimeout(t); reject(err); });
         });
         try { tts.close(); } catch (_) {}
         const buf = Buffer.concat(parts);
-        if (buf.length > 256) return buf;
+        if (buf.length > 256) {
+          if (ttsAudioCache.size > 120) ttsAudioCache.delete(ttsAudioCache.keys().next().value);
+          ttsAudioCache.set(cacheKey, buf);
+          return buf;
+        }
       } catch (err) {
         try { tts.close(); } catch (__) {}
       }
     }
   }
+
+  // Tier 2: Fast Google Neural Korean MP3 fallback
+  const googleMp3 = await synthesizeGoogleNeuralKoreanMp3(clean, Math.min(1.5, Math.max(0.9, userSpeed)));
+  if (googleMp3 && googleMp3.length > 256) {
+    if (ttsAudioCache.size > 120) ttsAudioCache.delete(ttsAudioCache.keys().next().value);
+    ttsAudioCache.set(cacheKey, googleMp3);
+    return googleMp3;
+  }
+
   return Buffer.alloc(0);
 }
 
@@ -943,8 +956,41 @@ const server = http.createServer(async (req, res) => {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.micLevel) || 0));
     }
     if (body && body.text && !global.__jarvisIsSpeaking) {
+      const cleanText = String(body.text).trim();
+      if (body.status === 'recognition-error' && cleanText) {
+        try {
+          const result = await butler.execute(cleanText, true);
+          global.__jarvisForceAwakeUntil = Date.now() + (result && result.intent === 'awake' ? 60000 : 30000);
+          try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+          try {
+            runJarvisHarness2EvolutionCycle(cleanText, {
+              intent: result && result.intent,
+              spoken: result && result.spoken,
+              hudTitle: result && result.hudTitle,
+              hudColor: result && result.hudColor,
+              source: 'voice-rescued',
+              partnerAgent: result && result.taskState && result.taskState.partnerAgent
+            });
+          } catch (_) {}
+          const syncItem = {
+            text: cleanText,
+            intent: (result && result.intent) || '',
+            isFinal: true,
+            hudColor: (result && result.hudColor) || 'cyan',
+            hudTitle: (result && result.hudTitle) || '✓ 실행 완료',
+            hudSubtitle: (result && result.hudSubtitle) || '',
+            awaitingConfirm: Boolean(result && result.awaitingConfirm),
+            spoken: (result && (result.spoken || result.hudSubtitle)) || cleanText,
+            ts: Date.now()
+          };
+          global.__jarvisLatestEarItem = syncItem;
+          global.__jarvisEarQueue.push(syncItem);
+          if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
+          return sendJson(res, 200, { ok: true, rescued: true, result, isSpeaking: Boolean(global.__jarvisIsSpeaking) });
+        } catch (_) {}
+      }
       const item = {
-        text: String(body.text).trim(),
+        text: cleanText,
         isFinal: Boolean(body.isFinal),
         ts: Date.now()
       };
@@ -1174,19 +1220,22 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/api/tts-mp3') {
     const text = String(urlObj.searchParams.get('text') || '').trim();
     const voice = urlObj.searchParams.get('voice') || butler.getConfig().sayVoice || 'ko-KR-HyunsuMultilingualNeural';
+    const wantWav = urlObj.searchParams.get('format') === 'wav';
     if (!text) {
       res.writeHead(204);
       return res.end();
     }
-    const mp3Buf = await synthesizeStudioNeuralMp3Buffer(text, voice);
-    if (mp3Buf && mp3Buf.length > 256) {
-      res.writeHead(200, {
-        ...CORS_HEADERS,
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': mp3Buf.length,
-        'Cache-Control': 'no-store'
-      });
-      return res.end(mp3Buf);
+    if (!wantWav) {
+      const mp3Buf = await synthesizeStudioNeuralMp3Buffer(text, voice);
+      if (mp3Buf && mp3Buf.length > 256) {
+        res.writeHead(200, {
+          ...CORS_HEADERS,
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': mp3Buf.length,
+          'Cache-Control': 'no-store'
+        });
+        return res.end(mp3Buf);
+      }
     }
     const wav = await synthesizeWindowsNativeWav(text);
     if (wav && wav.length > 44 && wav.subarray(0, 4).toString() === 'RIFF') {

@@ -20,3 +20,4 @@
 {"ts":"2026-10-29T06:52:43.388Z","sentence":"아니 하지 마","intent":"hush","hudTitle":"● 대기 모드 전환","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
 {"ts":"2026-10-29T06:53:03.486Z","sentence":"아무것도 하지 말고 내 목소리 말고 다른 사람들의 말하는 바깥에 있는 소리를 대답하지 말라고","intent":"hush","hudTitle":"● 대기 모드 전환","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
 {"ts":"2026-10-29T06:54:23.014Z","sentence":"자비스 할 말 있어","intent":"awake","hudTitle":"● 경청 중 · 네, 대표님 말씀하세요","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T07:33:20.277Z","sentence":"음악 꺼줘","intent":"stopMusic","hudTitle":"⏸ 음악 정지 확인","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}

@@ -809,14 +809,14 @@ class ButlerEngine {
     const wakes = [...(cfg.wakeWords || []), ...(cfg.learnedWakes || []), cfg.assistantName, '자비스', '사사리사', '재비스', '싸싸리싸'];
     for (const w of wakes.filter(Boolean).sort((a, b) => b.length - a.length)) {
       const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp(`^(?:헤이|하이|hey|야|어)?\\s*${escaped}(?:님|야|아(?=\\s|$))?[ ,~!?.\\s]*`, 'i');
+      const re = new RegExp(`^(?:헤이|하이|hey|야|어|네|예|그래|오케이|ok|아|저기)?\\s*${escaped}(?:님|야|아(?=\\s|$)|요)?[ ,~!?.\\s]*`, 'i');
       if (re.test(t)) {
         t = t.replace(re, '').trim();
       }
     }
     const phonetic = soundAlikePattern(cfg.assistantName || '자비스');
     if (phonetic) {
-      const re = new RegExp(`^(?:헤이|하이|hey)?\\s*${phonetic}(?:님|야|아(?=\\s|$))?[ ,~!?.\\s]*`, 'i');
+      const re = new RegExp(`^(?:헤이|하이|hey|야|어|네|예|그래|오케이|ok|아|저기)?\\s*${phonetic}(?:님|야|아(?=\\s|$)|요)?[ ,~!?.\\s]*`, 'i');
       if (re.test(t)) t = t.replace(re, '').trim();
     }
     return t;
@@ -909,7 +909,7 @@ class ButlerEngine {
     if (/^(됐어|그만|고마워|끝|잘자|쉬어|수고했어|thanks|bye)$/.test(sq2)) {
       return { intent: 'bye' };
     }
-    if (/^(할말있어|내말잘들어|궁금한게있는데|물어볼게있는데)$/.test(sq2)) {
+    if (/^(자비스|헤이자비스|네자비스|예자비스|어자비스|야자비스|자비스야|자비스님|할말있어|내말잘들어|궁금한게있는데|물어볼게있는데|있잖아|여보세요|네|예)$/.test(sq2)) {
       return { intent: 'awake', title: '● 경청 중 · 네, 대표님 말씀하세요', subtitle: '끝까지 편하게 말씀해 주세요', color: 'cyan' };
     }
 

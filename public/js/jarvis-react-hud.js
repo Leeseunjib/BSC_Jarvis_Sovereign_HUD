@@ -155,9 +155,9 @@
             isOwnerVoice: voiceFeaturesRef.current.isOwnerVoice !== false
           };
 
-          // Boost active human voice above 0.12 threshold so SpeechTurnBuffer never cuts off mid-sentence
+          // Do not feed continuous background music / speaker bleed into SpeechTurnBuffer
           if (audioActivityRef.current) {
-            audioActivityRef.current(scaled >= 0.045 ? Math.max(0.18, scaled) : scaled);
+            audioActivityRef.current(0);
           }
 
           const now = Date.now();
@@ -185,7 +185,6 @@
                 }
                 if (d && typeof d.forceAwakeUntil === 'number' && d.forceAwakeUntil > Date.now() && awakeUntilRef) {
                   awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, d.forceAwakeUntil);
-                  if (turnRef && turnRef.current) turnRef.current.pauseMs = 4200;
                 }
               })
               .catch(() => {});
@@ -326,7 +325,7 @@
     executeRef.current = executeCommand;
     if (!turnRef.current) {
       turnRef.current = new window.SpeechTurnBuffer({
-        pauseMs: 2400,
+        pauseMs: 2000,
         onCommit: text => executeRef.current(text, 'voice'),
         onFinalize: () => { try { if (recRef.current && recRunningRef.current) recRef.current.stop(); } catch (_) {} },
         onReset: () => { try { if (recRef.current) recRef.current.abort(); } catch (_) {} },
@@ -339,7 +338,19 @@
           const hasWake = [...(cfg.wakeWords || []), cfg.assistantName || '자비스', '헤이자비스'].some(w => normalize(w) && normalize(clean).includes(normalize(w)));
           if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
           setHudColor('amber'); setHudStatus('음성 확정 실패 · 다시 말씀하거나 입력해 주세요'); setHudText(clean);
-          fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: clean, status: 'recognition-error' }) }).catch(() => {});
+          fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: clean, status: 'recognition-error' }) })
+            .then(r => (r && typeof r.json === 'function') ? r.json() : null)
+            .then(d => {
+              if (d && d.rescued && d.result) {
+                const r = d.result;
+                awakeUntilRef.current = Date.now() + (r.intent === 'awake' ? 45000 : 25000);
+                setHudColor(r.hudColor || 'cyan');
+                setHudStatus(r.hudTitle || '✓ 실행 완료');
+                setHudText(r.spoken || r.hudSubtitle || clean);
+                if (r.spoken && !IS_BACKGROUND_WORKER) speakHd(r.spoken, configRef.current.sayVoice);
+              }
+            })
+            .catch(() => {});
         },
         isMuted: () => isSpeakingRef.current || serverSpeakingRef.current,
         onPreview: text => {
@@ -350,9 +361,6 @@
           const hasWake = wakeWords.some(w => normalize(w) && normalize(text).includes(normalize(w)));
           if (hasWake) {
             awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, Date.now() + 45000);
-            if (turnRef.current && cfg.speechPauseMs) {
-              turnRef.current.pauseMs = Math.max(3600, Number(cfg.speechPauseMs) || 3800);
-            }
           }
           if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
           setHudColor('cyan'); setHudStatus('● 경청 중 · 끝까지 편하게 말씀하세요'); setHudText(text);

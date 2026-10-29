@@ -20,13 +20,13 @@
   ],
   "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
   "stats": {
-    "totalOrders": 22,
+    "totalOrders": 23,
     "intentCounts": {
       "youtubeAutoPlay": 3,
       "mediaNext": 2,
       "bscSpecialOrder": 2,
       "brain": 9,
-      "stopMusic": 1,
+      "stopMusic": 2,
       "awake": 3,
       "hush": 2
     },
@@ -50,6 +50,12 @@
     ]
   },
   "recentOrders": [
+    {
+      "ts": "2026-10-29 07:33:20",
+      "sentence": "음악 꺼줘",
+      "intent": "stopMusic",
+      "title": "⏸ 음악 정지 확인"
+    },
     {
       "ts": "2026-10-29 06:54:23",
       "sentence": "자비스 할 말 있어",
@@ -105,5 +111,5 @@
       "title": "🗣 자비스 답변"
     }
   ],
-  "updatedAt": "2026-10-29T06:55:00.000Z"
+  "updatedAt": "2026-10-29T07:33:20.277Z"
 }

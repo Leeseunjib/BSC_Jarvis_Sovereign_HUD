@@ -1503,16 +1503,22 @@ namespace JarvisSasariSa
                     string hudTitle = ExtractJsonField(json, "hudTitle");
                     string hudSubtitle = ExtractJsonField(json, "hudSubtitle");
                     string hudColor = ExtractJsonField(json, "hudColor");
+                    string itemTs = ExtractJsonNumber(json, "ts");
                     bool isFinal = json.Contains("\"isFinal\":true");
                     bool awaitingConfirm = json.Contains("\"awaitingConfirm\":true");
                     bool showMailDraft = json.Contains("\"intent\":\"draftMailReply\"");
-                    string key = heard + "|" + spoken + "|" + isFinal + "|" + hudTitle + "|" + hudSubtitle;
+                    string key = itemTs + "|" + heard + "|" + spoken + "|" + isFinal + "|" + hudTitle + "|" + hudSubtitle;
                     if (key == lastSyncedKey) return;
                     lastSyncedKey = key;
 
                     if (!string.IsNullOrWhiteSpace(heard))
                     {
                         if (isMiniMode) ToggleMiniMode(false);
+                        if (isFinal && !string.IsNullOrEmpty(hudTitle) && hudTitle.Contains("음성 확정 실패"))
+                        {
+                            SendCommandToButler(heard);
+                            return;
+                        }
                         if (!isFinal)
                         {
                             try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
@@ -4558,7 +4564,7 @@ namespace JarvisSasariSa
         private static async void SpeakAsync(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
-            if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 2) return;
+            if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 0.8) return;
             lastSpeechRequest = text;
             lastSpeechRequestAt = DateTime.UtcNow;
             await speechGate.WaitAsync();
@@ -4593,12 +4599,35 @@ namespace JarvisSasariSa
                             }
                             else if (response.Content.Headers.ContentType != null && response.Content.Headers.ContentType.MediaType == "audio/mpeg")
                             {
-                                played = await PlayMp3Async(bytes);
+                                played = await PlayMp3OnUiThreadAsync(bytes);
                             }
                         }
                     }
                 }
                 catch (Exception ex) { WriteLog("Server audio playback failed: " + ex.GetType().Name); }
+
+                if (!played)
+                {
+                    try
+                    {
+                        string wavUrl = "http://127.0.0.1:7788/api/tts-mp3?format=wav&text=" + Uri.EscapeDataString(text);
+                        using (var timeout2 = new System.Threading.CancellationTokenSource(10000))
+                        using (var response2 = await http.GetAsync(wavUrl, timeout2.Token))
+                        {
+                            byte[] wavBytes = await response2.Content.ReadAsByteArrayAsync();
+                            if (response2.IsSuccessStatusCode && wavBytes.Length > 44 && wavBytes[0] == 'R' && wavBytes[1] == 'I' && wavBytes[2] == 'F' && wavBytes[3] == 'F')
+                            {
+                                await Task.Run(() => {
+                                    using (var stream = new MemoryStream(wavBytes))
+                                    using (var player = new SoundPlayer(stream)) { player.Load(); player.PlaySync(); }
+                                });
+                                played = true;
+                                WriteLog("WAV fallback playback completed: " + wavBytes.Length + " bytes");
+                            }
+                        }
+                    }
+                    catch { }
+                }
 
                 if (!played)
                 {
@@ -4617,6 +4646,21 @@ namespace JarvisSasariSa
             try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
             catch { }
             speechGate.Release();
+        }
+
+        private static Task<bool> PlayMp3OnUiThreadAsync(byte[] bytes)
+        {
+            if (hudWindow != null && !hudWindow.Dispatcher.CheckAccess())
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                hudWindow.Dispatcher.BeginInvoke(new Action(async () =>
+                {
+                    try { tcs.TrySetResult(await PlayMp3Async(bytes)); }
+                    catch { tcs.TrySetResult(false); }
+                }));
+                return tcs.Task;
+            }
+            return PlayMp3Async(bytes);
         }
 
         private static async Task<bool> PlayMp3Async(byte[] bytes)
@@ -4740,6 +4784,18 @@ namespace JarvisSasariSa
         private static string EscapeJson(string s)
         {
             return (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
+        }
+
+        private static string ExtractJsonNumber(string json, string key)
+        {
+            string pat = "\"" + key + "\":";
+            int idx = json.IndexOf(pat);
+            if (idx < 0) return "";
+            idx += pat.Length;
+            while (idx < json.Length && json[idx] == ' ') idx++;
+            int start = idx;
+            while (idx < json.Length && (char.IsDigit(json[idx]) || json[idx] == '.' || json[idx] == '-')) idx++;
+            return idx > start ? json.Substring(start, idx - start) : "";
         }
 
         private static string ExtractJsonField(string json, string key)
