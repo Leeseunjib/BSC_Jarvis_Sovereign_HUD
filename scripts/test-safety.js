@@ -46,7 +46,13 @@ function audioRequest(url) {
 (async () => {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(PORT, '127.0.0.1', resolve); });
   try {
+    const initialFiles = fs.readdirSync(process.env.JARVIS_DATA_DIR).sort();
+    const health = await request('GET', '/api/health');
+    assert.equal(health.body.service, 'jarvis');
+    assert.equal(health.body.pid, process.pid);
     assert.equal((await request('GET', '/api/status')).status, 200);
+    assert.deepEqual(fs.readdirSync(process.env.JARVIS_DATA_DIR).sort(), initialFiles, 'Status reads must not generate rule/plan files');
+    assert.ok((await request('GET', '/mcp')).body.tools.length >= 5);
     assert.equal((await request('GET', '/api/status', null, { Origin: 'https://example.com' })).status, 403);
     assert.equal((await request('POST', '/api/butler/command', '{"sentence":"몇 시야"}', { Origin: 'https://example.com', 'Content-Type': 'application/json' })).status, 403);
     assert.equal((await request('POST', '/api/config', '{}', { 'Content-Type': 'text/plain' })).status, 415);

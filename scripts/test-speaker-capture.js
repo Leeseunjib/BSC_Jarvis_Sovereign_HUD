@@ -1,0 +1,21 @@
+'use strict';
+const assert = require('assert/strict');
+const Capture = require('../public/js/speaker-capture');
+let now = 0; const requests = [];
+const c = new Capture({ now: () => now, send: async (url, options) => { requests.push({ url, body: JSON.parse(options.body) }); } });
+c.ready = true;
+for (now = 0; now < 3000; now += 100) c.append(new Float32Array(1600).fill(.2));
+c.beginTurn(); const start = now;
+for (; now < start + 3000; now += 100) c.append(new Float32Array(1600).fill(.1));
+const audio = c.finishTurn(); assert.equal(audio.sampleRate, 16000); assert(Buffer.from(audio.pcm, 'base64').length >= 96000); assert.equal(c.finishTurn(), null);
+const e = { id: 'explicit-user-start', phase: 'recording', startAt: now + 5000, endAt: now + 29000 };
+c.sync({ enabled: false, enrollment: e }, false);
+for (; now < e.endAt + 500; now += 100) { c.noteText('자비스 내 목소리를 등록해 주세요', 'segment'); c.append(new Float32Array(1600).fill(.1)); }
+assert.equal(requests.length, 1);
+assert.equal(Buffer.from(requests[0].body.audio.pcm, 'base64').length, 24 * 32000);
+assert.equal(requests[0].body.transcript, '자비스 내 목소리를 등록해 주세요', '중간 인식의 반복 결과를 중복 누적하지 않아야 합니다');
+c.sync({ enabled: true, enrollment: null }, false); assert.equal(c.protected, true); assert.equal(c.enrolling, false);
+for (; now < 150000; now += 100) c.append(new Float32Array(1600));
+assert(c.frames.length <= 620, '원본 녹음을 무제한 보관하지 않아야 합니다');
+assert.equal(requests.length, 1, '등록 요청 없이 배경 녹음을 업로드하지 않아야 합니다');
+console.log('PASS: 동일 입력 PCM 수집·정확한 등록 구간·중복 등록 방지·인식 중복 제거·메모리 보관 상한');

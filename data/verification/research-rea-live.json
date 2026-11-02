@@ -1,0 +1,113 @@
+{
+  "ok": true,
+  "result": {
+    "intent": "research",
+    "research": {
+      "id": "dead81ff-5c01-4622-bd9d-194b18d66ac9",
+      "query": "REA 기술",
+      "title": "REA 기술 · 조사 결과",
+      "status": "ready",
+      "createdAt": "2026-10-30T04:24:26.819Z",
+      "provider": "DuckDuckGo",
+      "note": "REA 같은 약어는 분야별 뜻이 다를 수 있습니다. 출처의 분야를 확인해 주세요. 원문과 검색 미리보기에서 핵심 문장을 발췌했습니다. 출처의 주장을 별도로 교차 검증한 결과는 아닙니다. 원문 접근 여부를 각 출처에 표시했습니다.",
+      "keywords": [
+        "REA",
+        "Reverse",
+        "Engineer",
+        "Anything",
+        "AI",
+        "에이전트가",
+        "리버스",
+        "사례",
+        "GitHub",
+        "실제",
+        "엔지니어링",
+        "한계와"
+      ],
+      "summary": "REA 의 기능, AI 에이전트가 소스 코드 없이 소프트웨어를 분석하는 방법, 실제 리버스 엔지니어링 사례, 한계와 개인정보 보호 관련 장단점을 알아보세요. [1]\n\nGitHub 별 34만 개를 넘긴 오픈소스 REA(Reverse Engineer Anything)의 뜻, 설치 방법, 사용 사례, 사실과 과장, 법적 주의점까지 한 번에 정리했습니다. [2]\n\n먼저 이름부터 짚겠습니다. [3]",
+      "sections": [
+        {
+          "title": "Rea란 무엇인가요? Ai 에이전트가 소스 코드 없이 소프트웨어를 리버스 엔지니어링하는 방법",
+          "text": "REA 의 기능, AI 에이전트가 소스 코드 없이 소프트웨어를 분석하는 방법, 실제 리버스 엔지니어링 사례, 한계와 개인정보 보호 관련 장단점을 알아보세요.",
+          "sourceId": 1
+        },
+        {
+          "title": "레아(Rea) 오픈소스란? 뜻, 설치법, 사용법, 주의점 총정리",
+          "text": "GitHub 별 34만 개를 넘긴 오픈소스 REA(Reverse Engineer Anything)의 뜻, 설치 방법, 사용 사례, 사실과 과장, 법적 주의점까지 한 번에 정리했습니다.\nREA(Reverse Engineer Anything) 는 국내에서 흔히 &ldquo;레아&rdquo;라고 부르는 오픈소스 도구로, AI 코딩 에이전트가 소스 코드 없이 완성된 프로그램의 동작 원리를 분석 하도록 돕습니다. 저장소는 2026년 4월에 만들어졌지만 10월 첫 주까지는 거의 알려지지 않았다가, 며칠 만에 GitHub 트렌딩 상위권에 오르며 개발자 커뮤니티의 화제가 되었습니다.",
+          "sourceId": 2
+        },
+        {
+          "title": "REA (Reverse Engineer Anything)란? AI 에이전트용 리버스 엔지니어링 MCP 구조·실행 예시·도입 기준",
+          "text": "먼저 이름부터 짚겠습니다. github/reverse-engineer 라는 이름의 저장소는 없습니다. GitHub에서 reverse-engineer로 검색했을 때 별 수 1위가 morluto/rea 이고, 요즘 &ldquo;리버스 엔지니어링 저장소가 핫하다&rdquo;는 이야기는 대부분 이 프로젝트를 가리킵니다.\n이 글은 REA가 무엇을 해 주는지, 그리고 Hacker News에서 가장 많이 나온 질문인 &ldquo;에이전트에게 Ghidra를 깔아 쓰라고 하면 되지 않나?&rdquo;에 대한 답부터 정리합니다. 이어서 직접 만든 작은 Electron 앱을 REA 6.4.0으로 분석하고 두 버전을 비교해, 결과가 실제로 어떻게 생겼고 어디까지 믿을 수 있는지 보여 드립니다. 마지막으로 설치할 때 바뀌는 설정, Windows 지원 범위, 국내 저작권법상 역분석 기준처럼 도입 전에 확인할 내용을 다룹니다.",
+          "sourceId": 3
+        },
+        {
+          "title": "Ai 역공학 도구 Rea, 정말 '소프트웨어의 종말'일까? 한계와 제조업 활용 사례 : 네이버 블로그",
+          "text": "요즘 개발자 커뮤니티에서 가장 많이 보이는 이름 중 하나가 REA (Reverse Engineer Anything)입니다. \"소프트웨어의 시대는 끝났다\"라는 말이 나올 정도로 화제가 되고 있는데요. 오늘은 이 핫한 '레아'에 대해서 제가 속한 업무 분야인 제조업 스마트팩토리 관련 사례와 함께 알아보겠습니다.",
+          "sourceId": 4
+        },
+        {
+          "title": "Ai 에이전트에 리버스 엔지니어링을 제공하는 Rea, 그 실체는 분석기가 아닌 '통합 도구'였다",
+          "text": "GitHub의 morluto/ rea 가 10일 정도 만에 20만 스타를 돌파했다. 10월 14일에 확인한 저장소의 표시 숫자는 207.8k였다. README에는 '200,000 GitHub stars'를 축하하는 문구가 같은 날 추가되었다. REA 는 'Reverse Engineer Anything'의 약자다. AI 에이전트가 리버스 엔지니어링을 수행하도록 돕는 MCP 서버이자 CLI이다. 이름만 ...",
+          "sourceId": 5
+        },
+        {
+          "title": "[GitHub Trending] REA 분석 — AI가 소스코드 없는 프로그램을 역공학하는 방법",
+          "text": "소스코드가 없는 프로그램도 AI가 분석하고, 내부 동작을 이해하고, 필요한 기능을 재구현할 수 있다면 어떨까? 이번 글에서는 최근 GitHub에서 주목받고 있는 REA (Reverse Engineer Anything) 프로젝트의 구조와 핵심 기술, 실제 활용 가능성을 살펴본다.",
+          "sourceId": 6
+        }
+      ],
+      "sources": [
+        {
+          "id": 1,
+          "title": "Rea란 무엇인가요? Ai 에이전트가 소스 코드 없이 소프트웨어를 리버스 엔지니어링하는 방법",
+          "url": "https://shop.zimaspace.com/ko/blogs/tech-ai-hub/rea-ai-agent-reverse-engineering",
+          "domain": "shop.zimaspace.com",
+          "readStatus": "검색 미리보기"
+        },
+        {
+          "id": 2,
+          "title": "레아(Rea) 오픈소스란? 뜻, 설치법, 사용법, 주의점 총정리",
+          "url": "https://caresser.tistory.com/242",
+          "domain": "caresser.tistory.com",
+          "readStatus": "원문 확인"
+        },
+        {
+          "id": 3,
+          "title": "REA (Reverse Engineer Anything)란? AI 에이전트용 리버스 엔지니어링 MCP 구조·실행 예시·도입 기준",
+          "url": "https://majjangjjang.tistory.com/232",
+          "domain": "majjangjjang.tistory.com",
+          "readStatus": "원문 확인"
+        },
+        {
+          "id": 4,
+          "title": "Ai 역공학 도구 Rea, 정말 '소프트웨어의 종말'일까? 한계와 제조업 활용 사례 : 네이버 블로그",
+          "url": "https://blog.naver.com/PostView.naver?blogId=hupers&logNo=224444667526",
+          "domain": "blog.naver.com",
+          "readStatus": "검색 미리보기"
+        },
+        {
+          "id": 5,
+          "title": "Ai 에이전트에 리버스 엔지니어링을 제공하는 Rea, 그 실체는 분석기가 아닌 '통합 도구'였다",
+          "url": "https://note.com/zephel01/n/n9d2ed82dcd4d?hl=ko",
+          "domain": "note.com",
+          "readStatus": "검색 미리보기"
+        },
+        {
+          "id": 6,
+          "title": "[GitHub Trending] REA 분석 — AI가 소스코드 없는 프로그램을 역공학하는 방법",
+          "url": "https://velog.io/@taehoon1223/GitHub-Trending-REA-%EB%B6%84%EC%84%9D-AI%EA%B0%80-%EC%86%8C%EC%8A%A4%EC%BD%94%EB%93%9C-%EC%97%86%EB%8A%94-%ED%94%84%EB%A1%9C%EA%B7%B8%EB%9E%A8%EC%9D%84-%EC%97%AD%EA%B3%B5%ED%95%99%ED%95%98%EB%8A%94-%EB%B0%A9%EB%B2%95",
+          "domain": "velog.io",
+          "readStatus": "검색 미리보기"
+        }
+      ],
+      "errors": []
+    },
+    "researchId": "dead81ff-5c01-4622-bd9d-194b18d66ac9",
+    "hudColor": "cyan",
+    "hudTitle": "검색 결과 정리 완료",
+    "hudSubtitle": "REA 기술",
+    "heard": "REA 기술 알아?",
+    "spoken": "REA 기술에 관한 자료 6개를 찾아 핵심 내용과 출처를 결과 창에 정리했습니다."
+  }
+}

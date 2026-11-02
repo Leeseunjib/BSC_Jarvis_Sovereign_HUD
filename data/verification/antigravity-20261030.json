@@ -1,0 +1,253 @@
+{
+  "at": "2026-10-30T07:43:41.387Z",
+  "geminiCliVersion": "0.66.0",
+  "antigravityCliVersion": "1.4.11",
+  "brain": {
+    "ok": true,
+    "selectedProvider": "antigravity-cli",
+    "selectedModel": "gemini-3.8-flash-low",
+    "preparing": false,
+    "geminiCliInstalled": true,
+    "antigravityCliInstalled": true,
+    "last": {
+      "at": "2026-10-30T07:42:08.764Z",
+      "selectedProvider": "antigravity-cli",
+      "selectedModel": "gemini-3.8-flash-low",
+      "ok": true,
+      "provider": "antigravity-cli",
+      "model": "gemini-3.8-flash-low",
+      "modelVerified": true,
+      "fallback": false,
+      "elapsedMs": 3609,
+      "firstTextMs": 3229,
+      "warm": true
+    }
+  },
+  "config": {
+    "brainProvider": "antigravity-cli",
+    "brainModel": "gemini-3.8-flash-low",
+    "voice": "ko-KR-HyunsuMultilingualNeural",
+    "speed": 1.25
+  },
+  "finalStartup": {
+    "ok": true,
+    "selectedProvider": "antigravity-cli",
+    "selectedModel": "gemini-3.8-flash-low",
+    "preparing": false,
+    "geminiCliInstalled": true,
+    "antigravityCliInstalled": true,
+    "last": {
+      "at": "2026-10-30T07:41:13.647Z",
+      "selectedProvider": "antigravity-cli",
+      "selectedModel": "gemini-3.8-flash-low",
+      "ok": true,
+      "provider": "antigravity-cli",
+      "model": "gemini-3.8-flash-low",
+      "modelVerified": true,
+      "fallback": false,
+      "elapsedMs": 37676,
+      "firstTextMs": 37255,
+      "warm": false
+    }
+  },
+  "uiMediumSelection": {
+    "ok": true,
+    "selectedProvider": "antigravity-cli",
+    "selectedModel": "gemini-3.8-flash-medium",
+    "preparing": false,
+    "geminiCliInstalled": true,
+    "antigravityCliInstalled": true,
+    "last": {
+      "at": "2026-10-30T07:30:19.563Z",
+      "selectedProvider": "antigravity-cli",
+      "selectedModel": "gemini-3.8-flash-medium",
+      "ok": true,
+      "provider": "antigravity-cli",
+      "model": "gemini-3.8-flash-medium",
+      "modelVerified": true,
+      "fallback": false,
+      "elapsedMs": 36611,
+      "firstTextMs": 36215,
+      "warm": false
+    }
+  },
+  "warmSamples": [
+    {
+      "httpMs": 3605,
+      "ok": true,
+      "selectedProvider": "antigravity-cli",
+      "selectedModel": "gemini-3.8-flash-low",
+      "preparing": false,
+      "geminiCliInstalled": true,
+      "antigravityCliInstalled": true,
+      "last": {
+        "at": "2026-10-30T07:29:30.280Z",
+        "selectedProvider": "antigravity-cli",
+        "selectedModel": "gemini-3.8-flash-low",
+        "ok": true,
+        "provider": "antigravity-cli",
+        "model": "gemini-3.8-flash-low",
+        "modelVerified": true,
+        "fallback": false,
+        "elapsedMs": 3556,
+        "firstTextMs": 3327,
+        "warm": true
+      }
+    },
+    {
+      "httpMs": 3416,
+      "ok": true,
+      "selectedProvider": "antigravity-cli",
+      "selectedModel": "gemini-3.8-flash-low",
+      "preparing": false,
+      "geminiCliInstalled": true,
+      "antigravityCliInstalled": true,
+      "last": {
+        "at": "2026-10-30T07:29:33.700Z",
+        "selectedProvider": "antigravity-cli",
+        "selectedModel": "gemini-3.8-flash-low",
+        "ok": true,
+        "provider": "antigravity-cli",
+        "model": "gemini-3.8-flash-low",
+        "modelVerified": true,
+        "fallback": false,
+        "elapsedMs": 3409,
+        "firstTextMs": 3131,
+        "warm": true
+      }
+    }
+  ],
+  "slowerReconnectSample": [
+    {
+      "ok": true,
+      "text": "준비되었습니다.",
+      "provider": "antigravity-cli",
+      "model": "gemini-3.8-flash-low",
+      "requestedModel": "gemini-3.8-flash-low",
+      "modelVerified": true,
+      "fallback": false,
+      "elapsedMs": 39269,
+      "firstTextMs": 38535,
+      "warm": false
+    },
+    {
+      "ok": true,
+      "text": "대표님, 좋은 하루 보내세요!",
+      "provider": "antigravity-cli",
+      "model": "gemini-3.8-flash-low",
+      "requestedModel": "gemini-3.8-flash-low",
+      "modelVerified": true,
+      "fallback": false,
+      "elapsedMs": 13146,
+      "firstTextMs": 12665,
+      "warm": true
+    }
+  ],
+  "finalHudCommand": {
+    "event": "command-timing",
+    "ts": 1793346128769,
+    "intent": "brain",
+    "source": "manual",
+    "totalMs": 3633,
+    "executionMs": 3634,
+    "inputMs": 0,
+    "llm": {
+      "provider": "antigravity-cli",
+      "model": "gemini-3.8-flash-low",
+      "requestedModel": "gemini-3.8-flash-low",
+      "modelVerified": true,
+      "warm": true,
+      "firstTextMs": 3229,
+      "fallback": false,
+      "elapsedMs": 3609
+    }
+  },
+  "finalPlayback": [
+    "16:42:10.185 TTS response voice=ko-KR-HyunsuMultilingualNeural, speed=1.25, fallback=False, fetchMs=1345",
+    "16:42:10.186 WAV playback started: readyMs=1346",
+    "16:42:16.117 WAV playback completed: 559916 bytes"
+  ],
+  "inputToPlaybackStartMs": 5050,
+  "physicalAudibilityConfirmedThisTurn": false,
+  "finalHudObservation": {
+    "StartedAt": "2026-10-30T16:41:48.1010885+09:00",
+    "EndedAt": "2026-10-30T16:42:48.3843625+09:00",
+    "ObservedSeconds": 60.28,
+    "RequestedMinutes": 1,
+    "CompletedDuration": true,
+    "Samples": 28,
+    "InitialPid": 17872,
+    "FinalPid": 17872,
+    "Passed": true,
+    "FailureSamples": [],
+    "MicDisconnectedSamples": 3,
+    "MinPrivateMb": 110.29,
+    "MaxPrivateMb": 119.27,
+    "StartPrivateMb": 110.29,
+    "EndPrivateMb": 118.3,
+    "MinHandles": 1166,
+    "MaxHandles": 1264,
+    "MaxGdiObjects": 50,
+    "MaxUserObjects": 75,
+    "DataFile": "C:\\자비스\\data\\verification\\hud-soak-20261030-164148.jsonl"
+  },
+  "verification": {
+    "files": 45,
+    "mismatches": []
+  },
+  "testsPassed": [
+    "antigravity-brain",
+    "voice-brain",
+    "brain-api",
+    "speech-turn",
+    "speech-client",
+    "speech-replacement",
+    "media-control",
+    "safety",
+    "speaker-api",
+    "tts-audio"
+  ],
+  "limitations": [
+    "Cloud response latency varies; one warm probe took 13.1 seconds.",
+    "First connection is prepared in the background; final startup took 37.7 seconds.",
+    "One old 40-second cold-start timeout was observed; initial connection deadline is now 60 seconds, with an 18-second warm-response deadline.",
+    "Physical audibility and a new microphone utterance were not confirmed by the user in this turn."
+  ],
+  "microphoneObservationDetails": [
+    {
+      "at": "2026-10-30T16:41:57.3378826+09:00",
+      "microphone": "ready",
+      "recognition": "restarting",
+      "event": "recognition-end",
+      "error": "",
+      "endReason": "no-speech"
+    },
+    {
+      "at": "2026-10-30T16:42:13.7161861+09:00",
+      "microphone": "ready",
+      "recognition": "restarting",
+      "event": "recognition-end",
+      "error": "",
+      "endReason": "no-speech"
+    },
+    {
+      "at": "2026-10-30T16:42:15.7504553+09:00",
+      "microphone": "ready",
+      "recognition": "restarting",
+      "event": "recognition-end",
+      "error": "",
+      "endReason": "no-speech"
+    }
+  ],
+  "finalMicrophoneHealth": {
+    "ok": true,
+    "connected": true,
+    "recoverable": false,
+    "microphone": "ready",
+    "recognition": "listening",
+    "event": "speech-start",
+    "reason": "no-speech",
+    "error": "",
+    "ageMs": 2368
+  }
+}

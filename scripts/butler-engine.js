@@ -12,12 +12,18 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 const { exec, execFile, spawn } = require('child_process');
 const { CodingJobs } = require('./coding-jobs');
 const { interact } = require('./windows-interaction');
 const { controlMedia } = require('./media-control');
+const { askVoiceBrain } = require('./voice-brain');
 const { classifyMediaControl } = require('../public/js/media-intents');
 const { sharedTerminalManager, sharedBscBridge } = require('./bsc-collaboration-bridge');
+const { createDocument, normalizeDocSpec } = require('./office-doc-engine');
+const { searchEcosystems, toResearchReport: ecoToResearchReport, getEcosystemOverview } = require('./ecosystem-index');
+const { runRea, reaToResearchReport, runLaya, startLayaService, layaToResearchReport } = require('./rea-laya-bridge');
+const { toResearchReport: learningToResearchReport } = require('./recursive-learning');
 
 function runPowerShell(script) {
   const wrapped = `$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; try {\n${script}\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
@@ -64,6 +70,7 @@ const FILES = {
 };
 
 const DEFAULT_CONFIG = {
+  speechPauseMs: 2000,
   language: 'ko',
   activation: 'voice',
   assistantName: '자비스',
@@ -94,8 +101,8 @@ const DEFAULT_CONFIG = {
   ttsVoice: 'ko-KR-HyunsuMultilingualNeural',
   ttsSpeed: 1.25,
   claudeModel: 'sonnet',
-  brainProvider: 'gemini-cli',
-  brainModel: 'gemini-2.5-flash',
+  brainProvider: 'antigravity-cli',
+  brainModel: 'gemini-3.8-flash-low',
   brainEffort: 'low',
   bargeIn: 'auto',
   hudPosition: 'top',
@@ -106,6 +113,7 @@ const DEFAULT_CONFIG = {
   polishDictation: true,
   showIdleOrb: true,
   followUpSec: 8,
+  voiceRequireWake: true,
   silenceSec: 1.0,
   customWords: ['클로드', '엔터', '받아써', '그만', '유튜브', '쿠팡', '네이버', '구글', '창 다 꺼', '되돌려'],
   apps: {}
@@ -537,27 +545,6 @@ function askLocalOllama(prompt, systemPrompt, model = 'gemma4:e4b', timeoutMs = 
   });
 }
 
-function askGeminiCli(prompt, model = 'gemini-3-flash-preview') {
-  return new Promise(resolve => {
-    const safePrompt = String(prompt || '').replace(/"/g, '\\"');
-    const sysInstruction = `당신은 이건우 대표님을 보좌하는 뷰스크리에이터스(C:\\BeausCreators)의 AI 집사 자비스입니다. 2문장 이내로 간결하고 자연스러운 한국어 구어체로 답변하세요. 질문: ${safePrompt}`;
-    const modelArg = model ? `-m "${model}"` : '';
-    const cmd = `gemini ${modelArg} -p "${sysInstruction}"`;
-    exec(cmd, { timeout: 9500, windowsHide: true }, (err, stdout) => {
-      if (!err && stdout && stdout.trim()) {
-        return resolve(stdout.trim().replace(/\r?\n+/g, ' ').slice(0, 320));
-      }
-      // Fallback to default gemini-cli model if preview model flag is not supported by installed CLI version
-      exec(`gemini -p "${sysInstruction}"`, { timeout: 9000, windowsHide: true }, (err2, stdout2) => {
-        if (!err2 && stdout2 && stdout2.trim()) {
-          return resolve(stdout2.trim().replace(/\r?\n+/g, ' ').slice(0, 320));
-        }
-        resolve(null);
-      });
-    });
-  });
-}
-
 let unifiedLlmHub = null;
 try {
   const hubPath = 'C:\\BSC_Javis_OS\\scripts\\multi-llm-provider-hub.js';
@@ -668,9 +655,8 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
   const provider = String(cfg.brainProvider || 'gemini-cli').toLowerCase();
   const selectedModel = String(cfg.brainModel || 'gemini-2.5-flash').trim();
 
-  if (provider === 'gemini-cli' || provider === 'geminicli') {
-    const cliAns = await askGeminiCli(prompt, selectedModel || 'gemini-2.5-flash');
-    if (cliAns) return cliAns;
+  if (['antigravity-cli', 'gemini-cli', 'geminicli', 'gemini', 'ollama'].includes(provider)) {
+    return askVoiceBrain(prompt, cfg);
   }
 
   const mappedProvider = provider === 'gemini-cli' ? 'gemini' : provider;
@@ -735,6 +721,7 @@ class ButlerEngine {
     this.liveGsmtcSession = null;
     this.lastGsmtcProbeAt = 0;
     this.gsmtcProbeInFlight = false;
+    this.lastResearchReport = null;
   }
 
   getConfig() {
@@ -1084,13 +1071,50 @@ class ButlerEngine {
       return { intent: 'web', label: site, query: q, url: urls[site] };
     }
 
-    // Generic Web Search ("파이썬 강좌 검색해줘", "오늘 주요 뉴스 검색해")
-    const genericSearchMatch = s.match(/^(.+?)\s*(?:검색해|웹검색해|구글링해|찾아봐)(?:줘|봐|주세요)?$/);
-    if (genericSearchMatch && !/유튜브|파일|폴더|터미널|깃|git/i.test(genericSearchMatch[1])) {
+    // 10-B) Office Document Creation (Word .docx / Markdown .md / PDF .pdf / PPT .pptx)
+    if (/(워드|word|docx|파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx|피디에프|pdf|마크다운|markdown|\bmd\b)/i.test(s) &&
+        /(만들어|작성해|저장해|변환해|생성해|뽑아|내보내|문서화|정리해서\s*열어)/i.test(s)) {
+      let format = 'md';
+      if (/워드|word|docx/i.test(s)) format = 'docx';
+      else if (/파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx/i.test(s)) format = 'pptx';
+      else if (/피디에프|pdf/i.test(s)) format = 'pdf';
+      const cleanedTopic = s
+        .replace(/(?:방금\s*(?:검색한|찾은|본)?\s*(?:내용|결과|자료)?(?:을|를)?\s*)?(?:워드|word|docx|파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx|피디에프|pdf|마크다운|markdown|\bmd\b)\s*(?:문서|파일|보고서|자료)?(?:로|으로)?\s*(?:만들어|작성해|저장해|변환해|생성해|뽑아|내보내|문서화해|정리해서\s*열어).*$/i, '')
+        .replace(/(?:을|를|에\s*대한|관한)$/g, '')
+        .trim();
+      return { intent: 'officeDoc', format, topic: cleanedTopic };
+    }
+
+    // 10-C) REA 4-Stage Clean-Room Reverse Engineering Analysis
+    if (/(?:\brea\b|알이에이|역공학|클린룸\s*분석)/i.test(s) && !/안티그래비티.*플랜창/i.test(sq2)) {
+      return { intent: 'reaAnalyze', target: s };
+    }
+
+    // 10-D) Laya Language (Laya Multilingual DSL + System-1 / GRPO Decision Router)
+    if (/(?:\blaya\b|라야\s*언어|라야로|라야\s*엔진|라야\s*서버|라야\s*상태|라야\s*분석)/i.test(s)) {
+      return {
+        intent: 'layaExecute',
+        prompt: s,
+        startServer: /서버.*(?:켜|실행|시작|가동)|(?:켜|실행|시작).*서버/.test(s)
+      };
+    }
+
+    // 10-E) Google Harness² Recursive Self-Learning Status Window
+    if (/(?:재귀\s*학습|학습\s*현황|학습된\s*규칙|배운\s*규칙|자가\s*학습\s*상태).*(?:보여|열어|알려|확인)/i.test(s)) {
+      return { intent: 'learningStatus' };
+    }
+
+    // 10-F) 3-Ecosystem Local Search ("우리 시스템에서 ~ 찾아줘", "웨어하우스에서 ~ 검색해", "뷰티풀월드에서 ~ 찾아줘")
+    const ecoSearchMatch = s.match(/^(?:우리\s*시스템|사내\s*문서|전체\s*생태계|뷰스크리에이터(?:스)?|beauscreators|뷰티풀월드|beautifulworld|아름다운\s*세상|웨어하우스|warehouse|스킬\s*창고)(?:에서|의|내에서)?\s*(.+?)\s*(?:검색해서\s*보여|찾아서\s*보여|검색해|찾아봐|찾아|보여|알려)(?:\s*줘|주세요|봐)?$/i);
+    if (ecoSearchMatch && ecoSearchMatch[1].trim()) {
+      return { intent: 'ecosystemSearch', query: ecoSearchMatch[1].replace(/(?:좀|를|을)$/g, '').trim() };
+    }
+
+    // Generic Search -> Dedicated UI Search Results Window ("파이썬 강좌 검색해줘", "~ 검색해서 보여줘", "~ 찾아서 보여줘")
+    const genericSearchMatch = s.match(/^(.+?)\s*(?:검색해서\s*보여|찾아서\s*보여|검색해|웹검색해|구글링해|찾아봐|조사해서\s*보여|조사해)(?:\s*줘|\s*봐|\s*주세요)?$/);
+    if (genericSearchMatch && !/유튜브|파일\s*목록|폴더\s*목록|터미널|깃|git/i.test(genericSearchMatch[1])) {
       const q = genericSearchMatch[1].replace(/(?:좀|를|을)$/g, '').trim();
-      if (q) {
-        return { intent: 'web', label: '구글', query: q, url: `https://www.google.com/search?q=${encodeURIComponent(q)}` };
-      }
+      if (q) return { intent: 'research', query: q };
     }
 
     const mapMatch = s.match(/^(.+?)\s*(?:가는\s*길|길\s*찾기|지도\s*보여).*$/);
@@ -1192,6 +1216,7 @@ class ButlerEngine {
       return { intent: 'type', text: typeMatch[1].trim() };
     }
 
+    if (require('./web-research').isResearchQuestion(s) && !/\d\s*(?:더하기|빼기|곱하기|나누기|[+*/-])\s*\d/.test(s)) return { intent: 'research', query: s };
     return { intent: 'brain', prompt: s };
   }
 
@@ -1552,6 +1577,149 @@ class ButlerEngine {
           hudSubtitle: pick.url,
           heard: rawSentence,
           spoken: `${parsed.index}번 영상을 재생합니다.`
+        };
+      }
+
+      case 'research': {
+        const report = await require('./web-research').research(parsed.query);
+        this.lastResearchReport = report;
+        return { intent: 'research', research: report, researchId: report.id, hudColor: report.status === 'ready' ? 'cyan' : 'amber',
+          hudTitle: report.status === 'ready' ? '🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)' : '검색 결과 확인 필요',
+          hudSubtitle: report.query, heard: rawSentence,
+          spoken: report.status === 'ready' ? `${report.query}에 관한 자료 ${report.sources.length}개를 찾아 전용 검색 결과 창에 띄웠습니다. 워드나 피디에프, 피피티로 저장하시려면 말씀해 주세요.` : '검색 자료를 확보하지 못했습니다. 결과 창에서 검색어와 상태를 확인해 주세요.' };
+      }
+
+      case 'ecosystemSearch': {
+        const found = searchEcosystems(parsed.query, { limit: 10 });
+        const report = ecoToResearchReport(parsed.query, found, crypto.randomUUID());
+        this.lastResearchReport = report;
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          hudColor: found.hits.length > 0 ? 'cyan' : 'amber',
+          hudTitle: `🗂 3대 생태계 통합 검색 결과 (${found.hits.length}건)`,
+          hudSubtitle: `${parsed.query} · BeausCreators / BeautifulWorld / Warehouse`,
+          heard: rawSentence,
+          spoken: `우리 시스템 3대 생태계에서 ${parsed.query} 관련 문서와 스킬 ${found.hits.length}건을 찾아 결과 창에 띄워 드렸습니다.`
+        };
+      }
+
+      case 'reaAnalyze': {
+        const t = String(parsed.target || '');
+        const targetPath = /beautifulworld|뷰티풀월드|출판사|아름다운\s*세상/i.test(t)
+          ? 'C:\\BeautifulWorld'
+          : /warehouse|웨어하우스|스킬\s*창고/i.test(t)
+          ? 'C:\\Warehouse'
+          : /beauscreators|뷰스크리에이터|본사/i.test(t)
+          ? 'C:\\BeausCreators\\01.BSC_HQ'
+          : 'C:\\자비스';
+        const reaRes = await runRea(targetPath, t);
+        const report = reaToResearchReport(reaRes, crypto.randomUUID());
+        this.lastResearchReport = report;
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          hudColor: reaRes.ok ? 'cyan' : 'amber',
+          hudTitle: `🔬 REA 4-Stage 역공학 분석 완료 (${path.basename(targetPath)})`,
+          hudSubtitle: `${targetPath} · Observations / Derivations / Inferences / Unknowns`,
+          heard: rawSentence,
+          spoken: `네, 대표님. ${path.basename(targetPath)} 시스템을 REA 4분할 역공학 엔진으로 분석하여 결과 창에 띄워 드렸습니다.`
+        };
+      }
+
+      case 'layaExecute': {
+        if (parsed.startServer && executeOsActions) {
+          await startLayaService().catch(() => {});
+        }
+        const cleanOrder = String(parsed.prompt || '').replace(/^(?:라야\s*언어로|라야로|laya로|라야\s*엔진으로)\s*/i, '').trim() || parsed.prompt;
+        const layaRes = await runLaya(cleanOrder, { mode: 'auto' });
+        const report = layaToResearchReport(layaRes, crypto.randomUUID());
+        this.lastResearchReport = report;
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          hudColor: 'cyan',
+          hudTitle: `🧬 Laya 언어 구조화 의사결정 (${layaRes.mode})`,
+          hudSubtitle: cleanOrder,
+          heard: rawSentence,
+          spoken: `네, 대표님. 라야 구조화 언어 엔진으로 상태와 핵심 의사결정 질문을 도출하여 결과 창에 표시했습니다.`
+        };
+      }
+
+      case 'learningStatus': {
+        const report = learningToResearchReport(crypto.randomUUID());
+        this.lastResearchReport = report;
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          hudColor: 'cyan',
+          hudTitle: '🧠 Google Harness² 재귀 학습 현황',
+          hudSubtitle: report.summary,
+          heard: rawSentence,
+          spoken: '대표님과의 대화에서 스스로 학습하여 승격된 규칙과 교훈을 결과 창에 정리했습니다.'
+        };
+      }
+
+      case 'officeDoc': {
+        const fmt = parsed.format || 'docx';
+        const fmtLabels = { md: 'Markdown(.md)', docx: 'Word(.docx)', pptx: 'PowerPoint(.pptx)', pdf: 'PDF(.pdf)' };
+        let spec = null;
+        if (this.lastResearchReport && (!parsed.topic || /^(방금|이거|그거|검색|결과|위\s*내용|현재)/.test(parsed.topic))) {
+          const r = this.lastResearchReport;
+          spec = normalizeDocSpec({
+            title: r.title || r.query || '자비스 조사 보고서',
+            subtitle: `질의: ${r.query || ''} · 제공: ${r.provider || 'JARVIS'}`,
+            summary: r.summary || r.note || '',
+            sections: Array.isArray(r.sections) ? r.sections.map(s => ({ heading: s.title, body: s.text })) : [],
+            sources: r.sources || []
+          });
+        } else {
+          const topic = parsed.topic || '자비스 3대 생태계 & 업무 보고서';
+          const found = searchEcosystems(topic, { limit: 6 });
+          const eco = getEcosystemOverview();
+          spec = normalizeDocSpec({
+            title: `${topic} — 자비스 종합 보고서`,
+            subtitle: `이건우 대표님 전용 · JARVIS Office Studio (${fmtLabels[fmt] || fmt})`,
+            summary: `대표님께서 지시하신 「${topic}」 주제에 대해 C:\\BeausCreators(${eco.ecosystems[0]?.fileCount || 0}파일), C:\\BeautifulWorld(${eco.ecosystems[1]?.fileCount || 0}파일), C:\\Warehouse(${eco.ecosystems[2]?.skillCount || 0}스킬) 데이터를 종합하여 작성한 문서입니다.`,
+            sections: found.hits.length > 0
+              ? found.hits.map((h, idx) => ({
+                  heading: `${idx + 1}. [${h.ecosystem}] ${h.title}`,
+                  body: `경로: ${h.path}\n분류: ${h.kind}\n핵심 내용: ${h.snippet || '해당 파일에서 관련 키워드가 확인되었습니다.'}`
+                }))
+              : [
+                  {
+                    heading: '1. 핵심 개요 (Executive Summary)',
+                    body: `• 주제: ${topic}\n• 작성 시각: ${new Date().toISOString().slice(0, 19).replace('T', ' ')}\n• 작성 시스템: JARVIS Sovereign Butler × BeausCreators CHLGD`
+                  },
+                  {
+                    heading: '2. 3대 생태계 연동 현황',
+                    body: eco.ecosystems.map(e => `• ${e.name} (${e.root}): 파일 ${e.fileCount}개, 스킬/모듈 ${e.skillCount || 0}개`).join('\n')
+                  }
+                ],
+            sources: found.hits.map((h, i) => ({
+              id: i + 1,
+              title: `[${h.ecosystem}] ${h.title}`,
+              url: 'file:///' + String(h.path || '').replace(/\\/g, '/'),
+              domain: h.ecosystem
+            }))
+          });
+        }
+        const created = await createDocument(fmt, spec);
+        if (executeOsActions && created && created.ok && created.path) {
+          await launchOnVisibleDesktop(created.path).catch(() => {});
+        }
+        return {
+          intent: 'officeDoc',
+          officeDoc: created,
+          hudColor: created && created.ok ? 'lime' : 'amber',
+          hudTitle: `📄 ${fmtLabels[fmt] || fmt} 문서 생성 완료: ${path.basename(created.path || '')}`,
+          hudSubtitle: created.path || '',
+          heard: rawSentence,
+          spoken: `네, 대표님. 요청하신 내용을 ${fmtLabels[fmt] || fmt} 문서로 작성하여 바탕화면에 열어 드렸습니다.`
         };
       }
 
@@ -1966,14 +2134,17 @@ class ButlerEngine {
         try {
           memText = fs.readFileSync(FILES.memory, 'utf8');
         } catch (_) {}
-        const replyText = await generateSmartButlerReply(parsed.prompt, cfg, sys, memText);
+        const reply = await generateSmartButlerReply(parsed.prompt, cfg, sys, memText);
+        const replyText = typeof reply === 'string' ? reply : reply.text;
+        const unavailable = typeof reply === 'object' && reply.provider === 'unavailable';
         return {
           intent: 'brain',
-          hudColor: 'cyan',
-          hudTitle: `🗣 ${cfg.assistantName || '자비스'} 답변`,
+          hudColor: unavailable ? 'amber' : 'cyan',
+          hudTitle: unavailable ? '⚠ 대화 AI 연결 확인' : `🗣 ${cfg.assistantName || '자비스'} 답변` + (reply.fallback ? ' · 로컬 AI' : ''),
           hudSubtitle: replyText,
           heard: rawSentence,
-          spoken: replyText
+          spoken: replyText,
+          ...(typeof reply === 'object' ? { llm: { provider: reply.provider, model: reply.model, requestedModel: reply.requestedModel, modelVerified: reply.modelVerified, warm: reply.warm, firstTextMs: reply.firstTextMs, fallback: reply.fallback, fallbackReason: reply.fallbackReason, elapsedMs: reply.elapsedMs }, ...(unavailable ? { error: 'ai-unavailable' } : {}) } : {})
         };
       }
     }

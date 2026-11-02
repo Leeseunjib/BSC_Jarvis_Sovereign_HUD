@@ -20,17 +20,21 @@
   ],
   "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
   "stats": {
-    "totalOrders": 23,
+    "totalOrders": 62,
     "intentCounts": {
-      "youtubeAutoPlay": 3,
+      "youtubeAutoPlay": 5,
       "mediaNext": 2,
       "bscSpecialOrder": 2,
-      "brain": 9,
-      "stopMusic": 2,
-      "awake": 3,
-      "hush": 2
+      "brain": 21,
+      "stopMusic": 6,
+      "awake": 6,
+      "hush": 2,
+      "resumeMusic": 2,
+      "clock": 5,
+      "research": 11
     },
     "favoriteMusicQueries": [
+      "유튜브에서 로파이 음악 틀어줘",
       "버즈 (Buzz) 노래 모음 플레이리스트",
       "유튜브에서 버즈 노래 틀어 줘",
       "버즈라는 가수의 노래를 틀어 달라고",
@@ -43,6 +47,7 @@
       "음악 꺼줘"
     ],
     "learnedPreferences": [
+      "[2026-11-02] 앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘",
       "[2026-10-29] 가수 '버즈(Buzz)'의 노래를 선호하심 (버즈 노래 요청 시 즉시 유튜브 자동 재생)",
       "[2026-10-29] '자비스' 또는 '헤이 자비스'로 부를 때만 경청 모드로 응답하고, 평상시에는 스스로 혼자 말하지 않을 것",
       "[2026-10-29] 키보드 타이핑 소리, 멀리서 들리는 다른 사람의 말소리, 기침/숨소리에 절대 반응하지 말 것",
@@ -51,65 +56,185 @@
   },
   "recentOrders": [
     {
-      "ts": "2026-10-29 07:33:20",
+      "ts": "2026-11-02 04:34:40",
+      "sentence": "앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘",
+      "intent": "research",
+      "title": "🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)"
+    },
+    {
+      "ts": "2026-11-02 04:32:56",
+      "sentence": "라야로 워드 교정과 전자책 빌드 중 우선순위 판단해줘",
+      "intent": "research",
+      "title": "🧬 Laya 언어 구조화 의사결정 (system1-router)"
+    },
+    {
+      "ts": "2026-11-02 04:32:56",
+      "sentence": "뷰티풀월드 REA 분석해줘",
+      "intent": "research",
+      "title": "🔬 REA 4-Stage 역공학 분석 완료 (BeautifulWorld)"
+    },
+    {
+      "ts": "2026-11-02 04:32:39",
+      "sentence": "우리 시스템에서 전자책 빌드 찾아서 보여줘",
+      "intent": "research",
+      "title": "🗂 3대 생태계 통합 검색 결과 (10건)"
+    },
+    {
+      "ts": "2026-10-30 07:42:08",
+      "sentence": "오늘 기분이 좋아",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 07:38:56",
+      "sentence": "오늘 기분이 좋아",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 07:01:57",
+      "sentence": "자비스 지금 너를 소개해 봐",
+      "intent": "brain",
+      "title": "🗣 자비스 답변 · 로컬 AI"
+    },
+    {
+      "ts": "2026-10-30 07:01:44",
+      "sentence": "자비스 지금 몇 시야",
+      "intent": "clock",
+      "title": "🕒 지금은 오후 04:01입니다."
+    },
+    {
+      "ts": "2026-10-30 07:01:07",
+      "sentence": "자비스 오늘 기분이 좋아",
+      "intent": "brain",
+      "title": "🗣 자비스 답변 · 로컬 AI"
+    },
+    {
+      "ts": "2026-10-30 06:51:40",
+      "sentence": "자비스 몇 시야",
+      "intent": "clock",
+      "title": "🕒 지금은 오후 03:51입니다."
+    },
+    {
+      "ts": "2026-10-30 06:49:31",
+      "sentence": "응 자비스 우리 아빠 너무 짓궂어",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 06:11:02",
+      "sentence": "자비스",
+      "intent": "awake",
+      "title": "● 경청 중 · 네, 대표님 말씀하세요"
+    },
+    {
+      "ts": "2026-10-30 05:59:20",
+      "sentence": "왜 자비스 지금 몇 시야",
+      "intent": "clock",
+      "title": "🕒 지금은 오후 02:59입니다."
+    },
+    {
+      "ts": "2026-10-30 05:58:54",
+      "sentence": "자비스 내 말 들려",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 05:56:08",
+      "sentence": "REA 기술 설치법에 대해 조사해줘",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 05:54:54",
+      "sentence": "REA 기술 알아?",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 05:37:16",
+      "sentence": "REA 기술 알아?",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 05:35:13",
+      "sentence": "REA 기술 알아?",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 05:32:07",
+      "sentence": "REA 기술 알아?",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 05:32:06",
+      "sentence": "REA 기술 알아?",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 04:24:26",
+      "sentence": "REA 기술 알아?",
+      "intent": "research",
+      "title": "검색 결과 정리 완료"
+    },
+    {
+      "ts": "2026-10-30 04:13:12",
+      "sentence": "REA 기술 알아?",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 04:13:06",
+      "sentence": "REA 기술 알아?",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 04:12:54",
+      "sentence": "네, 대표님. 말씀하세요.",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-10-30 04:12:02",
+      "sentence": "자비스",
+      "intent": "awake",
+      "title": "● 경청 중 · 네, 대표님 말씀하세요"
+    },
+    {
+      "ts": "2026-10-30 02:04:42",
+      "sentence": "유튜브에서 로파이 음악 틀어줘",
+      "intent": "youtubeAutoPlay",
+      "title": "○ 받아 적는 중 · 실행 완료"
+    },
+    {
+      "ts": "2026-10-30 02:04:23",
+      "sentence": "유튜브에서 로파이 음악 틀어줘",
+      "intent": "youtubeAutoPlay",
+      "title": "○ 받아 적는 중 · 실행 완료"
+    },
+    {
+      "ts": "2026-10-30 00:54:11",
       "sentence": "음악 꺼줘",
       "intent": "stopMusic",
       "title": "⏸ 음악 정지 확인"
     },
     {
-      "ts": "2026-10-29 06:54:23",
-      "sentence": "자비스 할 말 있어",
-      "intent": "awake",
-      "title": "● 경청 중 · 네, 대표님 말씀하세요"
+      "ts": "2026-10-30 00:54:07",
+      "sentence": "음악 다시 틀어줘",
+      "intent": "resumeMusic",
+      "title": "▶ 음악 재생 확인"
     },
     {
-      "ts": "2026-10-29 06:53:03",
-      "sentence": "아무것도 하지 말고 내 목소리 말고 다른 사람들의 말하는 바깥에 있는 소리를 대답하지 말라고",
-      "intent": "hush",
-      "title": "● 대기 모드 전환"
-    },
-    {
-      "ts": "2026-10-29 06:50:36",
-      "sentence": "내가 너를 자비스라고 부르면 그때 대답을 한다 나머지는 네가 스스로 말하거나 그러지 마 이거 이거 스킬로 다 받아",
-      "intent": "brain",
-      "title": "🗣 자비스 답변"
-    },
-    {
-      "ts": "2026-10-29 06:49:19",
-      "sentence": "그리고 나랑 같이 일하면 키보드 소리가 많이 날 거거든 키보드 소리는 네가 반응해 가지고 나한테 이야기할 필요 없어 알겠지",
-      "intent": "brain",
-      "title": "🗣 자비스 답변"
-    },
-    {
-      "ts": "2026-10-29 06:48:47",
-      "sentence": "자비스 내 말 잘 들어 내가 말하고 있는 거 아니고 다른 사람이 말하고 있는 것들이나 멀리서 들리는 소리를 가지고 대답할 필요는 없어",
-      "intent": "brain",
-      "title": "🗣 자비스 답변"
-    },
-    {
-      "ts": "2026-10-29 06:47:59",
-      "sentence": "그러면 내 말 똑바로 잘 듣고 다 듣고 난 뒤에 네가 이야기 알겠어",
-      "intent": "brain",
-      "title": "🗣 자비스 답변"
-    },
-    {
-      "ts": "2026-10-29 06:45:36",
-      "sentence": "유튜브에서 버즈 노래 틀어 줘",
-      "intent": "youtubeAutoPlay",
-      "title": "▶ 바탕화면 유튜브 실행: 버즈 노래"
-    },
-    {
-      "ts": "2026-10-29 06:43:40",
-      "sentence": "버즈라는 가수의 노래를 틀어 달라고",
-      "intent": "youtubeAutoPlay",
-      "title": "▶ 바탕화면 유튜브 실행: 버즈 노래 모음 플레이리스트"
-    },
-    {
-      "ts": "2026-10-29 06:43:04",
-      "sentence": "아니 그런 것보다는 난 버즈를 좋아하거든 버즈 알아 버즈라는 가수 알아",
-      "intent": "brain",
-      "title": "🗣 자비스 답변"
+      "ts": "2026-10-30 00:54:04",
+      "sentence": "음악 꺼줘",
+      "intent": "stopMusic",
+      "title": "⏸ 음악 정지 확인"
     }
   ],
-  "updatedAt": "2026-10-29T07:33:20.277Z"
+  "updatedAt": "2026-11-02T04:34:40.086Z"
 }

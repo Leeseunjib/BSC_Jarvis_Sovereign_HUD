@@ -1,0 +1,11 @@
+{
+  "model": "wespeaker_en_voxceleb_resnet34_LM.onnx",
+  "bytes": 26530550,
+  "sha256": "e9848563da86f263117134dfd7ad63c92355b37de492b55e325400c9d9c39012",
+  "downloadUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/wespeaker_en_voxceleb_resnet34_LM.onnx",
+  "modelProject": "https://github.com/wenet-e2e/wespeaker",
+  "runtime": "sherpa-onnx-node@2.0.1",
+  "documentation": "https://k2-fsa.github.io/sherpa/onnx/speaker-identification/index.html",
+  "verificationDate": "2026-10-30",
+  "notice": "Local speaker comparison only. Threshold is a cosine similarity, not confidence or a guarantee. Personal Korean speech and room audio require user enrollment and live testing. Replay and overlapping speakers are not fully detected."
+}

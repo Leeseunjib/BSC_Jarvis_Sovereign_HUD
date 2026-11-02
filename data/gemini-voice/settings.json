@@ -1,0 +1,42 @@
+{
+  "security": {
+    "auth": {
+      "selectedType": "oauth-personal"
+    }
+  },
+  "hooksConfig": {
+    "enabled": false
+  },
+  "admin": {
+    "extensions": {
+      "enabled": false
+    },
+    "mcp": {
+      "enabled": false
+    },
+    "skills": {
+      "enabled": false
+    }
+  },
+  "tools": {
+    "core": []
+  },
+  "context": {
+    "fileName": "JARVIS_VOICE_ONLY_CONTEXT.md",
+    "includeDirectoryTree": false,
+    "discoveryMaxDirs": 1
+  },
+  "general": {
+    "maxAttempts": 1,
+    "retryFetchErrors": false,
+    "plan": {
+      "modelRouting": false
+    }
+  },
+  "telemetry": {
+    "enabled": false
+  },
+  "advanced": {
+    "ignoreLocalEnv": true
+  }
+}

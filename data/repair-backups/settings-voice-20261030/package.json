@@ -1,0 +1,19 @@
+{
+  "name": "jarvis-sasarisa-windows",
+  "version": "0.7.3",
+  "description": "자비스 Windows 음성 비서 (Sasarisa 참고 구현)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.verified.js",
+    "rea": "node scripts/rea-analyzer.js",
+    "daemon": "node scripts/windows-ear-daemon.js",
+    "verify": "node scripts/verify-jarvis.js",
+    "test": "node scripts/test-safety.js",
+    "test:speech": "node scripts/test-speech-turn.js && node scripts/test-speech-client.js",
+    "test:media": "node scripts/test-media-control.js"
+  },
+  "dependencies": {
+    "msedge-tts": "^2.0.4"
+  },
+  "license": "Apache-2.0"
+}

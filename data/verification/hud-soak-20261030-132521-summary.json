@@ -1,0 +1,57 @@
+{
+  "StartedAt": "2026-10-30T13:25:21.6297214+09:00",
+  "EndedAt": "2026-10-30T13:27:22.8921966+09:00",
+  "ObservedSeconds": 121.26,
+  "RequestedMinutes": 2,
+  "CompletedDuration": true,
+  "Samples": 58,
+  "InitialPid": 18832,
+  "FinalPid": 18832,
+  "Passed": false,
+  "FailureSamples": [
+    {
+      "Time": "2026-10-30T13:26:09.3021019+09:00",
+      "ElapsedSeconds": 47.67,
+      "Pid": 18832,
+      "SamePid": true,
+      "ProcessCount": 1,
+      "VisibleHudCount": 1,
+      "PrimaryTopmost": true,
+      "Placements": [
+        {
+          "ProcessId": 18832,
+          "Primary": true,
+          "Topmost": true,
+          "MonitorQueryOk": true,
+          "WindowHandle": 660100,
+          "X": 20,
+          "Y": 20,
+          "Width": 720,
+          "Height": 159
+        }
+      ],
+      "Responsive": true,
+      "ResponseMs": 0,
+      "PrivateMb": 132.03,
+      "Handles": 1612,
+      "GdiObjects": 57,
+      "UserObjects": 61,
+      "Threads": 34,
+      "CpuSeconds": 35.0,
+      "ServerOk": false,
+      "ServerPid": null,
+      "MicConnected": false,
+      "Passed": false
+    }
+  ],
+  "MicDisconnectedSamples": 58,
+  "MinPrivateMb": 131.9,
+  "MaxPrivateMb": 132.04,
+  "StartPrivateMb": 131.98,
+  "EndPrivateMb": 131.9,
+  "MinHandles": 1597.0,
+  "MaxHandles": 1615.0,
+  "MaxGdiObjects": 57.0,
+  "MaxUserObjects": 61.0,
+  "DataFile": "C:\\자비스\\data\\verification\\hud-soak-20261030-132521.jsonl"
+}

@@ -1,4 +1,4 @@
-param([switch]$StartIfStopped)
+﻿param([switch]$StartIfStopped)
 $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System;
@@ -36,19 +36,15 @@ public static class JarvisStartupInventory {
 '@
 $project = Split-Path -Parent $PSScriptRoot
 $binary = Join-Path $project 'bin\JarvisHud.exe'
-$next = Join-Path $project 'bin\JarvisHud.next.exe'
-if (-not (Test-Path -LiteralPath $next -PathType Leaf)) { throw 'Staged HUD is missing.' }
+if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw 'Installed HUD is missing.' }
 $prefix = $project.TrimEnd('\') + '\'
 $existing = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'JarvisHud%'" | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) })
-if ($StartIfStopped) {
-  $allHuds = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'JarvisHud%'")
-  if ($allHuds.Count) { throw 'A HUD is already running. StartIfStopped never terminates existing processes.' }
-} else {
-  foreach ($item in $existing) { Stop-Process -Id $item.ProcessId; Wait-Process -Id $item.ProcessId -ErrorAction SilentlyContinue }
+if ($existing.Count) {
+  # Verification must not replace or terminate a live HUD, nor race its supervisor.
+  & (Join-Path $PSScriptRoot 'Check-HudWindows.ps1')
+  return
 }
-Start-Sleep -Seconds 1
-Copy-Item -LiteralPath $next -Destination $binary -Force
-Copy-Item -LiteralPath $next -Destination (Join-Path $project 'JarvisHud.exe') -Force
+if (-not $StartIfStopped) { throw 'HUD is stopped. Use -StartIfStopped to observe a new boot; installation is a separate operation.' }
 $process = Start-Process -FilePath $binary -WorkingDirectory $project -WindowStyle Hidden -PassThru
 $clock = [Diagnostics.Stopwatch]::StartNew()
 $seenBoot = $false; $bootOnPrimary = $true; $hudOnPrimary = $true; $overlap = $false; $hudBeforeBoot = $false; $maxHud = 0

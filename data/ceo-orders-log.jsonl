@@ -21,3 +21,42 @@
 {"ts":"2026-10-29T06:53:03.486Z","sentence":"아무것도 하지 말고 내 목소리 말고 다른 사람들의 말하는 바깥에 있는 소리를 대답하지 말라고","intent":"hush","hudTitle":"● 대기 모드 전환","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
 {"ts":"2026-10-29T06:54:23.014Z","sentence":"자비스 할 말 있어","intent":"awake","hudTitle":"● 경청 중 · 네, 대표님 말씀하세요","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
 {"ts":"2026-10-29T07:33:20.277Z","sentence":"음악 꺼줘","intent":"stopMusic","hudTitle":"⏸ 음악 정지 확인","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:09:07.777Z","sentence":"왜 자비스","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:09:50.754Z","sentence":"자비스","intent":"awake","hudTitle":"● 경청 중 · 네, 대표님 말씀하세요","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:10:34.248Z","sentence":"아","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:12:00.651Z","sentence":"음악 꺼줘","intent":"stopMusic","hudTitle":"⏸ 음악 정지 확인","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:12:38.192Z","sentence":"음악 다시 틀어줘","intent":"resumeMusic","hudTitle":"▶ 음악 재생 확인","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:12:44.119Z","sentence":"음악 꺼줘","intent":"stopMusic","hudTitle":"⏸ 음악 정지 확인","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-29T09:13:27.421Z","sentence":"자비스, 지금 시간을 알려줘","intent":"clock","hudTitle":"🕒 지금은 오후 06:13입니다.","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T00:51:19.490Z","sentence":"기가 막히고 코가 막힌다 자비스 안녕","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T00:52:20.849Z","sentence":"자비스, 지금 시간을 알려줘","intent":"clock","hudTitle":"🕒 지금은 오전 09:52입니다.","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T00:54:04.285Z","sentence":"음악 꺼줘","intent":"stopMusic","hudTitle":"⏸ 음악 정지 확인","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T00:54:07.108Z","sentence":"음악 다시 틀어줘","intent":"resumeMusic","hudTitle":"▶ 음악 재생 확인","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T00:54:11.133Z","sentence":"음악 꺼줘","intent":"stopMusic","hudTitle":"⏸ 음악 정지 확인","status":"verified","source":"hud","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T02:04:23.224Z","sentence":"유튜브에서 로파이 음악 틀어줘","intent":"youtubeAutoPlay","hudTitle":"○ 받아 적는 중 · 실행 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T02:04:42.342Z","sentence":"유튜브에서 로파이 음악 틀어줘","intent":"youtubeAutoPlay","hudTitle":"○ 받아 적는 중 · 실행 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T04:12:02.427Z","sentence":"자비스","intent":"awake","hudTitle":"● 경청 중 · 네, 대표님 말씀하세요","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T04:12:54.748Z","sentence":"네, 대표님. 말씀하세요.","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T04:13:06.191Z","sentence":"REA 기술 알아?","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T04:13:12.332Z","sentence":"REA 기술 알아?","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T04:24:26.821Z","sentence":"REA 기술 알아?","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:32:06.139Z","sentence":"REA 기술 알아?","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:32:07.289Z","sentence":"REA 기술 알아?","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:35:13.622Z","sentence":"REA 기술 알아?","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:37:16.590Z","sentence":"REA 기술 알아?","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:54:54.226Z","sentence":"REA 기술 알아?","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:56:08.571Z","sentence":"REA 기술 설치법에 대해 조사해줘","intent":"research","hudTitle":"검색 결과 정리 완료","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:58:54.121Z","sentence":"자비스 내 말 들려","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T05:59:20.226Z","sentence":"왜 자비스 지금 몇 시야","intent":"clock","hudTitle":"🕒 지금은 오후 02:59입니다.","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T06:11:02.408Z","sentence":"자비스","intent":"awake","hudTitle":"● 경청 중 · 네, 대표님 말씀하세요","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T06:49:31.341Z","sentence":"응 자비스 우리 아빠 너무 짓궂어","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T06:51:40.945Z","sentence":"자비스 몇 시야","intent":"clock","hudTitle":"🕒 지금은 오후 03:51입니다.","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T07:01:07.088Z","sentence":"자비스 오늘 기분이 좋아","intent":"brain","hudTitle":"🗣 자비스 답변 · 로컬 AI","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T07:01:44.193Z","sentence":"자비스 지금 몇 시야","intent":"clock","hudTitle":"🕒 지금은 오후 04:01입니다.","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T07:01:57.390Z","sentence":"자비스 지금 너를 소개해 봐","intent":"brain","hudTitle":"🗣 자비스 답변 · 로컬 AI","status":"verified","source":"voice","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T07:38:56.702Z","sentence":"오늘 기분이 좋아","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-10-30T07:42:08.765Z","sentence":"오늘 기분이 좋아","intent":"brain","hudTitle":"🗣 자비스 답변","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-11-02T04:32:39.356Z","sentence":"우리 시스템에서 전자책 빌드 찾아서 보여줘","intent":"research","hudTitle":"🗂 3대 생태계 통합 검색 결과 (10건)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-11-02T04:32:56.166Z","sentence":"뷰티풀월드 REA 분석해줘","intent":"research","hudTitle":"🔬 REA 4-Stage 역공학 분석 완료 (BeautifulWorld)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-11-02T04:32:56.206Z","sentence":"라야로 워드 교정과 전자책 빌드 중 우선순위 판단해줘","intent":"research","hudTitle":"🧬 Laya 언어 구조화 의사결정 (system1-router)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-11-02T04:34:40.086Z","sentence":"앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘","intent":"research","hudTitle":"🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}

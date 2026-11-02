@@ -1,10 +1,10 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
-public class JarvisHudPlacement { public uint ProcessId; public bool Primary; public bool Topmost; }
+public class JarvisHudPlacement { public uint ProcessId; public bool Primary; public bool Topmost; public bool MonitorQueryOk; public long WindowHandle; public int X,Y,Width,Height; }
 public static class JarvisWindowInventory {
   private delegate bool Callback(IntPtr window, IntPtr data);
   [DllImport("user32.dll")] private static extern bool EnumWindows(Callback callback, IntPtr data);
@@ -16,6 +16,7 @@ public static class JarvisWindowInventory {
   [StructLayout(LayoutKind.Sequential)] private struct MONITORINFO { public int Size; public RECT Monitor,Work; public uint Flags; }
   [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
   [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr window, int index);
+  [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out RECT rectangle);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
   public static string[] VisibleTitles(uint processId) {
     var titles = new List<string>();
@@ -36,7 +37,8 @@ public static class JarvisWindowInventory {
       if (!IsWindowVisible(window) || IsIconic(window) || MonitorFromWindow(window,0)==IntPtr.Zero) return true;
       var text = new StringBuilder(512); GetWindowText(window,text,text.Capacity);
       string title = text.ToString();
-      if ((title.StartsWith("\uc790\ube44\uc2a4") || title.StartsWith("Jarvis",StringComparison.OrdinalIgnoreCase)) && title.Contains("HUD")) {
+      // Plan/settings documents are auxiliary app windows, not duplicate monitor overlays.
+      if ((title.StartsWith("\uc790\ube44\uc2a4") || title.StartsWith("Jarvis",StringComparison.OrdinalIgnoreCase)) && title.Contains("HUD") && title.Contains("Monitor")) {
         uint owner; GetWindowThreadProcessId(window,out owner);
         titles.Add(owner + "|" + title);
       }
@@ -52,7 +54,8 @@ public static class JarvisWindowInventory {
       var title = new StringBuilder(512); GetWindowText(window,title,title.Capacity);
       if (owner==processId && IsWindowVisible(window) && !IsIconic(window) && title.ToString().Contains("Monitor") && title.ToString().Contains("HUD")) {
         var info = new MONITORINFO(); info.Size=Marshal.SizeOf(typeof(MONITORINFO));
-        found.Add(new JarvisHudPlacement { ProcessId=owner, Primary=GetMonitorInfo(MonitorFromWindow(window,0),ref info) && (info.Flags & 1)!=0, Topmost=(GetWindowLong(window,-20) & 8)!=0 });
+        bool queryOk=GetMonitorInfo(MonitorFromWindow(window,0),ref info); RECT rectangle;GetWindowRect(window,out rectangle);
+        found.Add(new JarvisHudPlacement { ProcessId=owner, Primary=queryOk && (info.Flags & 1)!=0, Topmost=(GetWindowLong(window,-20) & 8)!=0, MonitorQueryOk=queryOk,WindowHandle=window.ToInt64(),X=rectangle.L,Y=rectangle.T,Width=rectangle.R-rectangle.L,Height=rectangle.B-rectangle.T });
       }
       return true;
     };
@@ -68,5 +71,5 @@ foreach ($item in $items) { $windows += @([JarvisWindowInventory]::VisibleTitles
 $global = @([JarvisWindowInventory]::OnscreenHudWindows())
 $placements = @($items | ForEach-Object { [JarvisWindowInventory]::Placements([uint32]$_.ProcessId) })
 $primaryTopmost = $placements.Count -eq 1 -and $placements[0].Primary -and $placements[0].Topmost
-[pscustomobject]@{ ProcessCount = $items.Count; VisibleHudCount = $windows.Count; GlobalOnscreenHudCount = $global.Count; PrimaryAndTopmost = $primaryTopmost; Titles = @($windows); OnscreenHuds = $global } | ConvertTo-Json -Compress
+[pscustomobject]@{ ProcessCount = $items.Count; VisibleHudCount = $windows.Count; GlobalOnscreenHudCount = $global.Count; PrimaryAndTopmost = $primaryTopmost; Titles = @($windows); OnscreenHuds = $global; Placements=$placements } | ConvertTo-Json -Depth 4 -Compress
 if ($items.Count -ne 1 -or $windows.Count -ne 1 -or $global.Count -ne 1 -or -not $primaryTopmost) { exit 1 }

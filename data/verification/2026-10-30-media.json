@@ -1,0 +1,65 @@
+{
+  "measuredAt": "2026-10-30T00:54:12.095Z",
+  "reports": [
+    {
+      "sentence": "음악 꺼줘",
+      "apiMs": 1148,
+      "http": 200,
+      "verified": true,
+      "expected": "Paused",
+      "before": "Playing",
+      "after": [
+        {
+          "artist": "onia music 오니아 뮤직",
+          "source": "whale.exe",
+          "browser": true,
+          "current": false,
+          "status": "Paused",
+          "title": "𝑷𝒍𝒂𝒚𝒍𝒊𝒔𝒕 (가사X) 새벽 도서관 무드 📚 공부가 잘 되는 집중 로파이 플레이리스트 🎧"
+        }
+      ],
+      "intent": "stopMusic",
+      "spoken": "음악을 멈췄습니다."
+    },
+    {
+      "sentence": "음악 다시 틀어줘",
+      "apiMs": 1072,
+      "http": 200,
+      "verified": true,
+      "expected": "Playing",
+      "before": "Paused",
+      "after": [
+        {
+          "artist": "onia music 오니아 뮤직",
+          "source": "whale.exe",
+          "browser": true,
+          "current": false,
+          "status": "Playing",
+          "title": "𝑷𝒍𝒂𝒚𝒍𝒊𝒔𝒕 (가사X) 새벽 도서관 무드 📚 공부가 잘 되는 집중 로파이 플레이리스트 🎧"
+        }
+      ],
+      "intent": "resumeMusic",
+      "spoken": "음악을 다시 재생했습니다."
+    },
+    {
+      "sentence": "음악 꺼줘",
+      "apiMs": 1262,
+      "http": 200,
+      "verified": true,
+      "expected": "Paused",
+      "before": "Playing",
+      "after": [
+        {
+          "artist": "onia music 오니아 뮤직",
+          "source": "whale.exe",
+          "browser": true,
+          "current": false,
+          "status": "Paused",
+          "title": "𝑷𝒍𝒂𝒚𝒍𝒊𝒔𝒕 (가사X) 새벽 도서관 무드 📚 공부가 잘 되는 집중 로파이 플레이리스트 🎧"
+        }
+      ],
+      "intent": "stopMusic",
+      "spoken": "음악을 멈췄습니다."
+    }
+  ]
+}

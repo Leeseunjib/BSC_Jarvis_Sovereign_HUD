@@ -1,0 +1,89 @@
+{
+  "StartedAt": "2026-10-30T11:07:42.7701052+09:00",
+  "EndedAt": "2026-10-30T11:25:17.9017318+09:00",
+  "ObservedSeconds": 1055.13,
+  "RequestedMinutes": 30,
+  "CompletedDuration": false,
+  "Samples": 210,
+  "InitialPid": 50000,
+  "FinalPid": 50000,
+  "Passed": false,
+  "FailureSamples": [
+    {
+      "Time": "2026-10-30T11:22:49.9220007+09:00",
+      "ElapsedSeconds": 907.15,
+      "Pid": 50000,
+      "SamePid": true,
+      "ProcessCount": 1,
+      "VisibleHudCount": 1,
+      "PrimaryTopmost": true,
+      "Placements": [
+        {
+          "ProcessId": 50000,
+          "Primary": true,
+          "Topmost": true,
+          "MonitorQueryOk": true,
+          "WindowHandle": 8327926,
+          "X": 0,
+          "Y": 0,
+          "Width": 720,
+          "Height": 138
+        }
+      ],
+      "Responsive": false,
+      "PrivateMb": 171.67,
+      "Handles": 1544,
+      "GdiObjects": 69,
+      "UserObjects": 74,
+      "Threads": 33,
+      "CpuSeconds": 126.52,
+      "ServerOk": true,
+      "ServerPid": 32020,
+      "MicConnected": false,
+      "Passed": false
+    },
+    {
+      "Time": "2026-10-30T11:24:52.3483011+09:00",
+      "ElapsedSeconds": 1029.58,
+      "Pid": 50000,
+      "SamePid": true,
+      "ProcessCount": 1,
+      "VisibleHudCount": 1,
+      "PrimaryTopmost": true,
+      "Placements": [
+        {
+          "ProcessId": 50000,
+          "Primary": true,
+          "Topmost": true,
+          "MonitorQueryOk": true,
+          "WindowHandle": 8327926,
+          "X": 20,
+          "Y": 20,
+          "Width": 720,
+          "Height": 138
+        }
+      ],
+      "Responsive": false,
+      "PrivateMb": 113.83,
+      "Handles": 1421,
+      "GdiObjects": 69,
+      "UserObjects": 71,
+      "Threads": 30,
+      "CpuSeconds": 140.73,
+      "ServerOk": true,
+      "ServerPid": 32020,
+      "MicConnected": true,
+      "Passed": false
+    }
+  ],
+  "MicDisconnectedSamples": 5,
+  "MinPrivateMb": 113.56,
+  "MaxPrivateMb": 176.09,
+  "StartPrivateMb": 173.39,
+  "EndPrivateMb": 121.45,
+  "MinHandles": 1413.0,
+  "MaxHandles": 1644.0,
+  "MaxGdiObjects": 80.0,
+  "MaxUserObjects": 75.0,
+  "DataFile": "C:\\자비스\\data\\verification\\hud-soak-20261030-110742.jsonl"
+}

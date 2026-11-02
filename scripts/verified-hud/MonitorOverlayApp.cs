@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
@@ -86,7 +87,7 @@ namespace JarvisSasariSa
         private static Window bootWindow;
         private static Window settingsWindow;
         private static Window planDocWindow;
-        private static int lastSeenPlanWindowSeq = 1;
+        private static int lastSeenPlanWindowSeq = -1;
         private static Border hudCardBorder;
         private static TextBlock txtStatus;
         private static TextBlock txtHeard;
@@ -102,10 +103,13 @@ namespace JarvisSasariSa
 
         private static readonly MediaPlayer koreanVoicePlayer = new MediaPlayer();
         private static double currentSpeechSpeedRatio = 1.25;
-        private static string currentBrainProvider = "gemini-cli";
-        private static string currentBrainModel = "gemini-3-flash-preview";
+        private static string currentSpeechVoice = "ko-KR-HyunsuMultilingualNeural";
+        private static TextBlock settingsFeedback;
+        private static readonly System.Threading.SemaphoreSlim settingsSaveGate = new System.Threading.SemaphoreSlim(1, 1);
+        private static string currentBrainProvider = "antigravity-cli";
+        private static string currentBrainModel = "gemini-3.8-flash-low";
+        private static int brainVerifySequence;
         private static string currentUserPlanTier = "ultra";
-        private static DispatcherTimer voiceAutoSubmitTimer;
         private static bool suppressTextChanged = false;
         private static DateTime nextScreenCheck = DateTime.MinValue;
         private static readonly HttpClient http = new HttpClient();
@@ -194,27 +198,17 @@ namespace JarvisSasariSa
                     WriteLog("Re-spawned on Winsta0\\Default ok=" + ok + " pid=" + pi.dwProcessId);
                     return;
                 }
-                try
-                {
-                    int myPid = Process.GetCurrentProcess().Id;
-                    foreach (var p in Process.GetProcesses())
-                    {
-                        try
-                        {
-                            if (p.Id != myPid && p.ProcessName.StartsWith("JarvisHud", StringComparison.OrdinalIgnoreCase))
-                            {
-                                p.Kill();
-                                p.WaitForExit(1500);
-                            }
-                        }
-                        catch { }
-                    }
-                }
-                catch { }
                 bool created;
                 using (var instance = new System.Threading.Mutex(true, "Local\\JarvisDesktopHUD", out created))
                 {
-                    if (!created) { WriteLog("HUD already running; duplicate launch ignored"); return; }
+                    if (!created) {
+                        try { using (var signal = System.Threading.EventWaitHandle.OpenExisting("Local\\JarvisHudShow")) signal.Set(); } catch { }
+                        WriteLog("HUD already running; existing window requested"); return;
+                    }
+                    showRequest = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "Local\\JarvisHudShow");
+                    StartHudSupervisor();
+                    AppDomain.CurrentDomain.UnhandledException += (sender, e) => WriteLog("Unhandled process exception: " + e.ExceptionObject);
+                    AppDomain.CurrentDomain.ProcessExit += (sender, e) => WriteLog("HUD process exiting; explicitQuit=" + allowShutdown);
                     try { RunOverlay(); }
                     finally { instance.ReleaseMutex(); }
                 }
@@ -238,7 +232,7 @@ namespace JarvisSasariSa
         [STAThread]
         public static void RunOverlay()
         {
-            RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+            RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.Default;
             Application app = Application.Current ?? new Application();
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             app.DispatcherUnhandledException += (s, e) =>
@@ -297,109 +291,140 @@ namespace JarvisSasariSa
             }
             catch { }
 
-            voiceAutoSubmitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(4200) };
-            voiceAutoSubmitTimer.Tick += (s, e) =>
-            {
-                voiceAutoSubmitTimer.Stop();
-                SubmitHudInput();
-            };
-
-            WriteLog("Step 2: Before BuildTopMonitorHudWindow");
             BuildTopMonitorHudWindow();
-            WriteLog("Step 3: Before hudWindow.Show()");
-            hudWindow.Show();
-            if (System.Windows.Forms.Screen.AllScreens.Length > 1) BuildSecondaryMonitorHudWindow();
-            PlaceHudWindows();
-            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
-            app.Exit += (s, e) => Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
-            try
-            {
-                IntPtr hwnd = new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle;
-                WriteLog("Step 4: hudWindow Handle = " + hwnd.ToInt64() + " IsVisible=" + hudWindow.IsVisible + " Left=" + hudWindow.Left + " Top=" + hudWindow.Top);
-                if (hwnd != IntPtr.Zero)
-                {
-                    ShowWindow(hwnd, SW_RESTORE);
-                    ShowWindow(hwnd, SW_SHOW);
-                    SetForegroundWindow(hwnd);
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteLog("Step 4 err: " + ex.Message);
-            }
-            hudWindow.Activate();
-
-            // Capture verification screenshot after 900ms to prove HUD pixels are drawn on the monitor
-            DispatcherTimer snapTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
-            snapTimer.Tick += (s, e) =>
-            {
-                snapTimer.Stop();
-                WriteWindowDiag("hudWindow(DISPLAY4)", hudWindow);
-                WriteWindowDiag("secHudWindow(DISPLAY1)", secHudWindow);
-                WriteWindowDiag("thirdHudWindow(DISPLAY2)", thirdHudWindow);
+            hudWindow.SourceInitialized += (sender, e) => {
+                var source = System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle);
+                if (source != null) source.AddHook(KeepHudPositionOnPrimary);
             };
-            snapTimer.Start();
-
-            WriteLog("Step 5: Starting engines and app.Run()");
+            app.MainWindow = hudWindow;
+            hudWindow.Closing += (sender, e) => {
+                if (!allowShutdown) { e.Cancel = true; EnsureHudAlwaysVisibleAndTopmost(); }
+            };
+            var context = new ContextMenu();
+            var returnHome = new MenuItem { Header = "주 모니터로 이동" };
+            returnHome.Click += (sender, e) => PlaceHudWindows();
+            var quit = new MenuItem { Header = "자비스 종료" };
+            quit.Click += (sender, e) => RequestHudShutdown("HUD context menu");
+            context.Items.Add(returnHome); context.Items.Add(quit); hudWindow.ContextMenu = context;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            app.Exit += (sender, e) => {
+                WriteLog("WPF exit code=" + e.ApplicationExitCode + "; explicitQuit=" + allowShutdown);
+                Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            };
+            app.SessionEnding += (sender, e) => { allowShutdown = true; SignalSupervisorStop(); WriteLog("Windows session ending: " + e.ReasonSessionEnding); };
             StartContinuousMicrophoneEngine();
             StartGlobalRightAltHook();
             StartRuntimeTimers();
-
+            ShowFullMonitorBootScene("자비스", "대표님", "음성 비서를 준비하고 있습니다");
             app.Run();
         }
 
-        private static async void EnsureBackendServerRunning()
+        private static bool initialBootComplete, allowShutdown, backendProbeInFlight, backendReady, startupGreetingSpoken, earProbeInFlight;
+        private static DateTime lastEarLaunch = DateTime.MinValue;
+        private static bool earWindowMaintenanceInFlight;
+        private static Process ownedBackend;
+        private static int backendFailures;
+        private static System.Threading.EventWaitHandle showRequest;
+
+        private static void StartHudSupervisor()
         {
-            try
-            {
-                bool serverUp = false;
-                try
-                {
-                    var probe = await http.GetStringAsync("http://127.0.0.1:7788/api/status");
-                    if (!string.IsNullOrEmpty(probe)) serverUp = true;
-                }
-                catch { }
-
-                if (!serverUp)
-                {
-                    string nodeExe = File.Exists("C:\\Program Files\\nodejs\\node.exe")
-                        ? "C:\\Program Files\\nodejs\\node.exe"
-                        : "node.exe";
-                    STARTUPINFO si = new STARTUPINFO();
-                    si.cb = Marshal.SizeOf(si);
-                    si.lpDesktop = "Winsta0\\Default";
-                    si.dwFlags = 1; // STARTF_USESHOWWINDOW
-                    si.wShowWindow = 0; // SW_HIDE
-                    PROCESS_INFORMATION pi;
-                    CreateProcess(null, "\"" + nodeExe + "\" \"C:\\자비스\\server.js\"", IntPtr.Zero, IntPtr.Zero, false, 0x08000000, IntPtr.Zero, "C:\\자비스", ref si, out pi);
-                }
-            }
-            catch { }
-
+            try {
+                System.Threading.Mutex guard;
+                if (System.Threading.Mutex.TryOpenExisting("Local\\JarvisHudSupervisor", out guard)) { guard.Dispose(); return; }
+                var process = Process.GetCurrentProcess();
+                string script = "C:\\자비스\\scripts\\Watch-JarvisHud.ps1";
+                if (!File.Exists(script)) { WriteLog("HUD supervisor script missing"); return; }
+                Process.Start(new ProcessStartInfo {
+                    FileName = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell\\v1.0\\powershell.exe"),
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + script + "\" -HudProcessId " + process.Id + " -ExpectedStartTimeTicks " + process.StartTime.ToUniversalTime().Ticks,
+                    UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
+                });
+                WriteLog("HUD supervisor requested for pid=" + process.Id);
+            } catch (Exception ex) { WriteLog("HUD supervisor launch failed: " + ex.Message); }
         }
 
-        // Dispatcher timers must be created on the HUD's UI thread. The backend
-        // probe above can resume on a worker thread before Application.Run().
+        private static void SignalSupervisorStop()
+        {
+            try { using (var stop = System.Threading.EventWaitHandle.OpenExisting("Local\\JarvisHudSupervisorStop")) stop.Set(); }
+            catch (System.Threading.WaitHandleCannotBeOpenedException) { }
+        }
+
+        private static void RequestHudShutdown(string reason)
+        {
+            allowShutdown = true;
+            WriteLog("Explicit HUD quit: " + reason);
+            SignalSupervisorStop();
+            Application.Current.Shutdown();
+        }
+
+        private static async Task<string> ReadHealth(string path)
+        {
+            using (var cancel = new System.Threading.CancellationTokenSource(1800))
+            using (var response = await http.GetAsync("http://127.0.0.1:7788" + path, cancel.Token)) {
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync();
+            }
+        }
+
+        private static async Task<bool> EnsureBackendServerRunning()
+        {
+            if (backendProbeInFlight) return backendReady;
+            backendProbeInFlight = true;
+            try {
+                try {
+                    string health = await ReadHealth("/api/health");
+                    if (health.Contains("\"service\":\"jarvis\"")) { backendReady = true; backendFailures = 0; return true; }
+                } catch { }
+                backendReady = false; backendFailures++;
+                if (ownedBackend != null && !ownedBackend.HasExited) {
+                    if (backendFailures < 3) return false;
+                    WriteLog("Restarting unresponsive owned backend pid=" + ownedBackend.Id);
+                    await Task.Run(() => { ownedBackend.Kill(); ownedBackend.WaitForExit(1500); });
+                }
+                foreach (var endpoint in System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners()) {
+                    if (endpoint.Port == 7788) { WriteLog("Port 7788 is occupied; leaving its owner untouched"); return false; }
+                }
+                var info = new ProcessStartInfo {
+                    FileName = File.Exists("C:\\Program Files\\nodejs\\node.exe") ? "C:\\Program Files\\nodejs\\node.exe" : "node.exe",
+                    Arguments = "\"C:\\자비스\\server.verified.js\"", WorkingDirectory = "C:\\자비스",
+                    UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
+                    RedirectStandardOutput = true, RedirectStandardError = true
+                };
+                ownedBackend = new Process { StartInfo = info };
+                ownedBackend.OutputDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) WriteLog("Backend: " + e.Data); };
+                ownedBackend.ErrorDataReceived += (sender, e) => { if (!string.IsNullOrEmpty(e.Data)) WriteLog("Backend error: " + e.Data); };
+                ownedBackend.Start(); ownedBackend.BeginOutputReadLine(); ownedBackend.BeginErrorReadLine();
+                backendFailures = 0;
+                WriteLog("Backend launched pid=" + ownedBackend.Id + " entry=server.verified.js");
+                await Task.Delay(750);
+                try { backendReady = (await ReadHealth("/api/health")).Contains("\"service\":\"jarvis\""); } catch { }
+                return backendReady;
+            }
+            catch (Exception ex) { WriteLog("Backend recovery: " + ex.Message); return false; }
+            finally { backendProbeInFlight = false; }
+        }
+
         private static void StartRuntimeTimers()
         {
             WriteLog("Runtime timers started on HUD UI thread");
-            // Automatically start the dedicated background microphone sensor.
-            DispatcherTimer autoEarTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
-            autoEarTimer.Tick += (s, e) =>
-            {
-                autoEarTimer.Stop();
-                StartInvisibleChromeEarWorker();
+            var recovery = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            recovery.Tick += async (sender, e) => {
+                bool wasReady = backendReady;
+                if (await EnsureBackendServerRunning()) {
+                    StartInvisibleChromeEarWorker();
+                    if (initialBootComplete && !startupGreetingSpoken) {
+                        startupGreetingSpoken = true; SpeakAsync("자비스가 준비되었습니다.");
+                    }
+                    if (!wasReady && initialBootComplete && txtStatus != null) txtStatus.Text = "○ 서버 연결 복구 · 명령을 말씀해 주세요";
+                } else if (initialBootComplete && txtStatus != null) txtStatus.Text = "⚠ 서버 연결 복구 중 · 다시 확인하고 있습니다";
             };
-            autoEarTimer.Start();
-
-            // Sweep every 250ms to guarantee the Chrome Ear Worker window is 100% invisible AND the HUD Pill stays 24/7 pinned on the desktop
-            DispatcherTimer hideSweeper = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-            hideSweeper.Tick += (s, e) =>
-            {
-                HideChromeEarWindows();
-                EnsureHudAlwaysVisibleAndTopmost();
+            recovery.Start();
+            var visibility = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            visibility.Tick += (sender, e) => {
+                HideChromeEarWindows(); EnsureHudAlwaysVisibleAndTopmost();
+                if (showRequest != null && showRequest.WaitOne(0) && initialBootComplete) PlaceHudWindows();
             };
-            hideSweeper.Start();
+            visibility.Start();
         }
 
         [DllImport("user32.dll")]
@@ -448,128 +473,132 @@ namespace JarvisSasariSa
 
         private static void EnsureHudAlwaysVisibleAndTopmost()
         {
-            try
-            {
-                if (hudWindow != null)
-                {
-                    if (hudWindow.WindowState == WindowState.Minimized)
-                        hudWindow.WindowState = WindowState.Normal;
-                    if (!hudWindow.IsVisible)
-                        hudWindow.Show();
-                    IntPtr h1 = new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle;
-                    if (h1 != IntPtr.Zero)
-                    {
-                        SetWindowPos(h1, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-                    }
-                }
-                if (secHudWindow != null)
-                {
-                    if (secHudWindow.WindowState == WindowState.Minimized)
-                        secHudWindow.WindowState = WindowState.Normal;
-                    if (!secHudWindow.IsVisible)
-                        secHudWindow.Show();
-                    IntPtr h2 = new System.Windows.Interop.WindowInteropHelper(secHudWindow).Handle;
-                    if (h2 != IntPtr.Zero)
-                    {
-                        SetWindowPos(h2, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-                    }
-                }
-                if (thirdHudWindow != null)
-                {
-                    if (thirdHudWindow.WindowState == WindowState.Minimized)
-                        thirdHudWindow.WindowState = WindowState.Normal;
-                    if (!thirdHudWindow.IsVisible)
-                        thirdHudWindow.Show();
-                    IntPtr h3 = new System.Windows.Interop.WindowInteropHelper(thirdHudWindow).Handle;
-                    if (h3 != IntPtr.Zero)
-                    {
-                        SetWindowPos(h3, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-                    }
-                }
-                if (DateTime.UtcNow >= nextScreenCheck)
-                {
-                    nextScreenCheck = DateTime.UtcNow.AddSeconds(2);
-                    KeepWindowOnScreen(hudWindow);
-                    KeepWindowOnScreen(secHudWindow);
-                    KeepWindowOnScreen(thirdHudWindow);
-                }
-            }
-            catch { }
+            if (!initialBootComplete || allowShutdown || hudWindow == null) return;
+            try {
+                if (hudWindow.WindowState == WindowState.Minimized) hudWindow.WindowState = WindowState.Normal;
+                if (!hudWindow.IsVisible) hudWindow.Show();
+                IntPtr handle = new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle;
+                if (handle != IntPtr.Zero) SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                if (DateTime.UtcNow >= nextScreenCheck) { nextScreenCheck = DateTime.UtcNow.AddSeconds(2); KeepWindowOnScreen(hudWindow); }
+            } catch (Exception ex) { WriteLog("HUD visibility: " + ex.Message); }
         }
 
         private static void OnDisplaySettingsChanged(object sender, EventArgs e)
         {
             if (hudWindow == null) return;
-            hudWindow.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                try
-                {
-                    int count = System.Windows.Forms.Screen.AllScreens.Length;
-                    if (count > 1 && secHudWindow == null) BuildSecondaryMonitorHudWindow();
-                    if (count > 2 && thirdHudWindow == null) BuildThirdMonitorHudWindow();
-                    PlaceHudWindows();
-                    EnsureHudAlwaysVisibleAndTopmost();
+            hudWindow.Dispatcher.BeginInvoke(new Action(() => { PlaceHudWindows(); EnsureHudAlwaysVisibleAndTopmost(); }));
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HudWindowPosition {
+            public IntPtr Window, InsertAfter;
+            public int X, Y, Width, Height;
+            public uint Flags;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HudWindowRectangle { public int Left, Top, Right, Bottom; }
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr window, out HudWindowRectangle rectangle);
+
+        // Clamp the proposed native move before Windows applies it. A polling
+        // correction after DragMove lets the HUD leave the primary monitor first.
+        private static IntPtr KeepHudPositionOnPrimary(IntPtr window, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WindowPositionChanging = 0x0046;
+            if (message != WindowPositionChanging || lParam == IntPtr.Zero || allowShutdown) return IntPtr.Zero;
+            try {
+                var position = (HudWindowPosition)Marshal.PtrToStructure(lParam, typeof(HudWindowPosition));
+                bool moving = (position.Flags & SWP_NOMOVE) == 0;
+                bool resizing = (position.Flags & SWP_NOSIZE) == 0;
+                if (!moving && !resizing) return IntPtr.Zero;
+                var bounds = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
+                int width = position.Width, height = position.Height;
+                if (!moving || !resizing) {
+                    HudWindowRectangle rectangle;
+                    if (!GetWindowRect(window, out rectangle)) return IntPtr.Zero;
+                    if (!resizing) { width = rectangle.Right - rectangle.Left; height = rectangle.Bottom - rectangle.Top; }
+                    if (!moving) { position.X = rectangle.Left; position.Y = rectangle.Top; }
                 }
-                catch (Exception ex) { WriteLog("HUD display change: " + ex.Message); }
-            }));
+                int x = Math.Max(bounds.Left, Math.Min(position.X, bounds.Right - Math.Max(1, width)));
+                int y = Math.Max(bounds.Top, Math.Min(position.Y, bounds.Bottom - Math.Max(1, height)));
+                if (x != position.X || y != position.Y) position.Flags &= ~SWP_NOMOVE;
+                position.X = x; position.Y = y;
+                Marshal.StructureToPtr(position, lParam, false);
+            } catch (Exception ex) { WriteLog("HUD position clamp: " + ex.Message); }
+            return IntPtr.Zero;
         }
 
         private static void KeepWindowOnScreen(Window window)
         {
             if (window == null || !window.IsLoaded) return;
             var source = System.Windows.PresentationSource.FromVisual(window);
-            var toDevice = source != null && source.CompositionTarget != null
-                ? source.CompositionTarget.TransformToDevice : System.Windows.Media.Matrix.Identity;
-            var toLogical = source != null && source.CompositionTarget != null
-                ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
-            var topLeft = toDevice.Transform(new System.Windows.Point(window.Left, window.Top));
-            var bottomRight = toDevice.Transform(new System.Windows.Point(window.Left + window.Width, window.Top + window.Height));
-            foreach (var screen in System.Windows.Forms.Screen.AllScreens)
-            {
-                var bounds = screen.WorkingArea;
-                double visibleWidth = Math.Min(bottomRight.X, bounds.Right) - Math.Max(topLeft.X, bounds.Left);
-                double visibleHeight = Math.Min(bottomRight.Y, bounds.Bottom) - Math.Max(topLeft.Y, bounds.Top);
-                if (visibleWidth >= 48 && visibleHeight >= 32) return;
-            }
-            var primary = System.Windows.Forms.Screen.PrimaryScreen;
-            if (primary == null) return;
-            var fallback = toLogical.Transform(new System.Windows.Point(primary.WorkingArea.Left, primary.WorkingArea.Top));
-            window.Left = fallback.X + 20;
-            window.Top = fallback.Y + 20;
+            var transform = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformToDevice : System.Windows.Media.Matrix.Identity;
+            var point = transform.Transform(new Point(window.Left, window.Top));
+            var bounds = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
+            if (point.X < bounds.Left || point.Y < bounds.Top || point.X + window.ActualWidth * transform.M11 > bounds.Right || point.Y + 80 * transform.M22 > bounds.Bottom) PlaceHudWindows();
         }
 
         private static async void StartInvisibleChromeEarWorker()
         {
-            try
-            {
-                try
-                {
-                    string health = await http.GetStringAsync("http://127.0.0.1:7788/api/ear/health");
-                    if (health.Contains("\"connected\":true")) return;
+            if (earProbeInFlight || !backendReady) return;
+            earProbeInFlight = true;
+            try {
+                string health = await ReadHealth("/api/ear/health");
+                if (health.Contains("\"connected\":true")) return;
+                // A recognition restart is not a dead worker. The server only
+                // requests recovery once the heartbeat has actually expired.
+                if (!health.Contains("\"recoverable\":true")) return;
+                if (DateTime.UtcNow - lastEarLaunch < TimeSpan.FromSeconds(30)) return;
+                if (health.Contains("not-allowed") || health.Contains("permission-denied")) {
+                    if (txtStatus != null) txtStatus.Text = "⚠ 마이크 권한을 확인해 주세요"; return;
                 }
-                catch { }
-                string profileDir = "C:\\자비스\\data\\chrome-ear-profile";
-                Directory.CreateDirectory(profileDir);
-                string chromePath = File.Exists("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe")
-                    ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-                    : "msedge.exe";
-                ProcessStartInfo earPsi = new ProcessStartInfo
-                {
-                    FileName = chromePath,
-                    Arguments = "--app=http://127.0.0.1:7788/ear?worker=1 --use-fake-ui-for-media-stream --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --user-data-dir=\"" + profileDir + "\" --window-position=-3200,-3200 --window-size=320,120",
-                    UseShellExecute = false
-                };
-                Process.Start(earPsi);
-            }
-            catch (Exception ex) { WriteLog("Microphone worker startup: " + ex.Message); }
+                lastEarLaunch = DateTime.UtcNow;
+                var recoveryClock = Stopwatch.StartNew();
+                WriteLog("Dedicated microphone recovery started: stale heartbeat");
+                // WMI enumeration and process exit can take seconds. Neither
+                // belongs on the WPF dispatcher that keeps the HUD responsive.
+                await Task.Run(() => RestartDedicatedEarWorker());
+                WriteLog("Dedicated microphone recovery completed in " + recoveryClock.ElapsedMilliseconds + " ms");
+            } catch (Exception ex) { WriteLog("Microphone recovery: " + ex.Message); }
+            finally { earProbeInFlight = false; }
         }
 
-        private static void HideChromeEarWindows()
+        private static void RestartDedicatedEarWorker()
         {
+                const string profileDir = "C:\\자비스\\data\\chrome-ear-profile";
+                var queryOptions = new System.Management.EnumerationOptions { Timeout = TimeSpan.FromSeconds(3) };
+                using (var searcher = new System.Management.ManagementObjectSearcher("root\\CIMV2", "SELECT ProcessId,CommandLine FROM Win32_Process WHERE Name='chrome.exe'", queryOptions))
+                using (var rows = searcher.Get()) {
+                    foreach (System.Management.ManagementObject row in rows) {
+                        string command = Convert.ToString(row["CommandLine"]);
+                        if (command.IndexOf(profileDir, StringComparison.OrdinalIgnoreCase) >= 0 && !command.Contains("--type=")) {
+                            try { using (var worker = Process.GetProcessById(Convert.ToInt32(row["ProcessId"]))) { worker.Kill(); worker.WaitForExit(1500); } } catch { }
+                        }
+                    }
+                }
+                Directory.CreateDirectory(profileDir);
+                string chromePath = File.Exists("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe") ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" : "msedge.exe";
+                if (allowShutdown) return;
+                using (Process.Start(new ProcessStartInfo {
+                    FileName = chromePath,
+                    Arguments = "--app=http://127.0.0.1:7788/ear?worker=1 --use-fake-ui-for-media-stream --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows --user-data-dir=\"" + profileDir + "\" --window-position=-3200,-3200 --window-size=320,120",
+                    UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden
+                })) { }
+                WriteLog("Dedicated microphone worker restarted");
+        }
+
+        private static async void HideChromeEarWindows()
+        {
+            if (earWindowMaintenanceInFlight || allowShutdown) return;
+            earWindowMaintenanceInFlight = true;
             IntPtr myHwnd1 = hudWindow != null ? new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle : IntPtr.Zero;
             IntPtr myHwnd2 = secHudWindow != null ? new System.Windows.Interop.WindowInteropHelper(secHudWindow).Handle : IntPtr.Zero;
             try
             {
+                // Cross-process window messages may wait for Chrome's UI thread.
+                // Keep that wait off the HUD dispatcher and allow only one scan.
+                await Task.Run(() => {
                 EnumWindows((hWnd, lParam) =>
                 {
                     if (hWnd == myHwnd1 || hWnd == myHwnd2) return true;
@@ -586,13 +615,16 @@ namespace JarvisSasariSa
                             {
                                 SetWindowLong(hWnd, GWL_EXSTYLE, desired);
                             }
-                            SetWindowPos(hWnd, IntPtr.Zero, -32000, -32000, 320, 120, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+                            const uint AsyncWindowPosition = 0x4000;
+                            SetWindowPos(hWnd, IntPtr.Zero, -32000, -32000, 320, 120, SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | AsyncWindowPosition);
                         }
                     }
                     return true;
                 }, IntPtr.Zero);
+                });
             }
             catch { }
+            finally { earWindowMaintenanceInFlight = false; }
         }
 
         // =====================================================================
@@ -630,11 +662,11 @@ namespace JarvisSasariSa
                 };
                 var trayMenu = new System.Windows.Forms.ContextMenuStrip();
                 trayMenu.Items.Add("🎙 지금 말하기 (음성 듣기)", null, (s, e) => PromptListenNow());
-                trayMenu.Items.Add("🔊 HD 자연음성 미리 듣기", null, (s, e) => SpeakAsync("안녕하세요, 이건우 대표님. 스튜디오 에이치디 현수 자연음성으로 정상 작동 중입니다."));
+                trayMenu.Items.Add("🔊 HD 자연음성 미리 듣기", null, (s, e) => SpeakAsync("안녕하세요, 이건우 대표님. 선택한 목소리와 속도로 안내하고 있습니다."));
                 trayMenu.Items.Add("⚡ 깨우기 장면 (BootScene)", null, (s, e) => SendCommandToButler("아빠 왔어"));
                 trayMenu.Items.Add("⚙ 단축키 및 호출 설정…", null, (s, e) => ShowHotkeySettingsWindow());
                 trayMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-                trayMenu.Items.Add("✕ 자비스 종료 (Quit)", null, (s, e) => { tray.Visible = false; Application.Current.Shutdown(); });
+                trayMenu.Items.Add("✕ 자비스 종료 (Quit)", null, (s, e) => { tray.Visible = false; RequestHudShutdown("tray menu"); });
                 tray.ContextMenuStrip = trayMenu;
                 tray.DoubleClick += (s, e) => { hudWindow.Show(); hudWindow.Activate(); };
             }
@@ -690,7 +722,7 @@ namespace JarvisSasariSa
             miWake.Click += (s, e) => PromptListenNow();
             ctx.Items.Add(miWake);
 
-            MenuItem miVoiceTest = new MenuItem { Header = "🔊 HD 자연음성 미리 듣기 (현수 Neural)" };
+            MenuItem miVoiceTest = new MenuItem { Header = "🔊 설정한 음성 미리 듣기" };
             miVoiceTest.Click += (s, e) => SpeakAsync("안녕하세요, 대표님. 자비스입니다. 스튜디오 HD 자연음성으로 정상 연결되었습니다.");
             ctx.Items.Add(miVoiceTest);
 
@@ -727,7 +759,7 @@ namespace JarvisSasariSa
             ctx.Items.Add(new Separator());
 
             MenuItem miQuit = new MenuItem { Header = "✕ 자비스 종료 (Quit)" };
-            miQuit.Click += (s, e) => Application.Current.Shutdown();
+            miQuit.Click += (s, e) => RequestHudShutdown("HUD menu");
             ctx.Items.Add(miQuit);
 
             hudCardBorder.ContextMenu = ctx;
@@ -804,16 +836,19 @@ namespace JarvisSasariSa
             textCol.Children.Add(txtMainBody);
 
             // Visible typed command input; voice typing can still use this field.
-            StackPanel cmdRow = new StackPanel
+            Grid cmdRow = new Grid
             {
-                Orientation = Orientation.Horizontal,
                 Margin = new Thickness(0, 4, 0, 0)
             };
+            cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             textCol.Children.Add(cmdRow);
 
             inputBox = new TextBox
             {
-                Width = 340,
+                MinWidth = 80,
                 Height = 31,
                 BorderThickness = new Thickness(1),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(65, 86, 105)),
@@ -841,11 +876,6 @@ namespace JarvisSasariSa
                     if (secTxtMainBody != null) secTxtMainBody.Text = live;
                     if (thirdTxtStatus != null) thirdTxtStatus.Text = "○ 받아 적는 중";
                     if (thirdTxtMainBody != null) thirdTxtMainBody.Text = live;
-                    if (voiceAutoSubmitTimer != null)
-                    {
-                        voiceAutoSubmitTimer.Stop();
-                        voiceAutoSubmitTimer.Start();
-                    }
                 }
             };
             cmdRow.Children.Add(inputBox);
@@ -853,18 +883,21 @@ namespace JarvisSasariSa
             Button btnSubmit = CreatePillButton("전송", CyanColor);
             btnSubmit.Margin = new Thickness(6, 0, 0, 0);
             btnSubmit.Click += (s, e) => SubmitHudInput();
+            Grid.SetColumn(btnSubmit, 1);
             cmdRow.Children.Add(btnSubmit);
 
             btnYes = CreatePillButton("응 (전송)", LimeColor);
             btnYes.Margin = new Thickness(6, 0, 6, 0);
             btnYes.Visibility = Visibility.Collapsed;
             btnYes.Click += (s, e) => SendCommandToButler("응");
+            Grid.SetColumn(btnYes, 2);
             cmdRow.Children.Add(btnYes);
 
             btnNo = CreatePillButton("아니 (취소)", AmberColor);
             btnNo.Margin = new Thickness(0, 0, 0, 0);
             btnNo.Visibility = Visibility.Collapsed;
             btnNo.Click += (s, e) => SendCommandToButler("아니");
+            Grid.SetColumn(btnNo, 3);
             cmdRow.Children.Add(btnNo);
 
             // Top-right subtle native vector Settings Icon (only icon at top-right, no text buttons)
@@ -902,36 +935,12 @@ namespace JarvisSasariSa
 
         private static void PlaceHudWindows()
         {
-            try
-            {
-                var screens = System.Windows.Forms.Screen.AllScreens;
-                var windows = new Window[] { hudWindow, secHudWindow, thirdHudWindow };
-                int index = 0;
-                var source = System.Windows.PresentationSource.FromVisual(hudWindow);
-                var transform = source != null && source.CompositionTarget != null
-                    ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
-                foreach (var screen in screens)
-                {
-                    if (!screen.Primary) continue;
-                    var p = transform.Transform(new System.Windows.Point(screen.WorkingArea.Left, screen.WorkingArea.Top));
-                    hudWindow.Left = p.X + 20;
-                    hudWindow.Top = p.Y + 20;
-                    index = 1;
-                    break;
-                }
-                foreach (var screen in screens)
-                {
-                    if (screen.Primary || index >= windows.Length) continue;
-                    if (windows[index] != null)
-                    {
-                        var p = transform.Transform(new System.Windows.Point(screen.WorkingArea.Left, screen.WorkingArea.Top));
-                        windows[index].Left = p.X + 20;
-                        windows[index].Top = p.Y + 20;
-                    }
-                    index++;
-                }
-            }
-            catch (Exception ex) { WriteLog("HUD placement: " + ex.Message); }
+            if (hudWindow == null) return;
+            var screen = System.Windows.Forms.Screen.PrimaryScreen;
+            var source = System.Windows.PresentationSource.FromVisual(hudWindow);
+            var transform = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
+            var point = transform.Transform(new Point(screen.WorkingArea.Left, screen.WorkingArea.Top));
+            hudWindow.Left = point.X + 20; hudWindow.Top = point.Y + 20;
         }
 
         private static void BuildSecondaryMonitorHudWindow()
@@ -1147,249 +1156,28 @@ namespace JarvisSasariSa
         // =====================================================================
         private static void ShowFullMonitorBootScene(string assistantName, string userName, string helloLine)
         {
-            if (bootWindow != null)
-            {
-                try { bootWindow.Close(); } catch { }
-                bootWindow = null;
-            }
-
-            double W = SystemParameters.PrimaryScreenWidth;
-            double H = SystemParameters.PrimaryScreenHeight;
-
-            bootWindow = new Window
-            {
-                Title = "자비스 BootScene Overlay",
-                Width = W,
-                Height = H,
-                Left = 0,
-                Top = 0,
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                Background = new SolidColorBrush(Color.FromArgb(165, 3, 14, 24)), // Translucent so desktop shows through!
-                Topmost = true,
-                ShowInTaskbar = false
+            if (initialBootComplete || bootWindow != null) return;
+            var area = System.Windows.Forms.Screen.PrimaryScreen.Bounds;
+            bootWindow = new Window {
+                Title = "자비스 BootScene Overlay", WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
+                AllowsTransparency = true, Background = new SolidColorBrush(Color.FromArgb(245, 3, 14, 24)),
+                Topmost = true, ShowInTaskbar = false, Left = area.Left, Top = area.Top,
+                Width = SystemParameters.PrimaryScreenWidth, Height = SystemParameters.PrimaryScreenHeight
             };
-
-            Canvas canvas = new Canvas { Width = W, Height = H };
-            bootWindow.Content = canvas;
-
-            // Top-Left Pill Badge + Boot Sequence Log (Screenshot 1 1:1)
-            StackPanel leftPanel = new StackPanel { Width = 540 };
-            Canvas.SetLeft(leftPanel, 64);
-            Canvas.SetTop(leftPanel, 48);
-            canvas.Children.Add(leftPanel);
-
-            Border topBadge = new Border
-            {
-                Background = new SolidColorBrush(CyanColor),
-                CornerRadius = new CornerRadius(18),
-                Padding = new Thickness(18, 6, 18, 6),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0, 0, 0, 22)
+            var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            panel.Children.Add(CreateSpinningOrb(250, false));
+            panel.Children.Add(new TextBlock { Text = "J A R V I S", FontSize = 36, Foreground = new SolidColorBrush(CyanColor), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 24, 0, 12) });
+            panel.Children.Add(new TextBlock { Text = helloLine, FontSize = 20, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+            panel.Children.Add(new TextBlock { Text = "잠시 후 주 모니터에서 시작합니다", FontSize = 14, Foreground = Brushes.LightGray, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12, 0, 0) });
+            bootWindow.Content = panel;
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+            bootWindow.Closed += (sender, e) => {
+                timer.Stop(); bootWindow = null; initialBootComplete = true;
+                hudWindow.Show(); PlaceHudWindows(); EnsureHudAlwaysVisibleAndTopmost();
+                WriteLog("Startup complete: one primary HUD visible after boot"); WriteWindowDiag("primary HUD", hudWindow);
             };
-            topBadge.Child = new TextBlock
-            {
-                Text = "실제 화면 · 비서 이름은 「" + assistantName + "」",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 20,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(4, 12, 20))
-            };
-            leftPanel.Children.Add(topBadge);
-
-            TextBlock bootLog = new TextBlock
-            {
-                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
-                FontSize = 19,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(CyanColor),
-                LineHeight = 32,
-                Effect = new DropShadowEffect { Color = CyanColor, BlurRadius = 10, ShadowDepth = 0, Opacity = 0.8 }
-            };
-            leftPanel.Children.Add(bootLog);
-
-            string[] bootLines = new string[]
-            {
-                assistantName + " · BOOT SEQUENCE",
-                "────────────────────────────────",
-                "> 음성 인식 모듈 ············· ONLINE",
-                "> WHISPER ···················· READY",
-                "> CLAUDE 링크 ················ ONLINE",
-                "> 화면 · 키보드 제어 ········· GRANT",
-                "> 메모리 사용량 ·············· 정상 (ALL NOMINAL)"
-            };
-
-            for (int i = 0; i < bootLines.Length; i++)
-            {
-                int idx = i;
-                DispatcherTimer dt = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180 + idx * 220) };
-                dt.Tick += (s, e) =>
-                {
-                    dt.Stop();
-                    bootLog.Text += (idx == 0 ? "" : "\n") + bootLines[idx];
-                };
-                dt.Start();
-            }
-
-            // Top-Right Clock & Date (Screenshot 1 1:1)
-            StackPanel rightClock = new StackPanel { HorizontalAlignment = HorizontalAlignment.Right };
-            Canvas.SetRight(rightClock, 68);
-            Canvas.SetTop(rightClock, 86);
-            canvas.Children.Add(rightClock);
-
-            DateTime now = DateTime.Now;
-            rightClock.Children.Add(new TextBlock
-            {
-                Text = now.ToString("HH:mm"),
-                FontFamily = new FontFamily("Segoe UI Light, Consolas"),
-                FontSize = 92,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Effect = new DropShadowEffect { Color = CyanColor, BlurRadius = 14, ShadowDepth = 0 }
-            });
-            rightClock.Children.Add(new TextBlock
-            {
-                Text = now.ToString("yyyy.MM.dd  dddd"),
-                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
-                FontSize = 22,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(CyanColor),
-                HorizontalAlignment = HorizontalAlignment.Right
-            });
-
-            // Center 420x420 Arc Reactor + Spaced Title + Greeting Subtitle (Screenshot 1 1:1)
-            StackPanel centerReactor = new StackPanel
-            {
-                Width = 520,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            Canvas.SetLeft(centerReactor, (W - 520) / 2.0);
-            Canvas.SetTop(centerReactor, (H - 560) / 2.0);
-            canvas.Children.Add(centerReactor);
-
-            FrameworkElement bigReactor = CreateSpinningOrb(380, false);
-            centerReactor.Children.Add(bigReactor);
-
-            string spacedName = string.Join("   ", assistantName.ToCharArray());
-            centerReactor.Children.Add(new TextBlock
-            {
-                Text = spacedName,
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 46,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = new SolidColorBrush(CyanColor),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 12, 0, 10),
-                Effect = new DropShadowEffect { Color = CyanColor, BlurRadius = 16, ShadowDepth = 0 }
-            });
-
-            Border helloPill = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(210, 8, 12, 18)),
-                CornerRadius = new CornerRadius(16),
-                Padding = new Thickness(24, 10, 24, 10),
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            helloPill.Child = new TextBlock
-            {
-                Text = "「" + helloLine + "」",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 32,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = Brushes.White
-            };
-            centerReactor.Children.Add(helloPill);
-
-            DispatcherTimer closeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-
-            StackPanel bootControls = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 16, 0, 0)
-            };
-            centerReactor.Children.Add(bootControls);
-
-            Button btnPinBoot = CreatePillButton("📌 계속 켜두기 (고정)", CyanColor);
-            btnPinBoot.Click += (s, e) =>
-            {
-                closeTimer.Stop();
-                btnPinBoot.Content = "✓ 고정됨 (드래그하여 이동 가능)";
-            };
-            bootControls.Children.Add(btnPinBoot);
-
-            bool isCompactBoot = false;
-            Button btnWindowMode = CreatePillButton("✥ 이동형 창 크기 전환", LimeColor);
-            btnWindowMode.Margin = new Thickness(8, 0, 0, 0);
-            btnWindowMode.Click += (s, e) =>
-            {
-                closeTimer.Stop();
-                isCompactBoot = !isCompactBoot;
-                if (isCompactBoot)
-                {
-                    bootWindow.Width = 1120;
-                    bootWindow.Height = 680;
-                    bootWindow.Left = (W - 1120) / 2.0;
-                    bootWindow.Top = 210;
-                    Canvas.SetLeft(centerReactor, (1120 - 520) / 2.0);
-                    Canvas.SetTop(centerReactor, 60);
-                }
-                else
-                {
-                    bootWindow.Width = W;
-                    bootWindow.Height = H;
-                    bootWindow.Left = 0;
-                    bootWindow.Top = 0;
-                    Canvas.SetLeft(centerReactor, (W - 520) / 2.0);
-                    Canvas.SetTop(centerReactor, (H - 560) / 2.0);
-                }
-            };
-            bootControls.Children.Add(btnWindowMode);
-
-            Button btnCloseBoot = CreatePillButton("✕ 부트화면 닫기", AmberColor);
-            btnCloseBoot.Margin = new Thickness(8, 0, 0, 0);
-            btnCloseBoot.Click += (s, e) =>
-            {
-                closeTimer.Stop();
-                if (bootWindow != null)
-                {
-                    try { bootWindow.Close(); } catch { }
-                    bootWindow = null;
-                }
-            };
-            bootControls.Children.Add(btnCloseBoot);
-
-            bootWindow.MouseLeftButtonDown += (s, e) =>
-            {
-                if (e.LeftButton == MouseButtonState.Pressed)
-                {
-                    try { bootWindow.DragMove(); } catch { }
-                }
-            };
-
-            bootWindow.Show();
-
-            // Ensure Top-Monitor HUD Bar stays ABOVE BootScene at all times
-            if (hudWindow != null)
-            {
-                hudWindow.Topmost = false;
-                hudWindow.Topmost = true;
-                hudWindow.Activate();
-            }
-
-            PlaySynthChime();
-            SpeakAsync(helloLine);
-
-            closeTimer.Tick += (s, e) =>
-            {
-                closeTimer.Stop();
-                if (bootWindow != null)
-                {
-                    try { bootWindow.Close(); } catch { }
-                    bootWindow = null;
-                }
-            };
-            closeTimer.Start();
+            timer.Tick += (sender, e) => { timer.Stop(); if (bootWindow != null) bootWindow.Close(); };
+            bootWindow.Show(); WriteLog("Startup boot visible; main HUD hidden"); timer.Start();
         }
 
         // =====================================================================
@@ -1469,15 +1257,28 @@ namespace JarvisSasariSa
             DispatcherTimer earPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             string lastSyncedKey = "";
             string lastSpokenKey = "";
+            bool earPollInFlight = false;
+            bool earWarningVisible = false;
+            string statusBeforeEarWarning = "";
             earPollTimer.Tick += async (s, e) =>
             {
+                if (earPollInFlight) return;
+                earPollInFlight = true;
+                try {
                 try
                 {
                     string json = await http.GetStringAsync("http://127.0.0.1:7788/api/ear/latest");
                     if (string.IsNullOrEmpty(json)) return;
                     if (json.Contains("\"microphone\":\"error\"") || json.Contains("\"recognition\":\"error\""))
                     {
+                        if (!earWarningVisible) statusBeforeEarWarning = txtStatus.Text;
+                        earWarningVisible = true;
                         txtStatus.Text = "⚠ 마이크 또는 음성 인식 확인";
+                    }
+                    else if (earWarningVisible && json.Contains("\"recognition\":\"listening\""))
+                    {
+                        txtStatus.Text = string.IsNullOrEmpty(statusBeforeEarWarning) ? "○ 호출어 대기 · 음성 연결 복구" : statusBeforeEarWarning;
+                        earWarningVisible = false;
                     }
 
                     // 1. Animate Orb core scale from live microphone RMS (`HUD.swift` line 52: 1 + min(v * 18, 0.6))
@@ -1510,15 +1311,13 @@ namespace JarvisSasariSa
                     string key = itemTs + "|" + heard + "|" + spoken + "|" + isFinal + "|" + hudTitle + "|" + hudSubtitle;
                     if (key == lastSyncedKey) return;
                     lastSyncedKey = key;
+                    earWarningVisible = false;
+                    string researchId = ExtractJsonField(json, "researchId");
+                    if (!string.IsNullOrEmpty(researchId)) await ShowResearchResultAsync(researchId);
 
                     if (!string.IsNullOrWhiteSpace(heard))
                     {
                         if (isMiniMode) ToggleMiniMode(false);
-                        if (isFinal && !string.IsNullOrEmpty(hudTitle) && hudTitle.Contains("음성 확정 실패"))
-                        {
-                            SendCommandToButler(heard);
-                            return;
-                        }
                         if (!isFinal)
                         {
                             try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
@@ -1554,7 +1353,7 @@ namespace JarvisSasariSa
                                 lastSpokenKey = key;
                                 if (heard.Contains("아빠 왔어") || heard.Contains("나 왔어"))
                                 {
-                                    ShowFullMonitorBootScene("자비스", "대표님", spoken);
+                                    SpeakAsync(spoken);
                                 }
                                 else
                                 {
@@ -1570,8 +1369,130 @@ namespace JarvisSasariSa
                     await PollSubWindowsAsync();
                 }
                 catch { }
+                } finally { earPollInFlight = false; }
             };
             earPollTimer.Start();
+        }
+
+        private static Window researchWindow;
+        private static string lastResearchId = "";
+        private static string loadingResearchId = "";
+        public class ResearchSection { public string title; public string text; public int sourceId; }
+        public class ResearchSource { public int id; public string title; public string url; public string domain; public string readStatus; }
+        public class ResearchReport { public string id; public string query; public string title; public string status; public string createdAt; public string provider; public string note; public string summary; public string[] keywords; public ResearchSection[] sections; public ResearchSource[] sources; }
+
+        private static TextBlock ResearchText(string text, double size, Brush color)
+        {
+            return new TextBlock { Text = text ?? "", FontSize = size, Foreground = color, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12), LineHeight = size * 1.55 };
+        }
+
+        private static void DragResearchWindow(object sender, MouseButtonEventArgs e)
+        {
+            if (researchWindow == null || e.ChangedButton != MouseButton.Left || e.ButtonState != MouseButtonState.Pressed || e.ClickCount != 1) return;
+            DependencyObject source = e.OriginalSource as DependencyObject;
+            while (source != null) {
+                if (source is System.Windows.Controls.Primitives.ButtonBase || source is System.Windows.Controls.Primitives.TextBoxBase || source is System.Windows.Controls.Primitives.ScrollBar || source is System.Windows.Controls.Primitives.Thumb) return;
+                source = source is Visual ? VisualTreeHelper.GetParent(source) : LogicalTreeHelper.GetParent(source);
+            }
+            try { e.Handled = true; researchWindow.DragMove(); }
+            catch (Exception ex) { WriteLog("Research drag: " + ex.Message); }
+        }
+
+        private static async Task ShowResearchResultAsync(string id)
+        {
+            if (id == lastResearchId || id == loadingResearchId) return;
+            loadingResearchId = id;
+            try {
+                string json = await http.GetStringAsync("http://127.0.0.1:7788/api/research/" + Uri.EscapeDataString(id));
+                var report = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<ResearchReport>(json);
+                if (report == null || report.id != id) throw new Exception("검색 결과가 일치하지 않습니다.");
+                if (researchWindow == null) {
+                    var area = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
+                    var source = System.Windows.PresentationSource.FromVisual(hudWindow);
+                    var matrix = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
+                    var origin = matrix.Transform(new Point(area.Left, area.Top));
+                    var extent = matrix.Transform(new Point(area.Width, area.Height));
+                    double width = Math.Min(980, extent.X - 48), height = Math.Min(720, extent.Y - 180);
+                    researchWindow = new Window { Title = "자비스 검색 결과", Width = width, Height = height, Left = origin.X + (extent.X - width) / 2, Top = origin.Y + Math.Max(140, (extent.Y - height) / 2), WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent, Topmost = true, ResizeMode = ResizeMode.CanResizeWithGrip, MinWidth = 500, MinHeight = 320 };
+                    researchWindow.Closed += (sender, args) => { researchWindow = null; };
+                }
+                var muted = new SolidColorBrush(Color.FromRgb(160, 182, 198));
+                var frame = new Border { Background = new SolidColorBrush(Color.FromRgb(8, 18, 29)), BorderBrush = new SolidColorBrush(CyanColor), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(25, 20, 25, 20) };
+                frame.PreviewMouseLeftButtonDown += DragResearchWindow;
+                var shell = new DockPanel(); frame.Child = shell;
+                var header = new DockPanel { Margin = new Thickness(0,0,0,14) };
+                var close = new Button { Content = "닫기 ×", Padding = new Thickness(12,5,12,5), Background = new SolidColorBrush(Color.FromRgb(27,45,60)), Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                close.Click += (sender,args) => { if(researchWindow!=null) researchWindow.Close(); };
+                DockPanel.SetDock(close,Dock.Right);header.Children.Add(close);
+                var brand = ResearchText("JARVIS  /  지식 검색     ·     잡아서 이동",14,new SolidColorBrush(CyanColor));
+                brand.Cursor = Cursors.SizeAll;
+                header.Children.Add(brand);DockPanel.SetDock(header,Dock.Top);shell.Children.Add(header);
+                var body = new StackPanel();
+                body.Children.Add(ResearchText(report.query,27,Brushes.White));
+                body.Children.Add(ResearchText((report.status=="ready"?"검색 완료":"검색 결과 확인 필요") + "  ·  " + (report.sources==null?0:report.sources.Length) + "개 출처  ·  " + report.provider,12,muted));
+                var exportBar = new WrapPanel { Margin = new Thickness(0, 2, 0, 14) };
+                var exportStatus = new TextBlock { Text = "문서 내보내기: 버튼을 누르면 즉시 파일 생성 후 바탕화면에 열립니다.", FontSize = 12, Foreground = muted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 4, 0, 4) };
+                string[][] exportButtons = new string[][] {
+                    new string[] { "md", "📝 Markdown (.md)", "#1B3B4B" },
+                    new string[] { "docx", "📘 Word (.docx)", "#1E3A5F" },
+                    new string[] { "pdf", "📕 PDF (.pdf)", "#4A2333" },
+                    new string[] { "pptx", "📙 PPT (.pptx)", "#4D3319" }
+                };
+                foreach (var eb in exportButtons) {
+                    string fmt = eb[0]; string label = eb[1]; string hexBg = eb[2];
+                    var btn = new Button {
+                        Content = label,
+                        Padding = new Thickness(12, 6, 12, 6),
+                        Margin = new Thickness(0, 0, 8, 6),
+                        Background = (SolidColorBrush)new BrushConverter().ConvertFromString(hexBg),
+                        Foreground = Brushes.White,
+                        BorderBrush = new SolidColorBrush(CyanColor),
+                        BorderThickness = new Thickness(1),
+                        Cursor = Cursors.Hand
+                    };
+                    btn.Click += async (s2, a2) => {
+                        try {
+                            exportStatus.Text = "⏳ " + label + " 생성 중...";
+                            string reqJson = "{\"researchId\":\"" + EscapeJson(id) + "\",\"format\":\"" + fmt + "\",\"openFile\":true}";
+                            var resp = await http.PostAsync("http://127.0.0.1:7788/api/office/create", new StringContent(reqJson, Encoding.UTF8, "application/json"));
+                            string respBody = await resp.Content.ReadAsStringAsync();
+                            exportStatus.Text = resp.IsSuccessStatusCode ? ("✓ " + label + " 생성 및 열기 완료") : ("⚠ 생성 실패: " + respBody);
+                            txtStatus.Text = exportStatus.Text;
+                        } catch (Exception ex2) {
+                            exportStatus.Text = "⚠ 오류: " + ex2.Message;
+                        }
+                    };
+                    exportBar.Children.Add(btn);
+                }
+                exportBar.Children.Add(exportStatus);
+                body.Children.Add(exportBar);
+                var overview = new Border { Background = new SolidColorBrush(Color.FromRgb(15,39,52)), CornerRadius = new CornerRadius(12), Padding = new Thickness(18), Margin = new Thickness(0,0,0,18) };
+                var summary = new StackPanel();summary.Children.Add(ResearchText("핵심 내용",17,new SolidColorBrush(CyanColor)));summary.Children.Add(ResearchText(string.IsNullOrEmpty(report.summary)?report.note:report.summary,15,Brushes.White));overview.Child=summary;body.Children.Add(overview);
+                body.Children.Add(ResearchText(report.note,12,muted));
+                var chips = new WrapPanel { Margin = new Thickness(0,0,0,20) };
+                foreach(string keyword in report.keywords ?? new string[0]) {
+                    string term=keyword;
+                    var chip=new Button {Content=term,Padding=new Thickness(10,5,10,5),Margin=new Thickness(0,0,7,7),Background=new SolidColorBrush(Color.FromRgb(22,48,61)),Foreground=new SolidColorBrush(CyanColor),BorderThickness=new Thickness(0),Cursor=Cursors.Hand,ToolTip="이 키워드로 다시 조사"};
+                    chip.Click+=(sender,args)=>SendCommandToButler((report.query.IndexOf(term,StringComparison.OrdinalIgnoreCase)>=0?report.query:report.query+" "+term)+"에 대해 조사해줘");chips.Children.Add(chip);
+                }
+                body.Children.Add(chips);
+                body.Children.Add(ResearchText("출처별 정리",18,Brushes.White));
+                foreach(var section in report.sections ?? new ResearchSection[0]) {
+                    var panel=new StackPanel();panel.Children.Add(ResearchText("["+section.sourceId+"] "+section.title,16,Brushes.White));panel.Children.Add(ResearchText(section.text,14,muted));
+                    var card=new Border {Background=new SolidColorBrush(Color.FromRgb(16,29,42)),CornerRadius=new CornerRadius(10),Padding=new Thickness(16),Margin=new Thickness(0,0,0,12),Child=panel};body.Children.Add(card);
+                }
+                body.Children.Add(ResearchText("원문 및 출처",18,Brushes.White));
+                foreach(var item in report.sources ?? new ResearchSource[0]) {
+                    string url=item.url;
+                    var link=new Button {Content=ResearchText("["+item.id+"] "+item.title+"\n"+item.domain+" · "+item.readStatus,13,new SolidColorBrush(CyanColor)),HorizontalContentAlignment=HorizontalAlignment.Stretch,Padding=new Thickness(12),Margin=new Thickness(0,0,0,8),Background=new SolidColorBrush(Color.FromRgb(15,39,52)),Foreground=new SolidColorBrush(CyanColor),BorderThickness=new Thickness(0),Cursor=Cursors.Hand,ToolTip=url};
+                    link.Click+=(sender,args)=>{Uri target;if(Uri.TryCreate(url,UriKind.Absolute,out target)){if(target.Scheme=="https"||target.Scheme=="http")Process.Start(new ProcessStartInfo(target.AbsoluteUri){UseShellExecute=true});else if(target.Scheme=="file"&&(File.Exists(target.LocalPath)||Directory.Exists(target.LocalPath)))Process.Start(new ProcessStartInfo(target.LocalPath){UseShellExecute=true});}};body.Children.Add(link);
+                }
+                var resultScroll=new ScrollViewer {Content=body,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};
+                resultScroll.Loaded+=(sender,args)=>resultScroll.ScrollToTop();shell.Children.Add(resultScroll);
+                researchWindow.Content=frame;researchWindow.Show();lastResearchId=id;
+                WriteLog("Research result window shown: "+id+"; sources="+(report.sources==null?0:report.sources.Length));
+            } catch(Exception ex) { WriteLog("Research window: "+ex.Message);txtStatus.Text="⚠ 검색 결과 창을 열지 못했습니다"; }
+            finally { loadingResearchId=""; }
         }
 
         private static Border taskDrawerBorder;
@@ -2150,7 +2071,8 @@ namespace JarvisSasariSa
                 int seqVal = 1;
                 if (int.TryParse(json.Substring(start, end - start), out seqVal))
                 {
-                    if (seqVal > lastSeenPlanWindowSeq)
+                    if (lastSeenPlanWindowSeq < 0) lastSeenPlanWindowSeq = seqVal;
+                    else if (seqVal > lastSeenPlanWindowSeq)
                     {
                         lastSeenPlanWindowSeq = seqVal;
                         string tab = ExtractJsonField(json, "activeTab");
@@ -2167,39 +2089,89 @@ namespace JarvisSasariSa
             SpeakAsync("네, 대표님. 말씀하세요.");
         }
 
-        private static void SaveBrainAndSpeedConfig(string provider, string model, double speedRatio)
+        private static void SetSettingsFeedback(string message, bool error = false)
         {
-            currentBrainProvider = provider;
-            currentBrainModel = model;
-            currentSpeechSpeedRatio = speedRatio;
+            if (hudWindow == null) return;
+            hudWindow.Dispatcher.BeginInvoke(new Action(() => {
+                if (settingsFeedback == null) return;
+                settingsFeedback.Text = message;
+                settingsFeedback.Foreground = new SolidColorBrush(error ? Color.FromRgb(255, 160, 130) : Color.FromRgb(165, 200, 220));
+            }));
+        }
 
-            Task.Run(async () =>
+        private static async Task VerifySelectedBrainAsync()
+        {
+            int sequence = ++brainVerifySequence;
+            string model = currentBrainModel, provider = currentBrainProvider;
+            SetSettingsFeedback("연결 검사 중 · " + model + " (최초 연결은 최대 65초)");
+            try
             {
-                try
+                using (var timeout = new System.Threading.CancellationTokenSource(68000))
+                using (var response = await http.PostAsync("http://127.0.0.1:7788/api/brain/verify", new StringContent("{}", Encoding.UTF8, "application/json"), timeout.Token))
                 {
-                    string json = "{\"brainProvider\":\"" + EscapeJson(provider) + "\",\"brainModel\":\"" + EscapeJson(model) + "\",\"ttsSpeed\":" + speedRatio.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    await http.PostAsync("http://127.0.0.1:7788/api/config", content);
-                    WriteLog("Saved config: provider=" + provider + ", model=" + model + ", ttsSpeed=" + speedRatio);
+                    var json = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(await response.Content.ReadAsStringAsync());
+                    if (sequence != brainVerifySequence || model != currentBrainModel || provider != currentBrainProvider) return;
+                    var last = json.ContainsKey("last") ? json["last"] as System.Collections.Generic.Dictionary<string, object> : null;
+                    bool verified = last != null && last.ContainsKey("ok") && Convert.ToBoolean(last["ok"]) && last.ContainsKey("modelVerified") && Convert.ToBoolean(last["modelVerified"]);
+                    if (verified) SetSettingsFeedback("실제 응답 확인 · " + Convert.ToString(last["model"]) + " · " + (Convert.ToDouble(last["elapsedMs"]) / 1000).ToString("0.00") + "초");
+                    else SetSettingsFeedback(last != null && last.ContainsKey("message") ? Convert.ToString(last["message"]) : "연결을 확인하지 못했습니다. 로그인과 선택 모델을 확인해 주세요.", true);
                 }
-                catch (Exception ex)
-                {
-                    WriteLog("SaveBrainAndSpeedConfig error: " + ex.Message);
-                }
-            });
+            }
+            catch { if (sequence == brainVerifySequence) SetSettingsFeedback("연결 검사 시간이 초과됐습니다. 로그인 상태를 확인한 뒤 다시 검사해 주세요.", true); }
+        }
 
-            if (txtStatus != null)
+        private static void RefreshStoredSettings()
+        {
+            try
             {
-                txtStatus.Text = "○ 상시 대기 · AI: " + provider + " (" + model + ") · 속도 " + speedRatio.ToString("0.00") + "x";
+                var cfg = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(File.ReadAllText("C:\\자비스\\data\\config.json", Encoding.UTF8));
+                if (cfg.ContainsKey("brainProvider")) currentBrainProvider = Convert.ToString(cfg["brainProvider"]);
+                if (cfg.ContainsKey("brainModel")) currentBrainModel = Convert.ToString(cfg["brainModel"]);
+                if (cfg.ContainsKey("sayVoice")) currentSpeechVoice = Convert.ToString(cfg["sayVoice"]);
+                if (cfg.ContainsKey("ttsSpeed")) currentSpeechSpeedRatio = Convert.ToDouble(cfg["ttsSpeed"]);
+                if (cfg.ContainsKey("userPlanTier")) currentUserPlanTier = Convert.ToString(cfg["userPlanTier"]);
             }
-            if (secTxtStatus != null)
+            catch (Exception ex) { WriteLog("Settings read failed: " + ex.GetType().Name); }
+        }
+
+        private static async Task<bool> SaveSettingsPatchAsync(System.Collections.Generic.Dictionary<string, object> patch)
+        {
+            await settingsSaveGate.WaitAsync();
+            Window target = settingsWindow;
+            try
             {
-                secTxtStatus.Text = "○ 상시 대기 · AI: " + provider + " (" + model + ") · 속도 " + speedRatio.ToString("0.00") + "x";
+                if (target != null) target.IsEnabled = false;
+                SetSettingsFeedback("설정을 저장하는 중입니다…");
+                string json = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(patch);
+                using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
+                using (var response = await http.PostAsync("http://127.0.0.1:7788/api/config", content))
+                {
+                    response.EnsureSuccessStatusCode();
+                    string raw = await response.Content.ReadAsStringAsync();
+                    var result = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(raw);
+                    if (!result.ContainsKey("ok") || !Convert.ToBoolean(result["ok"])) throw new InvalidOperationException("설정 저장 실패");
+                }
+                RefreshStoredSettings();
+                SetSettingsFeedback("저장 완료 · 음성 설정은 다음 재생부터 적용됩니다.");
+                WriteLog("Settings saved: " + string.Join(",", patch.Keys));
+                return true;
             }
-            if (thirdTxtStatus != null)
+            catch (Exception ex)
             {
-                thirdTxtStatus.Text = "○ 상시 대기 · AI: " + provider + " (" + model + ") · 속도 " + speedRatio.ToString("0.00") + "x";
+                SetSettingsFeedback("저장 실패 · 서버 연결을 확인한 뒤 다시 선택해 주세요.", true);
+                WriteLog("Settings save failed: " + ex.GetType().Name);
+                return false;
             }
+            finally
+            {
+                if (target != null && target.IsLoaded) target.IsEnabled = true;
+                settingsSaveGate.Release();
+            }
+        }
+
+        private static Task<bool> SaveModelConfig(string provider, string model)
+        {
+            return SaveSettingsPatchAsync(new System.Collections.Generic.Dictionary<string, object> { { "brainProvider", provider }, { "brainModel", model } });
         }
 
         private static FrameworkElement CreateTopRightGearIcon()
@@ -2346,31 +2318,17 @@ namespace JarvisSasariSa
             return topRightBar;
         }
 
-        private static void SavePlanAndApiKeyConfig(string planTier, string apiKey)
+        private static Task<bool> SavePlanAndApiKeyConfig(string planTier, string apiKey)
         {
-            if (!string.IsNullOrEmpty(planTier))
-            {
-                currentUserPlanTier = planTier;
-            }
-            Task.Run(async () =>
-            {
-                try
-                {
-                    string json = "{\"userPlanTier\":\"" + EscapeJson(currentUserPlanTier) + "\"";
-                    if (apiKey != null)
-                    {
-                        json += ",\"geminiApiKey\":\"" + EscapeJson(apiKey) + "\"";
-                    }
-                    json += "}";
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    await http.PostAsync("http://127.0.0.1:7788/api/config", content);
-                }
-                catch { }
-            });
+            var patch = new System.Collections.Generic.Dictionary<string, object>();
+            if (apiKey != null) patch["geminiApiKey"] = apiKey;
+            else patch["userPlanTier"] = planTier;
+            return SaveSettingsPatchAsync(patch);
         }
 
         private static void ShowHotkeySettingsWindow()
         {
+            RefreshStoredSettings();
             if (settingsWindow != null)
             {
                 try { settingsWindow.Close(); } catch { }
@@ -2394,10 +2352,12 @@ namespace JarvisSasariSa
             settingsWindow = new Window
             {
                 Title = "JARVIS 환경설정",
-                Width = 760,
-                Height = 490,
-                Left = (SystemParameters.PrimaryScreenWidth - 760) / 2.0,
-                Top = Math.Max(48, (SystemParameters.PrimaryScreenHeight - 490) / 2.0),
+                Width = Math.Min(1000, SystemParameters.WorkArea.Width - 32),
+                Height = Math.Min(720, SystemParameters.WorkArea.Height - 48),
+                MinWidth = 680,
+                MinHeight = 420,
+                ResizeMode = ResizeMode.CanResizeWithGrip,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 WindowStyle = WindowStyle.None,
                 AllowsTransparency = true,
                 Background = Brushes.Transparent,
@@ -2493,10 +2453,10 @@ namespace JarvisSasariSa
 
             Action updateSidebarPlanLabel = () =>
             {
-                if (currentUserPlanTier == "ultra") txtSidebarPlan.Text = "Google AI Ultra 요금제";
-                else if (currentUserPlanTier == "pro") txtSidebarPlan.Text = "Pro · 유료 API 요금제";
-                else if (currentUserPlanTier == "local") txtSidebarPlan.Text = "Local 온디바이스 ($0)";
-                else txtSidebarPlan.Text = "Free 무료 티어 ($0)";
+                if (currentUserPlanTier == "ultra") txtSidebarPlan.Text = "선택한 분류: Ultra";
+                else if (currentUserPlanTier == "pro") txtSidebarPlan.Text = "선택한 분류: Pro / API";
+                else if (currentUserPlanTier == "local") txtSidebarPlan.Text = "선택한 분류: 로컬";
+                else txtSidebarPlan.Text = "선택한 분류: 무료";
             };
             updateSidebarPlanLabel();
 
@@ -2521,7 +2481,7 @@ namespace JarvisSasariSa
             bottomSummary.Child = bottomSumStack;
             bottomSumStack.Children.Add(new TextBlock
             {
-                Text = "현재 활성 모델",
+                Text = "저장된 모델 · 연결 별도 확인",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(textMuted)
@@ -2577,7 +2537,8 @@ namespace JarvisSasariSa
             };
             TextBlock txtPaneDesc = new TextBlock
             {
-                Text = "사용 중인 구글 요금제 티어(Ultra / Pro / Free / Local)에 맞춰 최적의 모델을 선택합니다.",
+                TextWrapping = TextWrapping.Wrap,
+                Text = "모델 연결 방식을 선택합니다. 분류는 참고용이며 실제 구독·할당량을 조회한 결과가 아닙니다.",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(textSecondary),
@@ -2631,8 +2592,9 @@ namespace JarvisSasariSa
 
             // Right Body Host (Holds the 4 Panes without any vertical scrollbar)
             Grid paneHost = new Grid();
-            Grid.SetRow(paneHost, 1);
-            rightGrid.Children.Add(paneHost);
+            ScrollViewer settingsScroll = new ScrollViewer { Content = paneHost, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Padding = new Thickness(0, 0, 10, 0) };
+            Grid.SetRow(settingsScroll, 1);
+            rightGrid.Children.Add(settingsScroll);
 
             StackPanel paneModels = new StackPanel { Visibility = Visibility.Visible };
             StackPanel paneAccount = new StackPanel { Visibility = Visibility.Collapsed };
@@ -2716,17 +2678,18 @@ namespace JarvisSasariSa
                 Text = currentBrainModel
             };
 
-            Action<string, string, string> selectModelAndSave = (prov, mod, displayTitle) =>
+            Action<string, string, string> selectModelAndSave = async (prov, mod, displayTitle) =>
             {
-                SaveBrainAndSpeedConfig(prov, mod, currentSpeechSpeedRatio);
+                if (!await SaveModelConfig(prov, mod)) return;
                 customModelBox.Text = mod;
                 txtSidebarActiveModel.Text = mod;
                 txtSidebarActiveProvider.Text = prov + " · " + currentSpeechSpeedRatio.ToString("0.00") + "x";
                 if (txtMainBody != null)
                 {
-                    txtMainBody.Text = displayTitle + " (" + mod + ") 모델이 적용되었습니다";
+                    txtMainBody.Text = displayTitle + " 모델을 저장했습니다. 환경설정 하단에서 연결 검사 결과를 확인하세요.";
                 }
                 foreach (var cb in modelVisualCallbacks) { try { cb(); } catch { } }
+                await VerifySelectedBrainAsync();
             };
 
             Func<string, string, string, string, string, UIElement> buildModelCard = (title, modelId, providerId, badgeText, descText) =>
@@ -2748,11 +2711,12 @@ namespace JarvisSasariSa
                 card.Child = g;
 
                 StackPanel left = new StackPanel();
-                StackPanel topRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
+                WrapPanel topRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 5) };
 
                 TextBlock txtTitle = new TextBlock
                 {
                     Text = title,
+                    TextWrapping = TextWrapping.Wrap,
                     FontFamily = new FontFamily("Malgun Gothic"),
                     FontSize = 13,
                     FontWeight = FontWeights.Bold,
@@ -2802,6 +2766,7 @@ namespace JarvisSasariSa
                 left.Children.Add(new TextBlock
                 {
                     Text = descText,
+                    TextWrapping = TextWrapping.Wrap,
                     FontFamily = new FontFamily("Malgun Gothic"),
                     FontSize = 11.5,
                     Foreground = new SolidColorBrush(textSecondary)
@@ -2835,7 +2800,7 @@ namespace JarvisSasariSa
                         card.Background = new SolidColorBrush(bgActiveCard);
                         card.BorderBrush = new SolidColorBrush(accentBlue);
                         statusBadge.Background = new SolidColorBrush(accentBlue);
-                        statusTxt.Text = "적용됨";
+                        statusTxt.Text = "저장됨";
                         statusTxt.Foreground = Brushes.White;
                     }
                     else
@@ -2875,63 +2840,63 @@ namespace JarvisSasariSa
                 if (currentUserPlanTier == "ultra")
                 {
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 4 Argon (Ultra 최상위 플래그십)",
-                        "gemini-4-argon",
-                        "gemini-cli",
-                        "Ultra 요금제 · 에이전틱 추론",
-                        "구글 최상위 4세대 Argon 플래그십 엔진으로 고난도 복합 추론과 자율 제어를 수행"
+                        "Gemini 4 Argon (Medium)",
+                        "gemini-4-argon-medium",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "추론 모델. 실제 접근 권한과 CLI 지원 여부는 로그인 계정에서 확인해야 합니다."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.8 Flash (초저지연 실시간 Live)",
-                        "gemini-3.8-flash",
-                        "gemini-cli",
-                        "Ultra 요금제 · 3.8 세대 고속",
-                        "3.8 세대 실시간 양방향 음성·에이전트 응답에 최적화된 초고속 모델"
+                        "Gemini 3.8 Flash (빠른 응답)",
+                        "gemini-3.8-flash-low",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "Google 공식 무료 티어($0) 제공 모델. Antigravity 기본 쿼터 내 추가 과금 없음(useG1Credits: false)."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.1 Pro (정밀 추론 · 설계)",
-                        "gemini-3.1-pro-preview",
-                        "gemini-cli",
-                        "Ultra 요금제 · 고차원 추론",
-                        "복합 워크플로우 설계 및 정밀 분석에 최적화된 3.1 Pro 모델"
+                        "Gemini 4 Argon (High)",
+                        "gemini-4-argon-high",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "복잡한 분석을 위한 높은 추론 설정. 분석 깊이가 필요한 경우 선택하세요."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.0 Flash (표준 올라운더)",
-                        "gemini-3-flash-preview",
-                        "gemini-cli",
-                        "Ultra 요금제 · 안정 주력",
-                        "Thinking 추론과 초고속 데스크톱 명령 처리를 균형 있게 수행하는 주력 모델"
+                        "Gemini 3.8 Flash (균형)",
+                        "gemini-3.8-flash-medium",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "Gemini 3.8 Flash 중간 추론 설정. Antigravity 로그인 기본 쿼터 내에서 추가 크레딧 차감 없이 동작합니다."
                     ));
                 }
                 else if (currentUserPlanTier == "pro")
                 {
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 4 Argon (API / OAuth)",
-                        "gemini-4-argon",
-                        "gemini-cli",
-                        "Pro · 4세대 플래그십",
-                        "구글 4세대 Argon 추론 엔진을 Pro 계정 또는 API 티어로 연동"
+                        "Gemini 4 Argon (Medium)",
+                        "gemini-4-argon-medium",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "추론 모델. 실제 접근 권한과 CLI 지원 여부는 로그인 계정에서 확인해야 합니다."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.8 Flash (API / Live)",
-                        "gemini-3.8-flash",
-                        "gemini",
-                        "Pro · 3.8 세대 초고속",
-                        "3.8 세대 실시간 응답 및 멀티모달 처리를 지원하는 고속 모델"
+                        "Gemini 3.8 Flash (빠른 응답)",
+                        "gemini-3.8-flash-low",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "Google 공식 무료 티어($0) 제공 모델. Antigravity 기본 쿼터 내 추가 과금 없음(useG1Credits: false)."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 2.5 Pro (API / OAuth)",
+                        "Gemini 2.5 Pro",
                         "gemini-2.5-pro",
                         "gemini",
-                        "Pro · 정밀 추론",
-                        "유료 API 키 또는 Google Pro 계정으로 고성능 Pro 모델을 할당량 제한 없이 구동"
+                        "Gemini API 키",
+                        "이전 세대 추론 모델. API 프로젝트의 사용 가능 여부·과금·한도를 확인하세요."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
                         "OpenAI GPT-4o",
                         "gpt-4o",
                         "openai",
-                        "OpenAI API",
-                        "OpenAI API 키를 등록한 사용자를 위한 멀티모달 플래그십 모델"
+                        "OpenAI API 키 · 별도 설정",
+                        "OpenAI API 키를 등록한 사용자를 위한 멀티모달 응답 모델"
                     ));
                 }
                 else if (currentUserPlanTier == "local")
@@ -2940,60 +2905,60 @@ namespace JarvisSasariSa
                         "Google Gemma 4 E4B (온디바이스 표준)",
                         "gemma4:e4b",
                         "ollama",
-                        "평생 무료 $0 · 로컬 PC",
+                        "로컬 · Ollama 필요",
                         "구글 최신 4세대 오픈 모델로 인터넷 연결이나 토큰 과금 없이 PC에서 즉시 구동"
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
                         "Google Gemma 4 31B (온디바이스 대형)",
                         "gemma4:31b",
                         "ollama",
-                        "평생 무료 $0 · 고성능",
+                        "로컬 · Ollama 필요",
                         "고사양 로컬 GPU 환경에서 고난도 추론까지 100% 무제한 무료로 수행"
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
                         "Qwen 2.5 Coder 14B",
                         "qwen2.5-coder:14b",
                         "ollama",
-                        "평생 무료 $0 · 코딩 특화",
+                        "로컬 · Ollama 필요",
                         "로컬 Ollama 기반 코드 작성 및 시스템 스크립트 분석 특화 모델"
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
                         "LM Studio Local GGUF",
                         "local-model",
                         "lmstudio",
-                        "평생 무료 $0 · LM Studio",
+                        "로컬 · LM Studio 필요",
                         "LM Studio 로컬 서버(포트 1234)에 마운트된 커스텀 GGUF 모델 연동"
                     ));
                 }
                 else
                 {
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.8 Flash (OAuth 무료 연동)",
-                        "gemini-3.8-flash",
-                        "gemini-cli",
-                        "무료 $0 · 3.8 세대 고속",
-                        "구글 계정 OAuth 연동 시 최신 3.8 Flash 계열 고속 응답을 무료로 사용"
+                        "Gemini 3.8 Flash (빠른 응답)",
+                        "gemini-3.8-flash-low",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "Google 공식 무료 티어($0) 제공 모델. Antigravity 기본 쿼터 내 추가 과금 없음(useG1Credits: false)."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.5 Flash-Lite (경량 고속)",
+                        "Gemini 3.5 Flash-Lite",
                         "gemini-3.5-flash-lite",
                         "gemini",
-                        "무료 $0 · Input/Output 무료",
-                        "최신 3.5 세대 경량 고속 모델로 에이전트 자동화 및 빠른 명령 처리에 최적화"
+                        "Gemini API 키",
+                        "AI Studio 무료 티어(Free of charge, $0) 대상 초경량 모델. 미결제(무료) 프로젝트 API 키에서 무료로 동작합니다."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 3.0 Flash (무료 티어 추천)",
-                        "gemini-3-flash-preview",
-                        "gemini-cli",
-                        "무료 $0 · Thinking 포함",
-                        "2.5보다 한 세대 높은 Gemini 3 Flash 본모델 (입력·출력·Thinking 토큰 모두 무료)"
+                        "Gemini 3.8 Flash (균형)",
+                        "gemini-3.8-flash-medium",
+                        "antigravity-cli",
+                        "Google 로그인 · Antigravity",
+                        "Gemini 3.8 Flash 중간 추론 설정. Antigravity 로그인 기본 쿼터 내에서 추가 크레딧 차감 없이 동작합니다."
                     ));
                     modelCardsContainer.Children.Add(buildModelCard(
-                        "Gemini 2.5 Flash (안정 주력)",
+                        "Gemini 2.5 Flash",
                         "gemini-2.5-flash",
                         "gemini",
-                        "무료 $0 · 일 1,500회 검색",
-                        "Google AI Studio 무료 API 키 및 Gemini CLI에서 일일 1,500회 무료 제공"
+                        "Gemini API 키",
+                        "AI Studio 무료 티어($0) 지원 안정화 모델. 무료 API 프로젝트 한도 내에서 과금 없이 사용 가능합니다."
                     ));
                 }
             };
@@ -3041,10 +3006,10 @@ namespace JarvisSasariSa
                 syncTierTab();
 
                 tabBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-                tabBtn.MouseLeftButtonUp += (s, e) =>
+                tabBtn.MouseLeftButtonUp += async (s, e) =>
                 {
                     e.Handled = true;
-                    SavePlanAndApiKeyConfig(tKey, null);
+                    if (!await SavePlanAndApiKeyConfig(tKey, null)) return;
                     updateSidebarPlanLabel();
                     foreach (var cb in tierVisualCallbacks) { try { cb(); } catch { } }
                     renderSelectedTierModels();
@@ -3069,7 +3034,7 @@ namespace JarvisSasariSa
             oauthCard.Child = oauthStack;
             oauthStack.Children.Add(new TextBlock
             {
-                Text = "Google 계정 OAuth 연동 (Ultra · Pro · Free 요금제 자동 적용)",
+                Text = "Google 계정 로그인 · Antigravity CLI",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
@@ -3077,27 +3042,28 @@ namespace JarvisSasariSa
             });
             oauthStack.Children.Add(new TextBlock
             {
-                Text = "대표님의 Google AI Ultra 계정이나 사용자 본인의 구글 계정으로 로그인하면 별도 API 과금 없이 본인 요금제 한도로 즉시 연동됩니다.",
+                Text = "개인 Google 계정은 Antigravity CLI로 연결합니다. Gemini CLI의 개인 로그인 지원은 종료되었습니다. 모델 선택 후 실제 연결을 검사하며, 구독 등급과 API 키의 사용 한도는 별개입니다.",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 4, 0, 10)
             });
-            Border btnOAuthLogin = createActionBtn("Google 계정 연동 창 열기 (Gemini CLI)", true, () =>
+            Border btnOAuthLogin = createActionBtn("Google 계정 연결 열기 (Antigravity)", true, () =>
             {
                 try
                 {
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = "cmd.exe",
-                        Arguments = "/c start \"Jarvis Google Login\" cmd /k \"echo [JARVIS] 구글 계정 로그인이 완료되면 창을 닫아주세요. && gemini\"",
+                        FileName = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "agy\\bin\\agy.exe"),
+                        WorkingDirectory = System.IO.Path.GetTempPath(),
                         UseShellExecute = true
                     });
                 }
-                catch { }
+                catch { SetSettingsFeedback("Antigravity CLI를 열지 못했습니다. 설치 상태를 확인해 주세요.", true); }
             });
             oauthStack.Children.Add(btnOAuthLogin);
+            oauthStack.Children.Add(createActionBtn("선택 모델 연결 검사", false, async () => { await VerifySelectedBrainAsync(); }));
             paneAccount.Children.Add(oauthCard);
 
             // API Key Card
@@ -3114,7 +3080,7 @@ namespace JarvisSasariSa
             apiCard.Child = apiStack;
             apiStack.Children.Add(new TextBlock
             {
-                Text = "개인 API 키 등록 (Google AI Studio / OpenAI)",
+                Text = "Google Gemini API 키 등록",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
@@ -3122,14 +3088,14 @@ namespace JarvisSasariSa
             });
             apiStack.Children.Add(new TextBlock
             {
-                Text = "API 키를 직접 사용하는 경우 아래에 입력 후 저장하세요. 로컬 설정 파일에만 안전하게 보관됩니다.",
+                Text = "API 키를 직접 사용하는 경우 아래에 입력 후 저장하세요. 이 PC의 자비스 설정 파일에 저장됩니다.",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 Margin = new Thickness(0, 4, 0, 10)
             });
-            StackPanel apiInputRow = new StackPanel { Orientation = Orientation.Horizontal };
-            TextBox apiKeyBox = new TextBox
+            WrapPanel apiInputRow = new WrapPanel();
+            PasswordBox apiKeyBox = new PasswordBox
             {
                 Width = 340,
                 Height = 32,
@@ -3141,7 +3107,7 @@ namespace JarvisSasariSa
                 FontFamily = new FontFamily("Consolas, Segoe UI"),
                 FontSize = 12,
                 Padding = new Thickness(9, 0, 9, 0),
-                Text = ""
+                Password = ""
             };
             apiInputRow.Children.Add(apiKeyBox);
             TextBlock txtApiSaved = new TextBlock
@@ -3153,10 +3119,13 @@ namespace JarvisSasariSa
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(10, 0, 0, 0)
             };
-            Border btnSaveKey = createActionBtn("API 키 저장", false, () =>
+            Border btnSaveKey = createActionBtn("API 키 저장", false, async () =>
             {
-                SavePlanAndApiKeyConfig(currentUserPlanTier, apiKeyBox.Text.Trim());
-                txtApiSaved.Text = "저장됨";
+                if (string.IsNullOrWhiteSpace(apiKeyBox.Password)) { txtApiSaved.Text = "새 API 키를 입력해 주세요."; return; }
+                bool saved = await SavePlanAndApiKeyConfig(currentUserPlanTier, apiKeyBox.Password.Trim());
+                txtApiSaved.Text = saved ? "저장됨 · 연결 미확인" : "저장 실패";
+                txtApiSaved.Foreground = saved ? new SolidColorBrush(Color.FromRgb(86, 211, 100)) : Brushes.Salmon;
+                if (saved) apiKeyBox.Clear();
             });
             btnSaveKey.Margin = new Thickness(8, 0, 0, 0);
             apiInputRow.Children.Add(btnSaveKey);
@@ -3184,7 +3153,7 @@ namespace JarvisSasariSa
                 Foreground = new SolidColorBrush(textPrimary),
                 Margin = new Thickness(0, 0, 0, 8)
             });
-            StackPanel customInputRow = new StackPanel { Orientation = Orientation.Horizontal };
+            WrapPanel customInputRow = new WrapPanel();
             customInputRow.Children.Add(customModelBox);
             Border btnApplyCustomModel = createActionBtn("모델 적용", false, () =>
             {
@@ -3215,7 +3184,7 @@ namespace JarvisSasariSa
             voiceCard.Child = voiceStack;
             voiceStack.Children.Add(new TextBlock
             {
-                Text = "한국어 Neural 자연음성 말하기 속도",
+                Text = "답변 목소리와 말하기 속도",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
@@ -3223,17 +3192,40 @@ namespace JarvisSasariSa
             });
             TextBlock txtSpeedDesc = new TextBlock
             {
-                Text = "현재 배속: " + currentSpeechSpeedRatio.ToString("0.00") + "x — 원하는 단계를 선택하면 즉시 음성으로 안내합니다.",
+                Text = "현재 배속: " + currentSpeechSpeedRatio.ToString("0.00") + "x · 저장된 속도는 다음 음성부터 적용됩니다.",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 12,
                 Foreground = new SolidColorBrush(textSecondary),
                 Margin = new Thickness(0, 4, 0, 14)
             };
             voiceStack.Children.Add(txtSpeedDesc);
+            voiceStack.Children.Add(new TextBlock { Text = "Neural 음성은 인터넷 연결이 필요합니다. 사용 불가 시 Windows 음성으로 대체하고 아래에 표시합니다.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 12) });
+            WrapPanel voiceRow = new WrapPanel();
+            voiceStack.Children.Add(voiceRow);
+            string[] voiceIds = { "ko-KR-HyunsuMultilingualNeural", "ko-KR-InJoonNeural", "ko-KR-SunHiNeural", "windows-ko" };
+            string[] voiceLabels = { "현수 · Neural", "인준 · Neural", "선히 · Neural", "Windows 한국어 · 오프라인" };
+            var voiceSyncCallbacks = new System.Collections.Generic.List<Action>();
+            for (int v = 0; v < voiceIds.Length; v++)
+            {
+                string voiceId = voiceIds[v];
+                Border voiceButton = createActionBtn(voiceLabels[v], false, async () => {
+                    if (!await SaveSettingsPatchAsync(new System.Collections.Generic.Dictionary<string, object> { { "sayVoice", voiceId } })) return;
+                    foreach (var refresh in voiceSyncCallbacks) refresh();
+                    SpeakAsync("안녕하세요. 자비스의 선택한 목소리와 말하기 속도를 확인하고 있습니다.");
+                });
+                voiceButton.Margin = new Thickness(0, 0, 8, 8);
+                Action refreshVoice = () => { voiceButton.BorderBrush = new SolidColorBrush(currentSpeechVoice == voiceId ? accentBlue : borderHairline); voiceButton.BorderThickness = new Thickness(currentSpeechVoice == voiceId ? 2 : 1); };
+                voiceSyncCallbacks.Add(refreshVoice);
+                refreshVoice();
+                voiceRow.Children.Add(voiceButton);
+            }
+            Border previewVoice = createActionBtn("현재 음성 미리 듣기", false, () => SpeakAsync("안녕하세요. 자비스의 선택한 목소리와 말하기 속도를 확인하고 있습니다."));
+            previewVoice.Margin = new Thickness(0, 0, 0, 12);
+            voiceStack.Children.Add(previewVoice);
 
             Grid speedGrid = new Grid();
             double[] speeds = new double[] { 1.00, 1.15, 1.25, 1.35, 1.50 };
-            string[] speedNames = new string[] { "1.00x 차분함", "1.15x 자연스러움", "1.25x 권장", "1.35x 빠름", "1.50x 초고속" };
+            string[] speedNames = new string[] { "1.00×", "1.15×", "1.25×", "1.35×", "1.50×" };
             System.Collections.Generic.List<Action> speedSyncCallbacks = new System.Collections.Generic.List<Action>();
 
             for (int i = 0; i < speeds.Length; i++)
@@ -3273,10 +3265,10 @@ namespace JarvisSasariSa
                 syncSpd();
 
                 spdBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-                spdBtn.MouseLeftButtonUp += (s, e) =>
+                spdBtn.MouseLeftButtonUp += async (s, e) =>
                 {
                     e.Handled = true;
-                    SaveBrainAndSpeedConfig(currentBrainProvider, currentBrainModel, spdVal);
+                    if (!await SaveSettingsPatchAsync(new System.Collections.Generic.Dictionary<string, object> { { "ttsSpeed", spdVal } })) return;
                     txtSpeedDesc.Text = "현재 배속: " + spdVal.ToString("0.00") + "x (" + spdLabel + ") 적용 완료";
                     txtSidebarActiveProvider.Text = currentBrainProvider + " · " + spdVal.ToString("0.00") + "x";
                     foreach (var cb in speedSyncCallbacks) { try { cb(); } catch { } }
@@ -3286,124 +3278,102 @@ namespace JarvisSasariSa
             voiceStack.Children.Add(speedGrid);
             paneVoice.Children.Add(voiceCard);
 
-            // Owner Voice Print Registration & Outdoor Noise Shield Card
-            Border voicePrintCard = new Border
-            {
-                CornerRadius = new CornerRadius(10),
-                Background = new SolidColorBrush(bgSurface),
-                BorderBrush = new SolidColorBrush(borderSubtle),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(16, 14, 16, 14),
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            StackPanel vpStack = new StackPanel();
-            voicePrintCard.Child = vpStack;
-
-            StackPanel vpTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            vpTitleRow.Children.Add(new TextBlock
-            {
-                Text = "대표님 전용 성문(Voice Print) 인식 및 외부 소음 완벽 차단",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 13.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(textPrimary),
-                Margin = new Thickness(0, 0, 8, 0)
-            });
-            Border vpBadge = new Border
-            {
-                CornerRadius = new CornerRadius(4),
-                Background = new SolidColorBrush(Color.FromArgb(35, 46, 160, 67)),
-                Padding = new Thickness(6, 1, 6, 1),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            TextBlock txtVpBadge = new TextBlock
-            {
-                Text = "대표님 성문 보호 가동 중",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 10.5,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100))
-            };
-            vpBadge.Child = txtVpBadge;
-            vpTitleRow.Children.Add(vpBadge);
-            vpStack.Children.Add(vpTitleRow);
-
-            TextBlock txtVpDesc = new TextBlock
-            {
-                Text = "대표님의 고유 목소리 주파수(Hz)와 마이크 근접 에너지를 학습하여, 건물 밖 소음·멀리서 들리는 타인의 말소리·키보드 타이핑 소리에는 반응하지 않고 오직 대표님 말씀만 끝까지 경청한 뒤 실행합니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 11.5,
-                Foreground = new SolidColorBrush(textSecondary),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 2, 0, 10)
-            };
-            vpStack.Children.Add(txtVpDesc);
-
-            TextBlock txtVpStatus = new TextBlock
-            {
-                Text = "현재 등록 상태: 이건우 대표님 성문 프로필 활성 (주파수 대역 85~235Hz · 근접 음성 필터 ON · 문장 끝 3.8초 경청 대기)",
-                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
-                FontSize = 11.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)),
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            vpStack.Children.Add(txtVpStatus);
-
-            StackPanel vpBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
-            Border btnEnrollVoice = createActionBtn("🎙 내 목소리(성문) 지금 4초간 녹음·등록하기", true, () =>
-            {
-                txtVpStatus.Text = "● 지금 마이크로 \"자비스, 내 목소리를 기억해 줘\"라고 편하게 말씀해 주세요 (4초간 성문 주파수 측정 중...)";
-                txtVpBadge.Text = "성문 측정 중...";
-                Task.Run(async () =>
+            // Speaker comparison is opt-in and remains off until real enrollment succeeds.
+            Border speakerCard = new Border { Background = new SolidColorBrush(bgSurface), CornerRadius = new CornerRadius(10), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 12) };
+            StackPanel speakerStack = new StackPanel();
+            speakerCard.Child = speakerStack;
+            speakerStack.Children.Add(new TextBlock { Text = "내 목소리만 반응", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(textPrimary) });
+            speakerStack.Children.Add(new TextBlock { Text = "영상·음악을 끄고 혼자 말할 수 있을 때 등록하세요. 5초 준비 후 화면의 세 문장을 24초 동안 읽습니다. 등록용 녹음은 파일로 남기지 않고 비교용 특징만 이 PC에 저장합니다. 기존 Chrome 음성 인식은 인터넷을 사용합니다.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 8) });
+            speakerStack.Children.Add(new TextBlock { Text = "비슷한 목소리·겹친 말소리·본인 녹음 재생까지 완전히 차단하는 인증 기능은 아닙니다. 너무 짧은 명령은 길게 다시 말하거나 직접 입력하세요.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) });
+            TextBlock speakerStateText = new TextBlock { Text = "목소리 등록 상태 확인 중…", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)), Margin = new Thickness(0, 0, 0, 8) };
+            TextBlock enrollmentPrompt = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, Foreground = new SolidColorBrush(textPrimary), Margin = new Thickness(0, 0, 0, 10) };
+            speakerStack.Children.Add(speakerStateText); speakerStack.Children.Add(enrollmentPrompt);
+            bool speakerRefreshBusy = false;
+            string speakerActionError = "";
+            Func<Task> refreshSpeakerState = async () => {
+                if (speakerRefreshBusy) return;
+                speakerRefreshBusy = true;
+                try
                 {
-                    try
+                    string raw = await http.GetStringAsync("http://127.0.0.1:7788/api/speaker/state");
+                    var state = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(raw);
+                    bool enrolled = state.ContainsKey("enrolled") && Convert.ToBoolean(state["enrolled"]);
+                    bool enabled = state.ContainsKey("enabled") && Convert.ToBoolean(state["enabled"]);
+                    speakerStateText.Text = enrolled ? (enabled ? "등록됨 · 내 목소리만 반응 켜짐" : "등록됨 · 목소리 비교 꺼짐") : "미등록 · 아직 내 목소리를 구분하지 않습니다";
+                    if (state.ContainsKey("profileError") && Convert.ToBoolean(state["profileError"])) speakerStateText.Text = "등록 정보 오류 · 음성 실행 보류 · 다시 등록해 주세요";
+                    enrollmentPrompt.Text = speakerActionError;
+                    var enrollment = state.ContainsKey("enrollment") ? state["enrollment"] as System.Collections.Generic.Dictionary<string, object> : null;
+                    if (enrollment != null)
                     {
-                        var resp = await http.PostAsync(
-                            "http://127.0.0.1:7788/api/ear/enroll-voice",
-                            new StringContent("{\"enrollNow\":true,\"durationMs\":4000}", Encoding.UTF8, "application/json")
-                        );
-                        string raw = await resp.Content.ReadAsStringAsync();
-                        string msg = ExtractJsonField(raw, "message");
-                        hudWindow.Dispatcher.Invoke(() =>
+                        string phase = Convert.ToString(enrollment["phase"]);
+                        double now = (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalMilliseconds;
+                        double start = Convert.ToDouble(enrollment["startAt"]), end = Convert.ToDouble(enrollment["endAt"]);
+                        if (phase == "recording")
                         {
-                            txtVpBadge.Text = "성문 등록 완료";
-                            txtVpStatus.Text = !string.IsNullOrEmpty(msg)
-                                ? "✓ " + msg
-                                : "✓ 이건우 대표님 전용 성문 등록 및 외부 소음 차단 필터 적용 완료";
-                            SpeakAsync("네, 대표님. 대표님의 목소리 주파수와 성문을 정확히 기억했습니다. 이제 대표님 말씀만 끝까지 경청하겠습니다.");
-                        });
+                            speakerStateText.Text = now < start ? "준비 · " + Math.Ceiling((start-now)/1000) + "초 뒤 녹음 시작" : now < end ? "녹음 중 · " + Math.Ceiling((end-now)/1000) + "초 남음" : "녹음 전달 중…";
+                            var prompts = enrollment["prompts"] as System.Collections.IList;
+                            int step = Math.Min(2, Math.Max(0, (int)((now-start)/8000)));
+                            if (prompts != null && prompts.Count > step) enrollmentPrompt.Text = (step+1) + "/3  " + Convert.ToString(prompts[step]);
+                        }
+                        else if (phase == "processing") speakerStateText.Text = "세 구간의 목소리 비교 중…";
+                        else if (phase == "error") enrollmentPrompt.Text = Convert.ToString(enrollment["message"]);
                     }
-                    catch
-                    {
-                        hudWindow.Dispatcher.Invoke(() =>
-                        {
-                            txtVpStatus.Text = "✓ 대표님 기본 성문 프로필 및 근접 마이크 필터가 활성화되었습니다.";
-                        });
-                    }
-                });
-            });
-            vpBtnRow.Children.Add(btnEnrollVoice);
-
-            Border btnStrictShield = createActionBtn("🛡 외부 소음·타인 음성 차단 강도: 최고 (Strict)", false, () =>
-            {
-                txtVpStatus.Text = "✓ 건물 밖 소음 · 원거리 대화 · 키보드 소리 차단 필터가 최고 강도(Strict)로 고정되었습니다.";
-                Task.Run(async () =>
+                }
+                catch { speakerStateText.Text = "목소리 설정을 확인하지 못했습니다. 서버 연결을 확인해 주세요."; }
+                finally { speakerRefreshBusy = false; }
+            };
+            Func<string, object, Task> changeSpeakerState = async (endpoint, body) => {
+                speakerActionError = "";
+                try
                 {
-                    try
+                    string payload = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(body);
+                    using (var response = await http.PostAsync("http://127.0.0.1:7788/api/speaker/" + endpoint, new StringContent(payload, Encoding.UTF8, "application/json")))
                     {
-                        await http.PostAsync(
-                            "http://127.0.0.1:7788/api/ear/enroll-voice",
-                            new StringContent("{\"strictOwnerGate\":true,\"minEnergy\":0.065}", Encoding.UTF8, "application/json")
-                        );
+                        string raw = await response.Content.ReadAsStringAsync();
+                        if (!response.IsSuccessStatusCode) { speakerActionError = ExtractJsonField(raw, "error"); enrollmentPrompt.Text = speakerActionError; return; }
                     }
-                    catch { }
-                });
-            });
-            btnStrictShield.Margin = new Thickness(8, 0, 0, 0);
-            vpBtnRow.Children.Add(btnStrictShield);
+                    await refreshSpeakerState();
+                }
+                catch { speakerActionError = "설정을 변경하지 못했습니다. 다시 눌러 주세요."; enrollmentPrompt.Text = speakerActionError; }
+            };
+            WrapPanel speakerButtons = new WrapPanel();
+            Border enrollSpeaker = createActionBtn("내 목소리 등록 · 약 30초", true, async () => await changeSpeakerState("enroll/start", new { }));
+            Border cancelSpeaker = createActionBtn("등록 취소", false, async () => await changeSpeakerState("enroll/cancel", new { }));
+            Border enableSpeaker = createActionBtn("켜기", false, async () => await changeSpeakerState("enabled", new { enabled = true }));
+            Border disableSpeaker = createActionBtn("끄기", false, async () => await changeSpeakerState("enabled", new { enabled = false }));
+            Border forgetSpeaker = createActionBtn("등록 정보 지우기", false, async () => await changeSpeakerState("forget", new { }));
+            foreach (var button in new Border[] { enrollSpeaker, cancelSpeaker, enableSpeaker, disableSpeaker, forgetSpeaker }) { button.Margin = new Thickness(0, 0, 8, 8); speakerButtons.Children.Add(button); }
+            speakerStack.Children.Add(speakerButtons);
+            paneVoice.Children.Add(speakerCard);
+            DispatcherTimer speakerSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            speakerSettingsTimer.Tick += async (sender, args) => { if (paneVoice.Visibility == Visibility.Visible) await refreshSpeakerState(); };
+            settingsWindow.Closed += (sender, args) => speakerSettingsTimer.Stop();
+            speakerSettingsTimer.Start();
 
-            vpStack.Children.Add(vpBtnRow);
-            paneVoice.Children.Add(voicePrintCard);
+            Border microphoneCard = new Border { Background = new SolidColorBrush(bgSurface), CornerRadius = new CornerRadius(10), Padding = new Thickness(16) };
+            StackPanel microphoneStack = new StackPanel();
+            microphoneCard.Child = microphoneStack;
+            microphoneStack.Children.Add(new TextBlock { Text = "마이크 연결 상태", Foreground = new SolidColorBrush(textPrimary), FontWeight = FontWeights.Bold, FontSize = 14 });
+            microphoneStack.Children.Add(new TextBlock { Text = "입력 음량과 연결 상태를 확인합니다. 현재 입력 필터는 화자 본인 인증이나 타인 음성의 완전 차단을 보장하지 않습니다.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 10) });
+            TextBlock micState = new TextBlock { Text = "아래 버튼으로 현재 상태를 확인하세요.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) };
+            microphoneStack.Children.Add(micState);
+            microphoneStack.Children.Add(createActionBtn("마이크 상태 확인", false, async () => {
+                micState.Text = "확인 중…";
+                try
+                {
+                    string raw = await http.GetStringAsync("http://127.0.0.1:7788/api/ear/latest");
+                    var state = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(raw);
+                    object healthObj;
+                    var health = state.TryGetValue("earHealth", out healthObj) ? healthObj as System.Collections.Generic.Dictionary<string, object> : null;
+                    string status = health != null && health.ContainsKey("recognition") ? Convert.ToString(health["recognition"]) : "상태 미확인";
+                    if (status == "listening") status = "연결됨";
+                    string input = health != null && health.ContainsKey("deviceLabel") ? Convert.ToString(health["deviceLabel"]) : "입력 장치 미확인";
+                    double level = state.ContainsKey("micLevel") ? Convert.ToDouble(state["micLevel"]) : 0;
+                    micState.Text = "인식 상태: " + status + " · 입력 레벨: " + level.ToString("0.0000") + "\n" + input;
+                }
+                catch { micState.Text = "마이크 상태를 가져오지 못했습니다. 서버 연결을 확인해 주세요."; }
+            }));
+            paneVoice.Children.Add(microphoneCard);
 
             // =========================================================================
             // PANE 4: 바탕화면 · 단축키 제어 (Visible Desktop Control & Global Hotkey)
@@ -3429,15 +3399,15 @@ namespace JarvisSasariSa
             });
             mediaCtrlStack.Children.Add(new TextBlock
             {
-                Text = "자비스가 실행한 모든 브라우저와 앱은 대표님의 실제 바탕화면(Winsta0\\Default)에 표시되며, 음성(\"음악 꺼줘\")이나 아래 버튼으로 즉시 제어할 수 있습니다.",
+                Text = "음성으로 ‘음악 꺼줘’라고 말하거나 정지 버튼을 누르세요. 지원되는 미디어 세션을 제어하며, 실행 결과는 메인 HUD에 표시합니다.",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 4, 0, 10)
             });
-            StackPanel mediaBtnRow = new StackPanel { Orientation = Orientation.Horizontal };
-            Border btnKillMusic = createActionBtn("재생 중인 유튜브 · 음악 즉시 종료", false, () =>
+            WrapPanel mediaBtnRow = new WrapPanel();
+            Border btnKillMusic = createActionBtn("음악 정지 요청", false, () =>
             {
                 SendCommandToButler("음악 꺼줘");
             });
@@ -3512,7 +3482,7 @@ namespace JarvisSasariSa
             };
             hotkeyStack.Children.Add(keyCaptureBox);
 
-            StackPanel presetHkRow = new StackPanel { Orientation = Orientation.Horizontal };
+            WrapPanel presetHkRow = new WrapPanel();
             Border hk1 = createActionBtn("Ctrl + Space", false, () =>
             {
                 ApplyCustomHotkey(VK_SPACE, true, false, false, "Ctrl + Space");
@@ -3595,6 +3565,7 @@ namespace JarvisSasariSa
                     paneVoice.Visibility = Visibility.Collapsed;
                     paneDesktop.Visibility = Visibility.Collapsed;
                     targetPane.Visibility = Visibility.Visible;
+                    settingsScroll.ScrollToTop();
 
                     txtPaneTitle.Text = navTitle;
                     txtPaneDesc.Text = navSubDesc;
@@ -3602,10 +3573,10 @@ namespace JarvisSasariSa
                 };
             };
 
-            addSidebarNav(0, "\uE945", "요금제 및 AI 모델", "사용 중인 구글 요금제 티어(Ultra / Pro / Free / Local)에 맞춰 최적의 모델을 선택합니다.", paneModels);
+            addSidebarNav(0, "\uE945", "요금제 및 AI 모델", "모델 연결 방식을 선택합니다. 분류는 참고용이며 실제 구독·할당량을 조회한 결과가 아닙니다.", paneModels);
             addSidebarNav(1, "\uE77B", "계정 및 API 연결", "Google 계정 OAuth 로그인 및 개인 API 키, 커스텀 모델 ID를 연결합니다.", paneAccount);
-            addSidebarNav(2, "\uE767", "내 목소리 인식 · 음성", "대표님 전용 성문(Voice Print) 등록으로 외부 소음을 차단하고 자연음성 배속을 조정합니다.", paneVoice);
-            addSidebarNav(3, "\uE7F8", "바탕화면 · 단축키 제어", "실시간 바탕화면 미디어 제어 및 글로벌 호출 단축키를 관리합니다.", paneDesktop);
+            addSidebarNav(2, "\uE767", "음성 · 마이크", "답변 목소리와 말하기 속도를 선택하고 마이크 연결 상태를 확인합니다.", paneVoice);
+            addSidebarNav(3, "\uE7F8", "미디어 · 단축키", "실시간 바탕화면 미디어 제어 및 글로벌 호출 단축키를 관리합니다.", paneDesktop);
 
             // =========================================================================
             // RIGHT FOOTER
@@ -3624,12 +3595,15 @@ namespace JarvisSasariSa
 
             TextBlock footerStatus = new TextBlock
             {
-                Text = "모든 변경사항은 선택 즉시 실시간으로 자비스 엔진에 반영됩니다.",
+                Text = "선택값을 저장합니다. 모델 접근 권한·요금은 계정과 공급자에서 확인하세요.",
                 FontFamily = new FontFamily("Malgun Gothic"),
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textMuted),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            settingsFeedback = footerStatus;
+            footerStatus.TextWrapping = TextWrapping.Wrap;
+            footerStatus.Margin = new Thickness(0, 0, 12, 0);
             Grid.SetColumn(footerStatus, 0);
             footerGrid.Children.Add(footerStatus);
 
@@ -4475,11 +4449,10 @@ namespace JarvisSasariSa
 
         private static void SubmitHudInput()
         {
-            if (inputBox == null && txtMainBody == null) return;
-            string text = (inputBox != null && !string.IsNullOrWhiteSpace(inputBox.Text))
-                ? inputBox.Text.Trim()
-                : (txtMainBody != null ? txtMainBody.Text.Trim() : "");
-            if (string.IsNullOrEmpty(text) || text == "무엇을 도와드릴까요?" || text.StartsWith("지금 마이크로") || text.StartsWith("지금 편하게")) return;
+            // Typed input is submitted explicitly. Never execute display text or
+            // resubmit the previous question when Enter repeats on an empty box.
+            if (inputBox == null || string.IsNullOrWhiteSpace(inputBox.Text)) return;
+            string text = inputBox.Text.Trim();
             suppressTextChanged = true;
             if (inputBox != null) inputBox.Text = "";
             suppressTextChanged = false;
@@ -4539,13 +4512,16 @@ namespace JarvisSasariSa
             try
             {
                 SetHudAppearance(CyanColor);
-                txtStatus.Text = "○ 받아 적는 중";
+                txtStatus.Text = System.Text.RegularExpressions.Regex.IsMatch(sentence,"알아|설명|조사|검색|정리|비교") ? "○ 자료 검색·정리 중" : "○ 요청 처리 중";
                 txtMainBody.Text = sentence;
 
                 string jsonBody = "{\"sentence\":\"" + EscapeJson(sentence) + "\",\"executeOs\":true}";
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
                 var resp = await http.PostAsync("http://127.0.0.1:7788/api/butler/command", content);
                 string raw = await resp.Content.ReadAsStringAsync();
+
+                string researchId = ExtractJsonField(raw, "researchId");
+                if (!string.IsNullOrEmpty(researchId)) await ShowResearchResultAsync(researchId);
 
                 string hudTitle = ExtractJsonField(raw, "hudTitle");
                 string hudSubtitle = ExtractJsonField(raw, "hudSubtitle");
@@ -4589,7 +4565,7 @@ namespace JarvisSasariSa
 
                 if (bootScene)
                 {
-                    ShowFullMonitorBootScene("자비스", "대표님", !string.IsNullOrEmpty(spoken) ? spoken : "어서 오십시오, 대표님");
+                    SpeakAsync(!string.IsNullOrEmpty(spoken) ? spoken : "말씀하세요.");
                 }
                 else if (!string.IsNullOrEmpty(spoken))
                 {
@@ -4613,30 +4589,15 @@ namespace JarvisSasariSa
         private static DispatcherTimer autoRecoveryTimer;
         private static void ScheduleAutoRecovery(int delayMs = 3200)
         {
-            try
-            {
-                if (autoRecoveryTimer == null)
-                {
-                    autoRecoveryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(delayMs) };
-                    autoRecoveryTimer.Tick += (s, e) =>
-                    {
-                        autoRecoveryTimer.Stop();
-                        EnsureBackendServerRunning();
-                        SetHudAppearance(CyanColor);
-                        string readyText = "○ 상시 대기 · 받아 적는 중 (AI: " + currentBrainModel + ")";
-                        if (txtStatus != null) txtStatus.Text = readyText;
-                        if (txtMainBody != null) txtMainBody.Text = "언제든 말씀하시거나 명령을 입력해 주세요";
-                        if (secTxtStatus != null) secTxtStatus.Text = readyText;
-                        if (secTxtMainBody != null) secTxtMainBody.Text = "언제든 말씀하시거나 명령을 입력해 주세요";
-                        if (thirdTxtStatus != null) thirdTxtStatus.Text = readyText;
-                        if (thirdTxtMainBody != null) thirdTxtMainBody.Text = "언제든 말씀하시거나 명령을 입력해 주세요";
-                    };
-                }
-                autoRecoveryTimer.Stop();
-                autoRecoveryTimer.Interval = TimeSpan.FromMilliseconds(delayMs);
-                autoRecoveryTimer.Start();
+            if (autoRecoveryTimer == null) {
+                autoRecoveryTimer = new DispatcherTimer();
+                autoRecoveryTimer.Tick += async (sender, e) => {
+                    autoRecoveryTimer.Stop();
+                    // Preserve the actual result/error while restoring connectivity.
+                    if (await EnsureBackendServerRunning()) StartInvisibleChromeEarWorker();
+                };
             }
-            catch { }
+            autoRecoveryTimer.Stop(); autoRecoveryTimer.Interval = TimeSpan.FromMilliseconds(delayMs); autoRecoveryTimer.Start();
         }
 
         private static void SetHudAppearance(Color c)
@@ -4648,6 +4609,9 @@ namespace JarvisSasariSa
 
         private static async void SpeakAsync(string text)
         {
+            if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess()) {
+                Application.Current.Dispatcher.BeginInvoke(new Action(() => SpeakAsync(text))); return;
+            }
             if (string.IsNullOrWhiteSpace(text)) return;
             if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 0.8) return;
             lastSpeechRequest = text;
@@ -4663,13 +4627,20 @@ namespace JarvisSasariSa
                 catch { }
 
                 bool played = false;
+                var audioClock = System.Diagnostics.Stopwatch.StartNew();
                 try
                 {
-                    string url = "http://127.0.0.1:7788/api/tts-mp3?voice=ko-KR-HyunsuMultilingualNeural&text=" + Uri.EscapeDataString(text);
-                    using (var timeout = new System.Threading.CancellationTokenSource(12000))
+                    string url = "http://127.0.0.1:7788/api/tts-mp3?format=wav&text=" + Uri.EscapeDataString(text);
+                    using (var timeout = new System.Threading.CancellationTokenSource(20000))
                     using (var response = await http.GetAsync(url, timeout.Token))
                     {
                         byte[] bytes = await response.Content.ReadAsByteArrayAsync();
+                        System.Collections.Generic.IEnumerable<string> values;
+                        string actualVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Voice", out values) ? values.FirstOrDefault() : "unknown";
+                        string actualSpeed = response.Headers.TryGetValues("X-Jarvis-Tts-Speed", out values) ? values.FirstOrDefault() : "unknown";
+                        bool fallbackVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Fallback", out values) && values.FirstOrDefault() == "1";
+                        WriteLog("TTS response voice=" + actualVoice + ", speed=" + actualSpeed + ", fallback=" + fallbackVoice + ", fetchMs=" + audioClock.ElapsedMilliseconds);
+                        SetSettingsFeedback(fallbackVoice ? "선택한 Neural 음성 사용 불가 · Windows 음성으로 대체합니다. 속도는 유지됩니다." : "재생 음성: " + actualVoice + " · 속도 " + actualSpeed + "×", fallbackVoice);
                         if (response.IsSuccessStatusCode && bytes.Length > 44)
                         {
                             bool wav = bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E';
@@ -4677,7 +4648,7 @@ namespace JarvisSasariSa
                             {
                                 await Task.Run(() => {
                                     using (var stream = new MemoryStream(bytes))
-                                    using (var player = new SoundPlayer(stream)) { player.Load(); player.PlaySync(); }
+                                    using (var player = new SoundPlayer(stream)) { player.Load(); WriteLog("WAV playback started: readyMs=" + audioClock.ElapsedMilliseconds); player.PlaySync(); }
                                 });
                                 played = true;
                                 WriteLog("WAV playback completed: " + bytes.Length + " bytes");
@@ -4716,7 +4687,8 @@ namespace JarvisSasariSa
 
                 if (!played)
                 {
-                    WriteLog("Studio HD Neural MP3 did not play (mechanical SAPI fallback disabled by user rule)");
+                    WriteLog("Speech output failed after MP3 and WAV fallback");
+                    if (txtStatus != null) txtStatus.Text = "⚠ 음성 출력 실패 · 텍스트 답변을 확인해 주세요";
                 }
             }
             catch (Exception ex)
@@ -4754,7 +4726,7 @@ namespace JarvisSasariSa
             var completed = new TaskCompletionSource<bool>();
             EventHandler opened = (s, e) =>
             {
-                try { koreanVoicePlayer.SpeedRatio = currentSpeechSpeedRatio; } catch { }
+                try { koreanVoicePlayer.SpeedRatio = 1.0; } catch { }
                 koreanVoicePlayer.Play();
             };
             EventHandler ended = (s, e) => completed.TrySetResult(true);
@@ -4770,7 +4742,7 @@ namespace JarvisSasariSa
                 koreanVoicePlayer.Open(new Uri(filePath));
                 if (await Task.WhenAny(completed.Task, Task.Delay(30000)) != completed.Task) return false;
                 bool okPlay = await completed.Task;
-                WriteLog("MP3 playback completed: " + bytes.Length + " bytes, speed=" + currentSpeechSpeedRatio + "x, ok=" + okPlay);
+                WriteLog("MP3 playback completed: " + bytes.Length + " bytes, playbackSpeed=1x, ok=" + okPlay);
                 return okPlay;
             }
             finally

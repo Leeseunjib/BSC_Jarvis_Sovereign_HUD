@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('assert/strict');
+const {normalizeEarHealth,getEarStatus}=require('./ear-health');
+const now=50000;
+const rec=normalizeEarHealth({microphone:'ready',recognition:'restarting',event:'recognition-end',endReason:'no-speech',workerSession:'test',sequence:2},now);
+assert.equal(getEarStatus(rec,0,now).connected,false);
+assert.equal(getEarStatus(rec,0,now).recoverable,false,'정상 재연결은 작업자 강제 재시작 사유가 아닙니다');
+assert.equal(getEarStatus(rec,0,now).reason,'no-speech');
+assert.equal(getEarStatus(rec,0,now+21000).recoverable,true,'작업자 보고 자체가 끊기면 복구가 필요합니다');
+const live=normalizeEarHealth({...rec,recognition:'listening',gapMs:83,event:'recognition-start'},now+83);
+assert.equal(getEarStatus(live,0,now+83).connected,true);
+const denied=normalizeEarHealth({microphone:'error',recognition:'error',error:'not-allowed'},now);
+assert.equal(getEarStatus(denied,0,now).recoverable,false,'새 권한 오류는 재시작 반복으로 해결하지 않습니다');
+assert.equal(live.gapMs,83);
+const devices=normalizeEarHealth({deviceLabel:'US-4x4',inputMode:'shared-audio-track',inputDevices:['US-4x4','Mixing Driver 1']},now);
+assert.equal(devices.deviceLabel,'US-4x4');assert.equal(devices.inputMode,'shared-audio-track');assert.deepEqual(devices.inputDevices,['US-4x4','Mixing Driver 1']);
+console.log('PASS: 음성 인식 재연결·마이크 장애·실제 작업자 보고 중단 구분');

@@ -52,11 +52,11 @@ async function scenario(finalize, lockAvailable = true, replacement = false) {
   };
   vm.createContext(context);
   for (const file of ['speech-turn-buffer.js', 'media-intents.js', 'jarvis-react-hud.js']) vm.runInContext(fs.readFileSync(path.join(process.env.JARVIS_TEST_JS_ROOT || path.join(__dirname, '../public/js'), file), 'utf8'), context, { filename: file });
-  domReady(); for (const effect of effects) effect(); await Promise.resolve(); await Promise.resolve();
+  domReady(); for (const effect of effects) effect(); for(let i=0;i<16;i++)await Promise.resolve();
   if (!lockAvailable) { assert(duplicateClosed); assert.equal(instances.length, 0); assert.equal(requests.length, 0); return; }
   const rec = instances[0]; assert(rec);
   if (replacement) {
-    assert(orbClick); rec.emit('자비스 이전 문장', false); orbClick();
+    assert(orbClick); rec.emit('자비스 이전 문장', false); await orbClick();
     instances[1].emit('자비스 새 명령', true); await run(2500);
     const sent = requests.filter(r => r.url === '/api/butler/command');
     assert.equal(sent.length, 1, '교체된 인식기의 늦은 결과는 실행 금지');

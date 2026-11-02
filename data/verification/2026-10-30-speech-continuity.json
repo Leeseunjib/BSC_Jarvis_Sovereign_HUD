@@ -1,0 +1,36 @@
+{
+  "Date": "2026-10-30",
+  "Baseline": "speech-live-20261030-124043.jsonl",
+  "RuntimeVersion": "endpoint-media-v5",
+  "ObservedEndReasons": [
+    {
+      "Name": "no-speech",
+      "Count": 51
+    }
+  ],
+  "RestartGapMs": {
+    "Min": 69.0,
+    "Max": 97.0,
+    "Average": 85.96
+  },
+  "Fixes": [
+    "Feed recognition-confirmed audio activity into the turn buffer",
+    "Do not force finalization during ongoing speech after 10 seconds",
+    "Retain confirmed segments across recognition sessions",
+    "Remove native HUD execution of unconfirmed failure text",
+    "Prevent duplicate microphone stream requests and overlapping HUD polls",
+    "Record recognition end reasons and recovery duration"
+  ],
+  "AutomatedChecks": "passed: speech-turn, speech-client including 45-second utterance, replacement, cancellation, ear-health, media-control; compiled HUD",
+  "HudObservation": "hud-soak-20261030-124538-summary.json",
+  "ManifestFiles": 32,
+  "ModifiedRuntimeFiles": [],
+  "LiveHumanSpeech": {
+    "Status": "waiting-for-user-presence",
+    "SpeechStartEvents": 0,
+    "CommandCompleteEvents": 0,
+    "SpeakerConfirmation": null,
+    "Trace": "speech-live-20261030-124536.jsonl",
+    "UserResponse": "User was elsewhere and could not listen; not an observed playback failure."
+  }
+}

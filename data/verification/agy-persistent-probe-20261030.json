@@ -1,0 +1,26 @@
+[
+  {
+    "ok": true,
+    "text": "준비되었습니다.",
+    "provider": "antigravity-cli",
+    "model": "gemini-3.8-flash-low",
+    "requestedModel": "gemini-3.8-flash-low",
+    "modelVerified": true,
+    "fallback": false,
+    "elapsedMs": 31621,
+    "firstTextMs": 31316,
+    "warm": false
+  },
+  {
+    "ok": true,
+    "text": "태양 빛이 대기를 통과할 때 파장이 짧은 파란색 빛이 공기 분자에 의해 더 많이 산란되기 때문입니다.",
+    "provider": "antigravity-cli",
+    "model": "gemini-3.8-flash-low",
+    "requestedModel": "gemini-3.8-flash-low",
+    "modelVerified": true,
+    "fallback": false,
+    "elapsedMs": 4093,
+    "firstTextMs": 3765,
+    "warm": true
+  }
+]

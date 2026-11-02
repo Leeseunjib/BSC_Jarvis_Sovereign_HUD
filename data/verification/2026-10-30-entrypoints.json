@@ -1,0 +1,98 @@
+[
+  {
+    "Round": 1,
+    "Entry": "Start_자비스.cmd",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 1,
+    "Entry": "자비스_실행.bat",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 1,
+    "Entry": "Start_자비스.vbs",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 1,
+    "Entry": "자비스 HUD.lnk",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 2,
+    "Entry": "Start_자비스.cmd",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 2,
+    "Entry": "자비스_실행.bat",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 2,
+    "Entry": "Start_자비스.vbs",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 2,
+    "Entry": "자비스 HUD.lnk",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 3,
+    "Entry": "Start_자비스.cmd",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 3,
+    "Entry": "자비스_실행.bat",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 3,
+    "Entry": "Start_자비스.vbs",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  },
+  {
+    "Round": 3,
+    "Entry": "자비스 HUD.lnk",
+    "SameHudPid": true,
+    "BinaryUnchanged": true,
+    "PrimarySingleHud": true,
+    "Passed": true
+  }
+]

@@ -26,6 +26,8 @@ const {
   runJarvisHarness2EvolutionCycle
 } = require('./jarvis-harness2-engine');
 const { sharedBscBridge } = require('./bsc-collaboration-bridge');
+const { createDocument, normalizeDocSpec } = require('./office-doc-engine');
+const { runRea, runLaya } = require('./rea-laya-bridge');
 
 const MCP_SERVER_INFO = {
   name: 'jarvis-sovereign-butler',
@@ -126,6 +128,39 @@ const MCP_TOOLS = [
           description: '자가진화 실행 사유'
         }
       }
+    }
+  },
+  {
+    name: 'jarvis_create_office_doc',
+    description: '자비스 Office Document Engine을 통해 Word(.docx), Markdown(.md), PDF(.pdf), PowerPoint(.pptx) 문서를 생성합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', description: '문서 형식 (docx | md | pdf | pptx)' },
+        title: { type: 'string', description: '문서 제목' },
+        subtitle: { type: 'string', description: '부제목' },
+        summary: { type: 'string', description: '핵심 요약' },
+        sections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { heading: { type: 'string' }, body: { type: 'string' } }
+          }
+        }
+      },
+      required: ['format', 'title']
+    }
+  },
+  {
+    name: 'jarvis_run_rea_or_laya',
+    description: 'REA 4-Stage 클린룸 역공학 분석(Invoke-ReaAnalyzer.js) 또는 Laya 다국어 구조화 의사결정(laya-service.py / Invoke-LayaRlGrowth.js)을 실행합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        engine: { type: 'string', description: 'rea 또는 laya' },
+        targetOrPrompt: { type: 'string', description: '분석 대상 경로 또는 Laya 한국어 프롬프트' }
+      },
+      required: ['engine', 'targetOrPrompt']
     }
   }
 ];
@@ -394,6 +429,33 @@ async function handleMcpJsonRpcRequest(rpcReq, butlerInstance = null) {
               }
             ]
           }
+        };
+      }
+
+      if (toolName === 'jarvis_create_office_doc') {
+        const spec = normalizeDocSpec({
+          title: args.title || '자비스 문서',
+          subtitle: args.subtitle || 'JARVIS MCP Office Engine',
+          summary: args.summary || '',
+          sections: Array.isArray(args.sections) ? args.sections : []
+        });
+        const out = await createDocument(args.format || 'docx', spec);
+        return {
+          jsonrpc: '2.0',
+          id,
+          result: { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] }
+        };
+      }
+
+      if (toolName === 'jarvis_run_rea_or_laya') {
+        const eng = String(args.engine || 'rea').toLowerCase();
+        const out = eng === 'laya'
+          ? await runLaya(args.targetOrPrompt || '')
+          : await runRea(args.targetOrPrompt || 'C:\\자비스');
+        return {
+          jsonrpc: '2.0',
+          id,
+          result: { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] }
         };
       }
 

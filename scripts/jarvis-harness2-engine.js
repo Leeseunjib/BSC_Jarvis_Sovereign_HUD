@@ -21,6 +21,8 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { getEcosystemOverview } = require('./ecosystem-index');
+const { getLearningStatus, runRecursionCycle } = require('./recursive-learning');
 
 const JARVIS_ROOT = 'C:\\자비스';
 const HARNESS2_DIR = path.join(JARVIS_ROOT, 'harness2');
@@ -28,8 +30,8 @@ const BASE_HARNESS_DIR = path.join(HARNESS2_DIR, 'base_harness');
 const DOMAINS_DIR = path.join(HARNESS2_DIR, 'domains');
 const RUNS_DIR = path.join(HARNESS2_DIR, 'runs');
 const AGENTS_SKILLS_DIR = path.join(JARVIS_ROOT, '.agents', 'skills');
-const DATA_DIR = path.join(JARVIS_ROOT, 'data');
-const DOCS_DIR = path.join(JARVIS_ROOT, 'docs');
+const DATA_DIR = process.env.JARVIS_DATA_DIR || path.join(JARVIS_ROOT, 'data');
+const DOCS_DIR = process.env.JARVIS_DATA_DIR ? path.join(DATA_DIR, 'docs') : path.join(JARVIS_ROOT, 'docs');
 
 const PLANS_AND_RULES_FILE = path.join(DATA_DIR, 'jarvis-plans-and-rules.json');
 const ACTIVE_PLAN_MD_FILE = path.join(DOCS_DIR, 'JARVIS_Active_Plan.md');
@@ -40,10 +42,10 @@ const BSC_HARNESS2_PATH = 'C:\\BeausCreators\\01.BSC_HQ\\3.CompanyOS\\Scripts\\h
 let bscSpecAndTree = null;
 let bscScheduleJudge = null;
 try {
-  if (fs.existsSync(path.join(BSC_HARNESS2_PATH, 'spec_and_tree.js'))) {
+  if (process.env.JARVIS_DISABLE_EXTERNAL_HUB !== '1' && fs.existsSync(path.join(BSC_HARNESS2_PATH, 'spec_and_tree.js'))) {
     bscSpecAndTree = require(path.join(BSC_HARNESS2_PATH, 'spec_and_tree.js'));
   }
-  if (fs.existsSync(path.join(BSC_HARNESS2_PATH, 'schedule_judge_report.js'))) {
+  if (process.env.JARVIS_DISABLE_EXTERNAL_HUB !== '1' && fs.existsSync(path.join(BSC_HARNESS2_PATH, 'schedule_judge_report.js'))) {
     bscScheduleJudge = require(path.join(BSC_HARNESS2_PATH, 'schedule_judge_report.js'));
   }
 } catch (_) {}
@@ -119,6 +121,32 @@ const JARVIS_CORE_SKILLS = [
 
 ## 2. HUD 메뉴 실시간 조회
 - 바탕화면 자비스 HUD의 **\`☰ 메뉴\` → \`📓 CHLGD · 대화 규칙 & 로그 창\`**에서 대표님께서 언제든 깔끔하게 분류된 규칙·로그·스킬 현황을 한눈에 열람하실 수 있습니다.`
+  },
+  {
+    name: 'office-doc-studio',
+    title: 'Word(.docx) · Markdown(.md) · PDF(.pdf) · PPT(.pptx) 4대 문서 즉시 제작 스킬',
+    triggers: 'word, docx, md, markdown, pdf, ppt, pptx, 워드, 마크다운, 피디에프, 파워포인트, 발표자료, 보고서작성, 문서만들어',
+    description: '검색 결과나 대표님 지시 주제를 바탕으로 Word(.docx), Markdown(.md), PDF(.pdf), PowerPoint(.pptx) 문서를 외부 유료 라이브러리 없이 즉시 생성하고 바탕화면에 열어주는 스킬입니다.',
+    body: `# Office Document Studio Skill (.docx / .md / .pdf / .pptx)
+
+## 1. 지원 포맷 (Zero-Dependency OpenXML & Edge Headless)
+- **Markdown (\`.md\`)**: UTF-8 구조화 마크다운 문서
+- **Word (\`.docx\`)**: OpenXML WordprocessingML 정품 패키지 (표지·요약·섹션·출처 자동 조판, Microsoft Word 2016+ 호환)
+- **PowerPoint (\`.pptx\`)**: OpenXML PresentationML 16:9 와이드 슬라이드 덱 (표지 + 섹션별 핵심 불릿 슬라이드 자동 생성)
+- **PDF (\`.pdf\`)**: HTML 프리뷰 조판 후 Microsoft Edge/Chrome Headless \`--print-to-pdf\` 엔진으로 한글 폰트(맑은 고딕) 무결성 PDF 출력`
+  },
+  {
+    name: 'rea-laya-executor',
+    title: 'REA 4-Stage 역공학 분석 & Laya 언어(DSL) 구조화 의사결정 스킬',
+    triggers: 'rea, 역공학, 클린룸, laya, 라야, 라야언어, 구조화질문, 의사결정, 그리포, grpo',
+    description: 'C:\\BeausCreators의 REA 4분할 클린룸 분석기(Invoke-ReaAnalyzer.js)와 Laya 다국어 구조화 언어 엔진(laya-service.py & Invoke-LayaRlGrowth.js)을 자비스에서 직접 호출하는 스킬입니다.',
+    body: `# REA 4-Stage Clean-Room & Laya Language Skill
+
+## 1. REA (Reverse Engineer Anything · 4-Split Provenance)
+- 대상 경로 또는 시스템을 **① Observations(관찰 팩트)**, **② Derivations(도출 아키텍처)**, **③ Inferences(진화 추론)**, **④ Unknowns(리스크 통제)** 4분할로 역공학 분석하여 전용 결과 창에 표시합니다.
+
+## 2. Laya Language (\`convaiinnovations/laya-multilingual\` + System-1 Router)
+- 한국어 자연어 오더를 Laya 구조화 상태·질문 DSL(\`{ state, questions }\`) 및 System-1 결정론적 라우터/GRPO 보상 루프로 해석하여 모호함 없는 실행 계획을 도출합니다.`
   }
 ];
 
@@ -127,6 +155,7 @@ const JARVIS_CORE_SKILLS = [
 // ============================================================================
 
 function ensureHarness2SurfaceAndSkills() {
+  if (process.env.JARVIS_DISABLE_EXTERNAL_HUB === '1') return;
   fs.mkdirSync(BASE_HARNESS_DIR, { recursive: true });
   fs.mkdirSync(path.join(BASE_HARNESS_DIR, 'sub_agents', 'reviewer'), { recursive: true });
   fs.mkdirSync(path.join(BASE_HARNESS_DIR, 'sub_agents', 'planner'), { recursive: true });
@@ -135,7 +164,6 @@ function ensureHarness2SurfaceAndSkills() {
   fs.mkdirSync(path.join(BASE_HARNESS_DIR, 'plugin'), { recursive: true });
   fs.mkdirSync(DOMAINS_DIR, { recursive: true });
   fs.mkdirSync(RUNS_DIR, { recursive: true });
-  fs.mkdirSync(AGENTS_SKILLS_DIR, { recursive: true });
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(DOCS_DIR, { recursive: true });
 
@@ -146,7 +174,7 @@ function ensureHarness2SurfaceAndSkills() {
       `# [c1] JARVIS Sovereign Butler — Core System Prompt (Google Harness² Surface)
 - 사용자 호칭: 반드시 **"대표님"** 또는 **"이건우 대표님"**으로 지칭한다.
 - 정체성: 대표님을 가장 잘 이해하고 학습하며, \`C:\\BeausCreators\`(26인 에이전트) 및 \`C:\\Warehouse\`(\`05.BSC_Skill_Warehouse\`), **Antigravity 2.0 IDE**와 MCP로 연동되어 최고 수준의 업무(CHLGD, .ps1, .py, CI/CD, Plan 설계)를 수행하는 독립 AI 집사이다.
-- 음성 경청 원칙: 대표님의 성문(Voice Print)만 인식하여 외부 소음을 차단하고, 대표님께서 말씀을 마칠 때까지(3.8초 침묵) 끝까지 경청한 뒤 실행한다.\n`,
+- 음성 경청 원칙: 말씀을 마친 뒤 일반 2초, 완결된 시간·음악 정지 명령은 1.2초 대기하고 실행한다. 목소리 확인은 실제 등록 후 활성화하며 완벽 차단을 보장하지 않는다.\n`,
       'utf8'
     );
   }
@@ -257,18 +285,16 @@ ${sk.body}
 `;
     const h2SkillFile = path.join(BASE_HARNESS_DIR, 'skills', sk.name, 'SKILL.md');
     fs.mkdirSync(path.dirname(h2SkillFile), { recursive: true });
-    fs.writeFileSync(h2SkillFile, skillMdContent, 'utf8');
+    if (!fs.existsSync(h2SkillFile)) fs.writeFileSync(h2SkillFile, skillMdContent, 'utf8');
 
-    const agySkillFile = path.join(AGENTS_SKILLS_DIR, sk.name, 'SKILL.md');
-    fs.mkdirSync(path.dirname(agySkillFile), { recursive: true });
-    fs.writeFileSync(agySkillFile, skillMdContent, 'utf8');
+    // Agent instructions are maintained by the user; runtime polling never overwrites them.
   }
 
   // Seed Experience Library R domains
   const defaultDomains = [
     {
       domain: 'voice_and_hud',
-      lesson: '대표님 전용 성문(Voice Print, F0 Hz + 근접 에너지) 필터와 3.8초 침묵 경청 버퍼(speechPauseMs=3800)를 유지하여 말씀 도중 끊김과 외부 소음 오작동을 100% 차단한다.'
+      lesson: '음성 종료 대기는 일반 2초, 완결된 시간·음악 정지 명령은 1.2초를 기본으로 한다. 계속 말하는 동안 실행하지 않고, 같은 인식 결과의 최종 확정으로 대기를 반복하지 않는다. 내 목소리 확인은 설정에서 실제 등록한 뒤 활성화하며, 타인·영상 소리를 완벽하게 차단한다고 보장하지 않는다.'
     },
     {
       domain: 'chlgd_and_cicd',
@@ -416,6 +442,7 @@ function getWarehouseAndBscSkillInventory() {
   const originalSkills = listSubDirs(path.join(activeWarehouseRoot, '2.BSC_Originals'));
   const marketPackages = listSubDirs(path.join(activeWarehouseRoot, '4.Market_Packages'));
   const bscWorkspaceSkills = listSubDirs('C:\\BeausCreators\\.agents\\skills');
+  const beautifulWorldClasses = listSubDirs('C:\\BeautifulWorld');
   const jarvisSkills = JARVIS_CORE_SKILLS.map(s => ({
     name: s.name,
     title: s.title,
@@ -427,6 +454,9 @@ function getWarehouseAndBscSkillInventory() {
     warehouseExists: fs.existsSync(activeWarehouseRoot),
     bscRoot: 'C:\\BeausCreators',
     bscExists: fs.existsSync('C:\\BeausCreators\\01.BSC_HQ'),
+    beautifulWorldRoot: 'C:\\BeautifulWorld',
+    beautifulWorldExists: fs.existsSync('C:\\BeautifulWorld'),
+    beautifulWorldClasses,
     jarvisSkills,
     bscWorkspaceSkills,
     warehouseImportedSkills: importedSkills,
@@ -451,7 +481,7 @@ const DEFAULT_PLANS_AND_RULES_STATE = {
     {
       id: 'rule-01',
       category: '음성 · 경청 규칙',
-      rule: '대표님 호출("자비스", "헤이 자비스") 시 말씀을 끝까지 경청(3.8초 침묵 대기)한 뒤 이해하고 실행하며, 말씀 도중 먼저 끊거나 혼자 말하지 않는다.',
+      rule: '호출어 뒤 말씀을 끝까지 듣고 실행한다. 일반 침묵 대기는 2초, 완결된 시간·음악 정지 명령은 1.2초이며, 같은 문장의 인식 확정 때문에 대기를 반복하지 않는다. 발화 중 먼저 끊거나 혼자 말하지 않는다.',
       source: '대표님 직접 지시 (음성 소통 헌장)',
       createdAt: '2026-10-29'
     },
@@ -514,7 +544,6 @@ const DEFAULT_PLANS_AND_RULES_STATE = {
 };
 
 function loadPlansAndRulesState() {
-  ensureHarness2SurfaceAndSkills();
   try {
     if (fs.existsSync(PLANS_AND_RULES_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(PLANS_AND_RULES_FILE, 'utf8'));
@@ -528,8 +557,7 @@ function loadPlansAndRulesState() {
       };
     }
   } catch (_) {}
-  savePlansAndRulesState(DEFAULT_PLANS_AND_RULES_STATE);
-  return { ...DEFAULT_PLANS_AND_RULES_STATE };
+  return JSON.parse(JSON.stringify(DEFAULT_PLANS_AND_RULES_STATE));
 }
 
 function savePlansAndRulesState(state) {
@@ -706,6 +734,10 @@ function runJarvisHarness2EvolutionCycle(reason = 'CEO Manual Trigger') {
       demoResult = bscScheduleJudge.runDeterministicDemo(RUNS_DIR);
     } catch (_) {}
   }
+  let learningCycle = null;
+  try {
+    learningCycle = runRecursionCycle(reason);
+  } catch (_) {}
   const h2Status = getHarness2Status();
   const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
   try {
@@ -721,7 +753,8 @@ function runJarvisHarness2EvolutionCycle(reason = 'CEO Manual Trigger') {
     ok: true,
     executedAt: nowStr,
     harness2Status: h2Status,
-    demoResult
+    demoResult,
+    learningCycle
   };
 }
 
@@ -786,6 +819,8 @@ function getChlgdAndPlanDashboard(bscBridge) {
     loopLines,
     harness2: h2Status,
     skillInventory: inventory,
+    ecosystems: getEcosystemOverview(),
+    recursiveLearning: getLearningStatus(),
     reaAntigravity: reaReport,
     mcpServer: {
       name: 'jarvis-sovereign-butler',
@@ -797,9 +832,7 @@ function getChlgdAndPlanDashboard(bscBridge) {
 }
 
 // Initialize on load
-ensureHarness2SurfaceAndSkills();
-buildAntigravityReaBlueprint();
-loadPlansAndRulesState();
+// Importing this module or reading status must not rewrite project files.
 
 module.exports = {
   JARVIS_CORE_SKILLS,

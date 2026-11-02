@@ -4,6 +4,8 @@
 *.key
 *.pem
 data/config.json
+data/owner-speaker-profile.json
+data/owner-speaker-profile.json.tmp
 
 # Node dependencies & runtime caches
 node_modules/

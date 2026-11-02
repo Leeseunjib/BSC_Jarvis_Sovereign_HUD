@@ -1,0 +1,22 @@
+{
+  "StartedAt": "2026-10-30T12:45:38.1569113+09:00",
+  "EndedAt": "2026-10-30T12:50:40.2540206+09:00",
+  "ObservedSeconds": 302.1,
+  "RequestedMinutes": 5,
+  "CompletedDuration": true,
+  "Samples": 60,
+  "InitialPid": 57188,
+  "FinalPid": 57188,
+  "Passed": true,
+  "FailureSamples": [],
+  "MicDisconnectedSamples": 2,
+  "MinPrivateMb": 176.43,
+  "MaxPrivateMb": 176.72,
+  "StartPrivateMb": 176.72,
+  "EndPrivateMb": 176.5,
+  "MinHandles": 1416.0,
+  "MaxHandles": 1451.0,
+  "MaxGdiObjects": 47.0,
+  "MaxUserObjects": 57.0,
+  "DataFile": "C:\\자비스\\data\\verification\\hud-soak-20261030-124538.jsonl"
+}

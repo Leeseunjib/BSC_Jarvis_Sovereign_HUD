@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-30",
+  "feature": "local-speaker-verification",
+  "userEnrollmentDecision": "deferred-by-user",
+  "enrolled": false,
+  "enabled": false,
+  "captureReady": true,
+  "captureSamples": 1808000,
+  "microphoneConnected": true,
+  "modelThreshold": 0.85,
+  "rawEnrollmentFilesSaved": false,
+  "personalVoiceVerification": "pending-user-enrollment",
+  "visualSettingsVerification": "not-performed-this-turn",
+  "unitTests": [
+    "speaker-gate",
+    "speaker-capture",
+    "speaker-api",
+    "speech-turn",
+    "speech-client",
+    "speech-replacement",
+    "ear-health",
+    "media-control",
+    "safety"
+  ],
+  "measurementFile": "data/verification/speaker-model-measurements-20261030.json"
+}

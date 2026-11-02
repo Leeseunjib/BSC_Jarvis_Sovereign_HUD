@@ -1,0 +1,26 @@
+[
+  {
+    "ok": true,
+    "text": "준비되었습니다.",
+    "provider": "antigravity-cli",
+    "model": "gemini-3.8-flash-low",
+    "requestedModel": "gemini-3.8-flash-low",
+    "modelVerified": true,
+    "fallback": false,
+    "elapsedMs": 39269,
+    "firstTextMs": 38535,
+    "warm": false
+  },
+  {
+    "ok": true,
+    "text": "대표님, 좋은 하루 보내세요!",
+    "provider": "antigravity-cli",
+    "model": "gemini-3.8-flash-low",
+    "requestedModel": "gemini-3.8-flash-low",
+    "modelVerified": true,
+    "fallback": false,
+    "elapsedMs": 13146,
+    "firstTextMs": 12665,
+    "warm": true
+  }
+]

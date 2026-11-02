@@ -1,0 +1,58 @@
+{
+  "model": "wespeaker_en_voxceleb_resnet34_LM",
+  "threshold": 0.85,
+  "rows": [
+    {
+      "name": "fangjun-test-sr-1.wav",
+      "scores": [
+        1,
+        1
+      ],
+      "allowed": true,
+      "milliseconds": 396
+    },
+    {
+      "name": "fangjun-test-sr-2.wav",
+      "scores": [
+        0.9135752618357822
+      ],
+      "allowed": true,
+      "milliseconds": 41
+    },
+    {
+      "name": "leijun-test-sr-1.wav",
+      "scores": [
+        0.7452615904077514,
+        0.6737841402893303,
+        0.8073462268266756
+      ],
+      "allowed": false,
+      "milliseconds": 140
+    },
+    {
+      "name": "leijun-test-sr-2.wav",
+      "scores": [
+        0.7796509186337788,
+        0.7179256742159305
+      ],
+      "allowed": false,
+      "milliseconds": 131
+    },
+    {
+      "name": "liudehua-test-sr-1.wav",
+      "scores": [
+        0.7256173560745165
+      ],
+      "allowed": false,
+      "milliseconds": 70
+    },
+    {
+      "name": "liudehua-test-sr-2.wav",
+      "scores": [
+        0.6646483385041126
+      ],
+      "allowed": false,
+      "milliseconds": 62
+    }
+  ]
+}

@@ -1,7 +1,21 @@
 {
-  "openWindowSeq": 2,
+  "openWindowSeq": 5,
   "activeTab": "plan",
   "conversationRules": [
+    {
+      "id": "rule-1793594080089",
+      "category": "대화 학습 규칙",
+      "rule": "앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘",
+      "source": "대표님 실시간 대화 학습",
+      "createdAt": "2026-11-02"
+    },
+    {
+      "id": "rule-1793593583140",
+      "category": "CHLGD 작업 규칙 · 옵시디언 뉴런 & 창고(Warehouse) 자동화",
+      "rule": "[2026-11-02 대표님 승인] C:\\Warehouse(05.BSC_Skill_Warehouse)는 7대 도메인 × 18대 BSC_Originals × 19대 Imported 팩 × 32인 에이전트가 양방향 [[WikiLink]]로 연결된 옵시디언 뉴런 시스템(3.Obsidian_Vault / 00_Master_Neuron_MOC.md & warehouse_neuron_graph.json)으로 운영하며, 'bsc warehouse [--neuron|--audit|--search|--sync]' CLI 및 HQ MAPS 2-Hop 브레인 그래프(770 노드)와 자비스(JARVIS)가 실시간 연동된다.",
+      "source": "Antigravity MCP Bridge",
+      "createdAt": "2026-11-02"
+    },
     {
       "id": "rule-01",
       "category": "음성 · 경청 규칙",
@@ -39,28 +53,94 @@
     }
   ],
   "activePlanDoc": {
-    "id": "plan-1793258614542",
-    "title": "📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처",
-    "category": "Antigravity MCP Synced Plan",
+    "id": "plan-1793593584803",
+    "title": "✅ [구축 완료] C:\\Warehouse 옵시디언 뉴런 시스템 · CHLGD CI/CD · 자비스 통합 완료 보고서",
+    "category": "CHLGD × Obsidian Neuron × JARVIS Completed Report",
     "author": "JARVIS Sovereign Butler (CHLGD × Harness²)",
-    "updatedAt": "2026-10-29 07:23:34",
-    "summary": "이건우 대표님께서 지시하신 「📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처」 작업을 위한 단계별 CHLGD 실행 계획서입니다.",
+    "updatedAt": "2026-11-02 04:26:24",
+    "summary": "이건우 대표님 승인에 따라 C:\\Warehouse 1~4단계 개편(구경로 패치, 옵시디언 79노드/138시냅스 뉴런 볼트 구축, bsc warehouse CLI 탑재, HQ 브레인 770노드 및 자비스 통합)을 완료하고 전수 검증했습니다.",
     "sections": [
       {
-        "heading": "1. 🎯 목표 및 핵심 방향 (Context & Goal)",
-        "body": "• 대표님 지시 사항: 「📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처」\n• C:\\BeausCreators CHLGD 표준 및 데이터 무손실 헌장(Zero Data Loss)을 준수하여 설계합니다."
+        "body": "• 18대 BSC_Originals 정본 스킬 및 C:\\BeausCreators\\.agents\\skills 링크 18/18 전수 검증 완료\n• Sync-WarehouseDual.ps1 및 GATES.md의 구경로(OneDrive)를 C:\\BeausCreators\\05.BSC_Skill_Warehouse 및 E:\\BeausCreators\\05.BSC_Skill_Warehouse 정본으로 교정 완료\n• Test-MasterAuditAndVerification.ps1 11개 -> 18개 정본 스킬 전수 감사 체계로 업그레이드 완료",
+        "heading": "1. 🛡 [1단계 완료] 구경로 패치 및 18대 정본 CI/CD 게이트 최신화"
       },
       {
-        "heading": "2. 🛡 Google Harness² & 스킬 실행 설계 (Harness & Skills)",
-        "body": "• 활용 스킬: chlgd-orchestrator, powershell-python-cicd, antigravity-mcp-bridge\n• 협력 에이전트: 기획(소하/지윤) · 설계/아키텍처(태준/거누) · 검증(수호)\n• 실행 환경: Windows 11 (Winsta0\\Default) + UTF-8 무결성 파이프라인"
+        "body": "• C:\\Warehouse\\scripts\\Build-WarehouseNeuronGraph.js & .py 구축 완료\n• C:\\Warehouse\\3.Obsidian_Vault 내 5계층 뉴런 노트 생성 완료:\n  - 00_Master_Neuron_MOC.md (중추 뇌간)\n  - 01_Domains/ (7대 도메인 시냅스 허브)\n  - 02_Originals/ (18대 정본 스킬 뉴런 노트)\n  - 03_Imported_Packs/ (19대 Imported 팩 + GitHub 55대 저장소 원장)\n  - 04_Agents_Skill_Map/ (32인 에이전트별 창고 무기 시냅스 노트)\n  - 05_REA_Blueprints/ (REA 클린룸 역공학 설계도 허브)\n• 옵시디언 그래프 뷰(.obsidian/graph.json) 6색 뉴런 컬러 그룹 자동 세팅 완료\n• 00.운영/warehouse_neuron_graph.json 생성 (79 Nodes / 138 Synapses, 2-Hop 검색 4ms)\n• HQ MAPS 2-Hop 브레인 그래프(Build-HQBrainIndex.js)와 직결하여 총 770 Nodes / 491 Edges로 통합 완료 (603ms)",
+        "heading": "2. 🧠 [2단계 완료] 옵시디언 뉴런(Neuron) 볼트 & 2-Hop 시냅스 구축"
       },
       {
-        "heading": "3. ⚡ 단계별 실행 체크리스트 (Execution Steps)",
-        "body": "1) [Context] 기존 에러 로그(error-log.md) 및 대표님 대화 규칙 원장 스캔\n2) [Harness] .ps1 / .py / .js 모듈 구현 및 로컬 샌드박스 테스트\n3) [Loop] 실행 결과 검증 후 ceo-orders-log.jsonl 및 jarvis-loop.md에 영구 기록\n4) [MCP Sync] Antigravity IDE와 상태 동기화 및 Git 커밋 준비"
+        "body": "• bsc-cli.ps1에 'bsc warehouse' 통합 명령어 탑재:\n  - bsc warehouse --neuron : 옵시디언 뉴런 볼트 및 그래프 JSON 재빌드\n  - bsc warehouse --audit  : 18대 정본 스킬 · 28인 하네스 · 215개 서브스킬 전수 CI/CD 감사\n  - bsc warehouse --search \"<키워드>\" : 4ms 초경량 1-Hop/2-Hop 뉴런 시냅스 검색\n  - bsc warehouse --sync   : E:\\ 외장 아카이브 Robocopy MT:32 무손실 동기화\n• 자비스(JARVIS) CHLGD 규칙 원장 및 HUD 뷰어 실시간 동기화 완료",
+        "heading": "3. ⚡ [3~4단계 완료] CHLGD 원클릭 CLI(bsc warehouse) & 자비스 통합"
       }
     ]
   },
   "planHistory": [
+    {
+      "id": "plan-1793593584797",
+      "title": "✅ [구축 완료] C:\\Warehouse 옵시디언 뉴런 시스템 · CHLGD CI/CD · 자비스 통합 완료 보고서",
+      "category": "CHLGD × Obsidian Neuron × JARVIS Completed Report",
+      "author": "JARVIS Sovereign Butler (CHLGD × Harness²)",
+      "updatedAt": "2026-11-02 04:26:24",
+      "summary": "이건우 대표님 승인에 따라 C:\\Warehouse 1~4단계 개편(구경로 패치, 옵시디언 79노드/138시냅스 뉴런 볼트 구축, bsc warehouse CLI 탑재, HQ 브레인 770노드 및 자비스 통합)을 완료하고 전수 검증했습니다.",
+      "sections": [
+        {
+          "body": "• 18대 BSC_Originals 정본 스킬 및 C:\\BeausCreators\\.agents\\skills 링크 18/18 전수 검증 완료\n• Sync-WarehouseDual.ps1 및 GATES.md의 구경로(OneDrive)를 C:\\BeausCreators\\05.BSC_Skill_Warehouse 및 E:\\BeausCreators\\05.BSC_Skill_Warehouse 정본으로 교정 완료\n• Test-MasterAuditAndVerification.ps1 11개 -> 18개 정본 스킬 전수 감사 체계로 업그레이드 완료",
+          "heading": "1. 🛡 [1단계 완료] 구경로 패치 및 18대 정본 CI/CD 게이트 최신화"
+        },
+        {
+          "body": "• C:\\Warehouse\\scripts\\Build-WarehouseNeuronGraph.js & .py 구축 완료\n• C:\\Warehouse\\3.Obsidian_Vault 내 5계층 뉴런 노트 생성 완료:\n  - 00_Master_Neuron_MOC.md (중추 뇌간)\n  - 01_Domains/ (7대 도메인 시냅스 허브)\n  - 02_Originals/ (18대 정본 스킬 뉴런 노트)\n  - 03_Imported_Packs/ (19대 Imported 팩 + GitHub 55대 저장소 원장)\n  - 04_Agents_Skill_Map/ (32인 에이전트별 창고 무기 시냅스 노트)\n  - 05_REA_Blueprints/ (REA 클린룸 역공학 설계도 허브)\n• 옵시디언 그래프 뷰(.obsidian/graph.json) 6색 뉴런 컬러 그룹 자동 세팅 완료\n• 00.운영/warehouse_neuron_graph.json 생성 (79 Nodes / 138 Synapses, 2-Hop 검색 4ms)\n• HQ MAPS 2-Hop 브레인 그래프(Build-HQBrainIndex.js)와 직결하여 총 770 Nodes / 491 Edges로 통합 완료 (603ms)",
+          "heading": "2. 🧠 [2단계 완료] 옵시디언 뉴런(Neuron) 볼트 & 2-Hop 시냅스 구축"
+        },
+        {
+          "body": "• bsc-cli.ps1에 'bsc warehouse' 통합 명령어 탑재:\n  - bsc warehouse --neuron : 옵시디언 뉴런 볼트 및 그래프 JSON 재빌드\n  - bsc warehouse --audit  : 18대 정본 스킬 · 28인 하네스 · 215개 서브스킬 전수 CI/CD 감사\n  - bsc warehouse --search \"<키워드>\" : 4ms 초경량 1-Hop/2-Hop 뉴런 시냅스 검색\n  - bsc warehouse --sync   : E:\\ 외장 아카이브 Robocopy MT:32 무손실 동기화\n• 자비스(JARVIS) CHLGD 규칙 원장 및 HUD 뷰어 실시간 동기화 완료",
+          "heading": "3. ⚡ [3~4단계 완료] CHLGD 원클릭 CLI(bsc warehouse) & 자비스 통합"
+        }
+      ]
+    },
+    {
+      "id": "plan-1793590917266",
+      "title": "🏛️ [Master Plan] C:\\Warehouse 전수 분석 · REA/GitHub · 옵시디언 뉴런 · 자비스 통합 설계서",
+      "category": "CHLGD × REA × Obsidian × JARVIS Master Plan",
+      "author": "JARVIS Sovereign Butler (CHLGD × Harness²)",
+      "updatedAt": "2026-11-02 03:41:57",
+      "summary": "이건우 대표님 지시에 따라 C:\\Warehouse(13,605파일, 3.22GB) 전수 실측, 7대 카테고리 스킬 활용 체계, REA·GitHub 클린룸 파이프라인, CHLGD·ps1·py·CI/CD 고도화, 옵시디언 뉴런 그래프화 및 자비스 통합 마스터플랜을 보고합니다.",
+      "sections": [
+        {
+          "body": "• 대상: C:\\Warehouse (05.BSC_Skill_Warehouse 정본, E:\\ 아카이브 이중화)\n• REA 실측: 총 13,605개 파일 | 3,228,358,964 bytes (3.22 GB) | 2,634,793 lines\n• 구성: 00.운영(장부), 1.Imported_Skills(19개 대형 팩 / 3,582+ SKILL.md), 2.BSC_Originals(18개 정본 승격 스킬), 3.Obsidian_Vault(스킬 지식망), 4.Market_Packages(스토어 패키지), 5.Research(연구 노트), scripts(21개 자동화 스크립트)",
+          "heading": "1. 📦 C:\\Warehouse 전수 실측 및 6대 카테고리 구조 분석"
+        },
+        {
+          "body": "• 18대 BSC_Originals 정본 스킬과 216개 세분화 서브스킬(FlatPack 50, Social 106, Design 22, Three.js 9, Photo 29)을 7대 도메인(역공학·코어하네스 / 3D·게임 / 디자인·크리에이티브 / 영상·오디오 / 출판·오피스 / 마케팅·소셜 / 금융·트레이딩)으로 분류하고 전담 Owner 에이전트와 1:1 매핑합니다.\n• 외부 GitHub 레포지토리(55개 정본)는 직접 HQ 주입(hqInject=false)을 금지하고, Invoke-ReaAnalyzer.js 4단계 클린룸 역공학(Observations/Derivations/Inferences/Unknowns)으로 설계도만 추출해 활용합니다.",
+          "heading": "2. 🧩 18대 승격 스킬 & REA · GitHub 클린룸 활용 아키텍처"
+        },
+        {
+          "body": "• C(Context): Start-Context.js + Search-Skill.ps1 초경량 1줄 메타데이터 핀셋 조회 (99.8% 토큰 절감)\n• H(Harness): Google Harness² 8-Surface(c1~c8) + Sync-WarehouseDual.ps1 하드코딩 구경로(OneDrive) 자동 교정\n• L(Loop): Verify-Code.ps1 + Finalize-Work.ps1 양방향 WorkLog Append 및 E:\\ 드라이브 Robocopy MT:32 무손실 증분 백업\n• G(Graph): Build-WarehouseNeuronGraph.js를 통해 3.Obsidian_Vault에 18대 Originals · 19대 Imported · 26인 에이전트 · REA 블루프린트를 [[WikiLink]] 시냅스로 연결한 뉴런 볼트 구축\n• D(Dynamic): 자비스(JARVIS) 음성/터미널 명령('자비스 스킬 찾아줘', '자비스 REA 분석해줘')과 MCP 브릿지(7788/mcp) 실시간 직결",
+          "heading": "3. 🧠 CHLGD · PS1/PY CI/CD · 옵시디언 뉴런 & 자비스 통합 로드맵"
+        }
+      ]
+    },
+    {
+      "id": "plan-1793258614542",
+      "title": "📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처",
+      "category": "Antigravity MCP Synced Plan",
+      "author": "JARVIS Sovereign Butler (CHLGD × Harness²)",
+      "updatedAt": "2026-10-29 07:23:34",
+      "summary": "이건우 대표님께서 지시하신 「📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처」 작업을 위한 단계별 CHLGD 실행 계획서입니다.",
+      "sections": [
+        {
+          "heading": "1. 🎯 목표 및 핵심 방향 (Context & Goal)",
+          "body": "• 대표님 지시 사항: 「📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처」\n• C:\\BeausCreators CHLGD 표준 및 데이터 무손실 헌장(Zero Data Loss)을 준수하여 설계합니다."
+        },
+        {
+          "heading": "2. 🛡 Google Harness² & 스킬 실행 설계 (Harness & Skills)",
+          "body": "• 활용 스킬: chlgd-orchestrator, powershell-python-cicd, antigravity-mcp-bridge\n• 협력 에이전트: 기획(소하/지윤) · 설계/아키텍처(태준/거누) · 검증(수호)\n• 실행 환경: Windows 11 (Winsta0\\Default) + UTF-8 무결성 파이프라인"
+        },
+        {
+          "heading": "3. ⚡ 단계별 실행 체크리스트 (Execution Steps)",
+          "body": "1) [Context] 기존 에러 로그(error-log.md) 및 대표님 대화 규칙 원장 스캔\n2) [Harness] .ps1 / .py / .js 모듈 구현 및 로컬 샌드박스 테스트\n3) [Loop] 실행 결과 검증 후 ceo-orders-log.jsonl 및 jarvis-loop.md에 영구 기록\n4) [MCP Sync] Antigravity IDE와 상태 동기화 및 Git 커밋 준비"
+        }
+      ]
+    },
     {
       "id": "plan-jarvis-sovereign-v2",
       "title": "📋 [Master Plan] 자비스 × BeausCreators × Antigravity MCP & Google Harness² 통합 아키텍처",

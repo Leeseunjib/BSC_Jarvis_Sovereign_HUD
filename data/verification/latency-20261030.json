@@ -1,0 +1,82 @@
+{
+  "before": {
+    "observedCommandMs": 11984,
+    "configuredSilenceMs": 3800
+  },
+  "after": {
+    "liveCommand": {
+      "at": "2026-10-30T07:01:06.654Z",
+      "httpMs": 446,
+      "status": 200,
+      "ok": true,
+      "intent": "brain",
+      "reply": "정말요? 기분 좋은 하루 보내세요! 😊",
+      "llm": {
+        "provider": "ollama",
+        "model": "gemma4:e4b",
+        "fallback": true,
+        "fallbackReason": "gemini-cli-not-installed",
+        "elapsedMs": 374
+      },
+      "timing": {
+        "totalMs": 396,
+        "executionMs": 396,
+        "inputMs": 0
+      }
+    },
+    "configuredSilenceMs": 2000,
+    "shortCommandSilenceMs": 1200,
+    "voiceClock": {
+      "silenceMs": 1263,
+      "serverMs": 24,
+      "ttsGenerationMs": 861,
+      "nativePlaybackStartedAt": "2026-10-30T07:01:45.064Z",
+      "estimatedFromLastActivityMs": 2156
+    },
+    "voiceConversation": {
+      "serverMs": 483,
+      "aiMs": 472
+    }
+  },
+  "humanHearingConfirmed": true,
+  "humanReportedDelay": "2~3초",
+  "voice": {
+    "name": "ko-KR-HyunsuMultilingualNeural",
+    "speed": 1.25,
+    "fallback": false
+  },
+  "regressionChecks": [
+    "voice-brain",
+    "speech-turn",
+    "speech-client",
+    "speech-replacement",
+    "speech-cancellation",
+    "speaker-capture",
+    "media-control",
+    "ear-health",
+    "speaker-api",
+    "safety-source",
+    "safety-verified"
+  ],
+  "longSpeechTestSeconds": [
+    45,
+    120
+  ],
+  "build": {
+    "errors": 0,
+    "existingWarnings": 3
+  },
+  "runtimeHashes": {
+    "files": 43,
+    "mismatches": []
+  },
+  "hud": {
+    "observedSeconds": 61.42,
+    "samples": 29,
+    "passed": true,
+    "micDisconnectedSamples": 0,
+    "pid": 43188,
+    "visibleHudCount": 1,
+    "primaryTopmost": true
+  }
+}

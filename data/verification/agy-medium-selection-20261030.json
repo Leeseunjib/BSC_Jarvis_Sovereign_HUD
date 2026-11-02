@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "selectedProvider": "antigravity-cli",
+  "selectedModel": "gemini-3.8-flash-medium",
+  "preparing": false,
+  "geminiCliInstalled": true,
+  "antigravityCliInstalled": true,
+  "last": {
+    "at": "2026-10-30T07:30:19.563Z",
+    "selectedProvider": "antigravity-cli",
+    "selectedModel": "gemini-3.8-flash-medium",
+    "ok": true,
+    "provider": "antigravity-cli",
+    "model": "gemini-3.8-flash-medium",
+    "modelVerified": true,
+    "fallback": false,
+    "elapsedMs": 36611,
+    "firstTextMs": 36215,
+    "warm": false
+  }
+}

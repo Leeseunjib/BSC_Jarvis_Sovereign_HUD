@@ -23,6 +23,8 @@ const {
   runJarvisHarness2EvolutionCycle,
   loadPlansAndRulesState
 } = require('./jarvis-harness2-engine');
+const { observeTurn } = require('./recursive-learning');
+const { getEcosystemOverview } = require('./ecosystem-index');
 
 const BSC_ROOT = 'C:\\BeausCreators';
 const BSC_HQ = path.join(BSC_ROOT, '01.BSC_HQ');
@@ -374,6 +376,17 @@ class BscCollaborationBridge {
       profile.updatedAt = nowIso;
 
       fs.writeFileSync(JARVIS_CHLGD_FILES.ceoProfile, JSON.stringify(profile, null, 2), 'utf8');
+
+      // 3. Google Harness² Recursive Self-Learning (Observe -> Propose -> Probe -> Compose)
+      try {
+        observeTurn({
+          sentence: clean,
+          intent: logEntry.intent,
+          hudColor,
+          hudTitle: logEntry.hudTitle,
+          source
+        });
+      } catch (_) {}
     } catch (_) {}
   }
 
@@ -442,7 +455,8 @@ class BscCollaborationBridge {
       standbyCount: standbyAgents.length,
       sleepCount,
       recentErrors,
-      chlgdReady: fs.existsSync(BSC_PATHS.startContextJs) && fs.existsSync(BSC_PATHS.verifyCodePs1)
+      chlgdReady: fs.existsSync(BSC_PATHS.startContextJs) && fs.existsSync(BSC_PATHS.verifyCodePs1),
+      threeEcosystems: getEcosystemOverview()
     };
   }
 
@@ -531,7 +545,13 @@ class BscCollaborationBridge {
 
     // E) 파일 목록 / 폴더 구조 / 디렉토리 확인 CLI 오더
     if (/파일목록|폴더목록|디렉토리목록|현재폴더|폴더구조|파일확인|목록보여/.test(sq)) {
-      const targetDir = /beauscreators|뷰스크리에이터|본사/.test(sq) ? BSC_ROOT : 'C:\\자비스';
+      const targetDir = /beautifulworld|뷰티풀월드|출판사|아름다운세상/.test(sq)
+        ? 'C:\\BeautifulWorld'
+        : /warehouse|웨어하우스|스킬창고/.test(sq)
+        ? 'C:\\Warehouse'
+        : /beauscreators|뷰스크리에이터|본사/.test(sq)
+        ? BSC_ROOT
+        : 'C:\\자비스';
       const partner = this.findPartnerAgent('거누 cto');
       return {
         kind: 'terminal',
@@ -541,6 +561,22 @@ class BscCollaborationBridge {
         chlgdPhase: 'CLI File Explorer',
         partnerAgent: partner,
         spoken: `네, 대표님. ${targetDir} 경로의 파일 및 폴더 목록을 터미널 창에 출력했습니다.`
+      };
+    }
+
+    // E-2) BeautifulWorld (도서출판 아름다운 세상 7-Class OS · ePub 빌드 · 원고 교정) 오더
+    if (/beautifulworld|뷰티풀월드|아름다운세상|출판사현황|출판사시스템|전자책빌드|epub빌드|원고교정/.test(sq)) {
+      const partner = this.findPartnerAgent('출판 전자책 서아');
+      const bwRoot = 'C:\\BeautifulWorld';
+      const cmd = `Write-Output "=== [도서출판 아름다운 세상 (C:\\BeautifulWorld) 7-Class OS 현황] ==="; Get-ChildItem -LiteralPath "${bwRoot}" -Directory | Select-Object Name, LastWriteTime | Format-Table -AutoSize; Write-Output "=== [출판 핵심 스크립트 & 스튜디오] ==="; Get-ChildItem -LiteralPath "${bwRoot}\\03.OS_Systems\\Scripts" -ErrorAction SilentlyContinue | Select-Object Name, Length`;
+      return {
+        kind: 'terminal',
+        title: '도서출판 아름다운 세상 (C:\\BeautifulWorld) 7-Class OS 점검',
+        command: cmd,
+        cwd: fs.existsSync(bwRoot) ? bwRoot : 'C:\\자비스',
+        chlgdPhase: 'Publisher OS',
+        partnerAgent: partner,
+        spoken: `네, 대표님. 출판 에디터 ${partner.name} 요원과 함께 C 드라이브 BeautifulWorld 7클래스 출판 시스템과 ePub 3.0 빌드 스크립트 현황을 점검했습니다.`
       };
     }
 

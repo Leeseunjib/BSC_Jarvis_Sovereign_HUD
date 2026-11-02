@@ -1,0 +1,101 @@
+{
+  "id": "36c8ebb1-4215-4424-a4c9-a03f09fce990",
+  "query": "REA 기술",
+  "title": "REA 기술 · 조사 결과",
+  "status": "ready",
+  "createdAt": "2026-10-30T05:37:16.588Z",
+  "provider": "DuckDuckGo",
+  "note": "REA 같은 약어는 분야별 뜻이 다를 수 있습니다. 출처의 분야를 확인해 주세요. 원문과 검색 미리보기에서 핵심 문장을 발췌했습니다. 출처의 주장을 별도로 교차 검증한 결과는 아닙니다. 원문 접근 여부를 각 출처에 표시했습니다.",
+  "keywords": [
+    "REA",
+    "리버스",
+    "엔지니어링",
+    "사례",
+    "사용법",
+    "설치",
+    "법적",
+    "Ai",
+    "코드",
+    "설치법",
+    "오픈소스",
+    "도구"
+  ],
+  "summary": "리버스 엔지니어링은 프로그램 자체를 살펴보고 소프트웨어의 작동 방식을 이해하는 것입니다. REA를 사용하면 에이전트가 코드를 추적하고 기능을 설명하며 다시 구현하는 일을 도울 수 있습니다.\n앱, 게임, 웹사이트에 대해 코딩 에이전트에게 질문해 보세요. REA는 답의 근거가 되는 코드를 살펴볼 도구를 제공합니다. [1]",
+  "sections": [
+    {
+      "title": "Rea: 코딩 에이전트를 위한 리버스 엔지니어링",
+      "text": "리버스 엔지니어링은 프로그램 자체를 살펴보고 소프트웨어의 작동 방식을 이해하는 것입니다. REA를 사용하면 에이전트가 코드를 추적하고 기능을 설명하며 다시 구현하는 일을 도울 수 있습니다.\n앱, 게임, 웹사이트에 대해 코딩 에이전트에게 질문해 보세요. REA는 답의 근거가 되는 코드를 살펴볼 도구를 제공합니다.",
+      "sourceId": 1
+    },
+    {
+      "title": "레아(Rea) 오픈소스란? 뜻, 설치법, 사용법, 주의점 총정리",
+      "text": "GitHub 별 34만 개를 넘긴 오픈소스 REA(Reverse Engineer Anything)의 뜻, 설치 방법, 사용 사례, 사실과 과장, 법적 주의점까지 한 번에 정리했습니다.\nREA(Reverse Engineer Anything) 는 국내에서 흔히 \"레아\"라고 부르는 오픈소스 도구로, AI 코딩 에이전트가 소스 코드 없이 완성된 프로그램의 동작 원리를 분석 하도록 돕습니다. 저장소는 2026년 4월에 만들어졌지만 10월 첫 주까지는 거의 알려지지 않았다가, 며칠 만에 GitHub 트렌딩 상위권에 오르며 개발자 커뮤니티의 화제가 되었습니다.",
+      "sourceId": 2
+    },
+    {
+      "title": "Rea란 무엇인가요? Ai 에이전트가 소스 코드 없이 소프트웨어를 리버스 엔지니어링하는 방법",
+      "text": "REA 의 기능, AI 에이전트가 소스 코드 없이 소프트웨어를 분석하는 방법, 실제 리버스 엔지니어링 사례, 한계와 개인정보 보호 관련 장단점을 알아보세요.",
+      "sourceId": 3
+    },
+    {
+      "title": "Rea 사용법 - 깃허브 스타 21만 Ai 역공학 도구 설치 4단계와 예시",
+      "text": "깃허브에서 급상승한 오픈소스 AI 리버스 엔지니어링 도구 REA 사용법을 정리했습니다. 무엇인지, 분석할 수 있는 대상, 클로드 코드·코덱스 연결 설치 방법, 활용 예시와 법적 주의 사항까지 확인하세요.",
+      "sourceId": 4
+    },
+    {
+      "title": "REA 설치·사용법: Claude Code로 리버스 엔지니어링하기",
+      "text": "REA 설치 방법과 Claude Code MCP 연결을 정리했습니다. 공룡 게임·Notion·CTF의 REA 공식 분석 사례, 실행 가능한 코드·프롬프트, 지원 버전과 데이터 처리 범위를 확인하세요.",
+      "sourceId": 5
+    },
+    {
+      "title": "Rea 리버스 엔지니어링 Ai — 실행 파일만 보고 같은 동작을 다시 짜 주는 도구 | 기술노트 | 영삼넷",
+      "text": "REA 는 실행 파일·앱을 내 PC에서 분석해 Claude Code·Codex·Cursor 같은 AI 에이전트에 근거와 함께 넘겨 주는 MIT 라이선스 MCP 서버다. 작동 원리, DX-Ball 재구현 사례, 설치법, 법적 주의점을 정리했다.",
+      "sourceId": 6
+    }
+  ],
+  "sources": [
+    {
+      "id": 1,
+      "title": "Rea: 코딩 에이전트를 위한 리버스 엔지니어링",
+      "url": "https://rea.tools/ko/",
+      "domain": "rea.tools",
+      "readStatus": "원문 확인"
+    },
+    {
+      "id": 2,
+      "title": "레아(Rea) 오픈소스란? 뜻, 설치법, 사용법, 주의점 총정리",
+      "url": "https://caresser.tistory.com/242",
+      "domain": "caresser.tistory.com",
+      "readStatus": "원문 확인"
+    },
+    {
+      "id": 3,
+      "title": "Rea란 무엇인가요? Ai 에이전트가 소스 코드 없이 소프트웨어를 리버스 엔지니어링하는 방법",
+      "url": "https://shop.zimaspace.com/ko/blogs/tech-ai-hub/rea-ai-agent-reverse-engineering",
+      "domain": "shop.zimaspace.com",
+      "readStatus": "검색 미리보기"
+    },
+    {
+      "id": 4,
+      "title": "Rea 사용법 - 깃허브 스타 21만 Ai 역공학 도구 설치 4단계와 예시",
+      "url": "https://deepdaive.com/rea-%EC%82%AC%EC%9A%A9%EB%B2%95/",
+      "domain": "deepdaive.com",
+      "readStatus": "검색 미리보기"
+    },
+    {
+      "id": 5,
+      "title": "REA 설치·사용법: Claude Code로 리버스 엔지니어링하기",
+      "url": "https://www.gymcoding.co/articles/rea-claude-code-reverse-engineering-guide",
+      "domain": "www.gymcoding.co",
+      "readStatus": "검색 미리보기"
+    },
+    {
+      "id": 6,
+      "title": "Rea 리버스 엔지니어링 Ai — 실행 파일만 보고 같은 동작을 다시 짜 주는 도구 | 기술노트 | 영삼넷",
+      "url": "https://www.youngsam.net/notes/rea-reverse-engineer-anything-ai-agent-mcp",
+      "domain": "www.youngsam.net",
+      "readStatus": "검색 미리보기"
+    }
+  ],
+  "errors": []
+}

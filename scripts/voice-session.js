@@ -8,7 +8,7 @@ class VoiceSessions {
     this.sessions = new Map();
   }
 
-  accept(sessionId, sentence) {
+  accept(sessionId, sentence, { commit = true, ownerVerified = false } = {}) {
     const text = String(sentence || '').trim().slice(0, 2000);
     if (!text) return false;
     const now = this.clock();
@@ -25,11 +25,12 @@ class VoiceSessions {
     ) {
       return false;
     }
-    const isGreeting = (config.greetings || []).some(g => phrase === normalized(g));
+    const isGreeting = !config.voiceRequireWake && (config.greetings || []).some(g => phrase === normalized(g));
     const wasAwake = (this.sessions.get(id) || 0) > now || (global.__jarvisForceAwakeUntil || 0) > now;
     const isWake = config.activation !== 'hold' && (this.engine.hasWakeWord(text) || isGreeting);
-    const isMediaStop = config.activation !== 'hold' && typeof this.engine.isMediaStopRequest === 'function' && this.engine.isMediaStopRequest(text);
+    const isMediaStop = (!config.voiceRequireWake || ownerVerified) && config.activation !== 'hold' && typeof this.engine.isMediaStopRequest === 'function' && this.engine.isMediaStopRequest(text);
     if (!wasAwake && !isWake && !isMediaStop) return false;
+    if (!commit) return true;
     const baseFollowSec = Math.max(1, Math.min(60, Number(config.followUpSec) || 15));
     const stripped = typeof this.engine.stripWake === 'function' ? this.engine.stripWake(text) : text;
     const isPureWake = isWake && !String(stripped || '').trim();

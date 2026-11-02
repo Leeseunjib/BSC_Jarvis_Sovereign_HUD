@@ -1,0 +1,32 @@
+[
+  {
+    "File": "C:\\자비스\\JarvisHud_v20.exe",
+    "EntryPoint": "Main",
+    "ProcessCalls": [
+      "System.Diagnostics.Process.GetCurrentProcess",
+      "System.Diagnostics.Process.get_MainModule",
+      "System.Diagnostics.Process.GetCurrentProcess",
+      "System.Diagnostics.Process.get_Id",
+      "System.Diagnostics.Process.GetProcesses",
+      "System.Diagnostics.Process.get_Id",
+      "System.Diagnostics.Process.get_ProcessName",
+      "System.Diagnostics.Process.Kill",
+      "System.Diagnostics.Process.WaitForExit",
+      "System.Threading.Mutex..ctor",
+      "JarvisSasariSa.MonitorOverlayApp.RunOverlay",
+      "System.Threading.Mutex.ReleaseMutex"
+    ]
+  },
+  {
+    "File": "C:\\자비스\\bin\\JarvisHud.exe",
+    "EntryPoint": "Main",
+    "ProcessCalls": [
+      "System.Diagnostics.Process.GetCurrentProcess",
+      "System.Diagnostics.Process.get_MainModule",
+      "System.Threading.Mutex..ctor",
+      "JarvisSasariSa.MonitorOverlayApp.StartHudSupervisor",
+      "JarvisSasariSa.MonitorOverlayApp.RunOverlay",
+      "System.Threading.Mutex.ReleaseMutex"
+    ]
+  }
+]

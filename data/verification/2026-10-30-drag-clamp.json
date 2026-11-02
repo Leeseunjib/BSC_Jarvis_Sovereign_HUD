@@ -1,0 +1,8 @@
+{
+  "TraceFile": "2026-10-30-drag-native-trace.json",
+  "Verified": true,
+  "OutOfBoundsSamples": 0,
+  "ClampedAtOriginSamples": 734,
+  "Input": "UI drag from (400,58) to (50,30)",
+  "ObservedSamples": 1063
+}

@@ -1,0 +1,40 @@
+'use strict';
+const assert = require('assert/strict'), fs = require('fs'), os = require('os'), path = require('path');
+process.env.JARVIS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'jarvis-speaker-api-'));
+process.env.JARVIS_DISABLE_EXTERNAL_HUB = '1'; process.env.JARVIS_DISABLE_NEURAL_TTS = '1';
+process.env.JARVIS_PORT = String(30000 + Math.floor(Math.random() * 20000));
+const { server, butler, speakerGate, PORT } = require('../server');
+const a = Array(256).fill(0), b = Array(256).fill(0); a[0] = 1; b[1] = 1;
+let vectors = [a, a, a], now = Date.now();
+speakerGate.now = () => now;
+speakerGate.worker = { extract: async () => vectors, stop() {} };
+let commands = 0;
+butler.execute = async () => { commands++; return { intent: 'clock', spoken: '시험 응답', hudTitle: '시험 응답' }; };
+(async () => {
+  await new Promise(resolve => server.listen(PORT, '127.0.0.1', resolve));
+  const base = 'http://127.0.0.1:' + server.address().port;
+  const request = async (url, data) => { const r = await fetch(base + url, data ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) } : {}); return { status: r.status, body: await r.json() }; };
+  const audio = { sampleRate: 16000, pcm: Buffer.alloc(24 * 32000).toString('base64') };
+  try {
+    assert.equal((await request('/api/speaker/state')).body.enrolled, false);
+    assert.equal((await request('/api/speaker/enabled', { enabled: true })).status, 400);
+    assert.equal((await request('/api/speaker/enroll/start', {})).status, 400, '실제 캡처 연결 없이 등록하면 안 됩니다');
+    await request('/api/ear/health', { microphone: 'ready', recognition: 'listening', speakerCapture: true });
+    const started = await request('/api/speaker/enroll/start', {}); assert.equal(started.status, 200);
+    const voice = speakerAudio => request('/api/butler/command', { sentence: '자비스 몇 시야', source: 'voice', voiceSession: 'mic-test', executeOs: false, speakerAudio });
+    assert.equal((await voice(audio)).body.ignored, true); assert.equal(commands, 0);
+    now += 30000;
+    const enrolled = await request('/api/speaker/enroll/complete', { id: started.body.enrollment.id, audio, transcript: '자비스 내 목소리를 등록해 주세요 오늘 할 일을 천천히 정리하고 필요한 정보를 확인합니다' });
+    assert.equal(enrolled.status, 200); assert.equal(enrolled.body.enabled, true);
+    assert.equal((await voice()).body.ignored, true); assert.equal(commands, 0);
+    vectors = [b]; assert.equal((await voice(audio)).body.ignored, true); assert.equal(commands, 0);
+    vectors = [a, b]; assert.equal((await voice(audio)).body.ignored, true); assert.equal(commands, 0);
+    assert.equal((await request('/api/ear/listen-once', {})).status, 409, '대체 STT 경로에서 비교를 우회하면 안 됩니다');
+    assert.equal((await request('/api/ear/push', { text: '타인의 영상 자막', isFinal: true })).body.suppressed, true);
+    vectors = [a]; assert.equal((await voice(audio)).body.result.intent, 'clock'); assert.equal(commands, 1);
+    await request('/api/butler/command', { sentence: '몇 시야', source: 'manual', executeOs: false }); assert.equal(commands, 2, '직접 입력은 복구 경로로 유지해야 합니다');
+    const state = (await request('/api/speaker/state')).body; assert(!JSON.stringify(state).includes('vectors'), '생체 특징을 상태 API에 반환하면 안 됩니다');
+    assert.equal((await request('/api/speaker/forget', {})).body.enrolled, false);
+    console.log('PASS: 실제 HTTP 경로의 등록·목소리 비교·타인/누락/혼합/대체 경로 차단·직접 입력·등록 정보 삭제');
+  } finally { await new Promise(resolve => server.close(resolve)); }
+})().catch(error => { console.error(error); process.exitCode = 1; server.close(); });

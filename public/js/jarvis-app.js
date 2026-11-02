@@ -391,7 +391,7 @@
         updateHud({ color: 'amber', title: '음성 확정 실패 · 다시 말씀하거나 입력해 주세요', subtitle: text, heard: text });
         fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, status: 'recognition-error' }) }).catch(() => {});
       },
-      onCommit: text => sendCommand(text, continuousMode ? 'voice' : 'manual'),
+      onCommit: text => sendCommand(text, 'voice'),
       onPreview: text => {
         const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
         const wakeWords = [...(appState.config.wakeWords || []), appState.config.assistantName || '자비스'];

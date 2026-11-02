@@ -16,9 +16,28 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const { ButlerEngine, FILES } = require('./scripts/butler-engine');
+const { ButlerEngine, WindowsHands, FILES } = require('./scripts/butler-engine');
+const { getEcosystemOverview, searchEcosystems } = require('./scripts/ecosystem-index');
+const { createDocument, verifyDocument, normalizeDocSpec } = require('./scripts/office-doc-engine');
+const { runRea, runLaya, startLayaService, getLayaStatus } = require('./scripts/rea-laya-bridge');
+const { getLearningStatus, runRecursionCycle } = require('./scripts/recursive-learning');
 const { sharedTerminalManager, sharedBscBridge } = require('./scripts/bsc-collaboration-bridge');
 const { VoiceSessions } = require('./scripts/voice-session');
+const { SpeakerGate, speakerMessage } = require('./scripts/speaker-gate');
+const speakerGate = new SpeakerGate();
+const { VOICES, speechOptions, mp3ToWav } = require('./scripts/tts-audio');
+let lastTtsStatus = null;
+const { normalizeEarHealth, getEarStatus } = require('./scripts/ear-health');
+const { askVoiceBrain, getBrainStatus, verifyBrain, stopAntigravity } = require('./scripts/voice-brain');
+const earEvents = [];
+const researchReports = new Map();
+let lastEarEventKey = '';
+function recordEarEvent(event) {
+  earEvents.push(event);
+  if (earEvents.length > 200) earEvents.shift();
+  const file = path.join(path.dirname(FILES.config), 'speech-events-' + new Date().toISOString().slice(0, 10) + '.jsonl');
+  fs.appendFile(file, JSON.stringify(event) + '\n', () => {});
+}
 const { registerWindowsStartup, getStartupStatus } = require('./scripts/windows-ear-daemon');
 const { runReaAnalysis, buildReaReportObject } = require('./scripts/rea-analyzer');
 const {
@@ -172,11 +191,9 @@ async function synthesizeGoogleNeuralKoreanMp3(cleanText = '', speed = 1.2) {
 
 const ttsAudioCache = new Map();
 
-async function synthesizeStudioNeuralMp3Buffer(rawText, voice = 'ko-KR-HyunsuMultilingualNeural') {
+async function synthesizeStudioNeuralMp3Buffer(rawText, voice, userSpeed) {
   const clean = humanizeKoreanSpeechText(rawText);
   if (!clean) return Buffer.alloc(0);
-  const cfg = butler ? butler.getConfig() : {};
-  const userSpeed = Number(cfg.ttsSpeed) || 1.25;
   const cacheKey = `${voice}|${userSpeed}|${clean}`;
   if (ttsAudioCache.has(cacheKey)) {
     return ttsAudioCache.get(cacheKey);
@@ -186,7 +203,7 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice = 'ko-KR-HyunsuMul
   if (MsEdgeTTS) {
     await ensureEdgeTtsClockSync();
     const ratePct = `${userSpeed >= 1 ? '+' : ''}${Math.round((userSpeed - 1) * 100)}%`;
-    const candidates = [voice, 'ko-KR-HyunsuMultilingualNeural', 'ko-KR-SunHiNeural', 'ko-KR-InJoonNeural'];
+    const candidates = [voice]; // Never silently substitute a different speaker.
     for (const v of candidates) {
       if (!v) continue;
       const tts = new MsEdgeTTS();
@@ -196,7 +213,7 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice = 'ko-KR-HyunsuMul
         const { audioStream } = tts.toStream(clean, { rate: ratePct, pitch: '+0Hz' });
         const parts = [];
         await new Promise((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error('timeout')), 5000);
+          const t = setTimeout(() => reject(new Error('timeout')), 8000);
           audioStream.on('data', d => parts.push(d));
           audioStream.on('end', () => { clearTimeout(t); resolve(); });
           audioStream.on('error', err => { clearTimeout(t); reject(err); });
@@ -212,14 +229,6 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice = 'ko-KR-HyunsuMul
         try { tts.close(); } catch (__) {}
       }
     }
-  }
-
-  // Tier 2: Fast Google Neural Korean MP3 fallback
-  const googleMp3 = await synthesizeGoogleNeuralKoreanMp3(clean, Math.min(1.5, Math.max(0.9, userSpeed)));
-  if (googleMp3 && googleMp3.length > 256) {
-    if (ttsAudioCache.size > 120) ttsAudioCache.delete(ttsAudioCache.keys().next().value);
-    ttsAudioCache.set(cacheKey, googleMp3);
-    return googleMp3;
   }
 
   return Buffer.alloc(0);
@@ -391,48 +400,14 @@ async function transcribeAudioBufferWithGemini(audioBase64, mimeType = 'audio/we
   return '';
 }
 
-const VOICEPRINT_FILE = path.join(__dirname, 'data', 'owner-voiceprint.json');
-function loadOwnerVoicePrint() {
-  try {
-    if (fs.existsSync(VOICEPRINT_FILE)) {
-      return JSON.parse(fs.readFileSync(VOICEPRINT_FILE, 'utf8'));
-    }
-  } catch (_) {}
-  return {
-    enrolled: true,
-    ownerName: '이건우 대표님',
-    pitchHz: 132,
-    pitchRange: [82, 235],
-    minEnergy: 0.055,
-    strictOwnerGate: true,
-    updatedAt: new Date().toISOString()
-  };
+function speakerEnrollmentHud() {
+  const e = speakerGate.status().enrollment;
+  if (!e || !speakerGate.enrolling) return null;
+  const now = Date.now();
+  const step = Math.min(2, Math.max(0, Math.floor((now - e.startAt) / 8000)));
+  const title = now < e.startAt ? `목소리 등록 · ${Math.ceil((e.startAt-now)/1000)}초 뒤 시작` : now < e.endAt ? `목소리 등록 · ${step+1}/3 · ${Math.ceil((e.endAt-now)/1000)}초 남음` : '목소리 등록 · 녹음 비교 중';
+  return { text: e.prompts[step], hudTitle: title, hudColor: 'cyan', isFinal: true, intent: 'speakerEnrollment', ts: Math.floor(now/1000)*1000 };
 }
-function saveOwnerVoicePrint(vp) {
-  try {
-    fs.mkdirSync(path.dirname(VOICEPRINT_FILE), { recursive: true });
-    fs.writeFileSync(VOICEPRINT_FILE, JSON.stringify(vp, null, 2), 'utf8');
-  } catch (_) {}
-  return vp;
-}
-function evaluateOwnerVoiceMatch(features, vp) {
-  if (!vp || !vp.enrolled) return { matchScore: 100, isOwnerVoice: true };
-  const pitch = Number(features && features.pitchHz) || 0;
-  const energy = Number(features && features.energy) || 0;
-  const minE = Number(vp.minEnergy) || 0.05;
-  if (energy > 0 && energy < minE * 0.72) {
-    return { matchScore: 32, isOwnerVoice: false, reason: 'low-energy-outdoor' };
-  }
-  if (pitch > 0 && vp.pitchHz > 0) {
-    const diff = Math.abs(pitch - vp.pitchHz);
-    const score = Math.max(25, Math.min(99, Math.round(100 - diff * 0.65)));
-    const isOwner = vp.strictOwnerGate ? score >= 52 && energy >= minE * 0.75 : true;
-    return { matchScore: score, isOwnerVoice: isOwner };
-  }
-  return { matchScore: 92, isOwnerVoice: true };
-}
-let ownerVoicePrint = loadOwnerVoicePrint();
-if (!fs.existsSync(VOICEPRINT_FILE)) saveOwnerVoicePrint(ownerVoicePrint);
 
 function sendJson(res, status, obj) {
   const payload = JSON.stringify(obj);
@@ -447,19 +422,20 @@ function sendJson(res, status, obj) {
 /**
  * Tier-2 100% Offline Windows Native SAPI WAV Synthesizer + Host Speaker Playback
  */
-function synthesizeWindowsNativeWav(text, alsoSpeakOnHost = false) {
+function synthesizeWindowsNativeWav(text, speed = 1.25) {
   return new Promise(resolve => {
-    const safe = String(text || '').replace(/'/g, "''").replace(/\r?\n/g, ' ');
+    const safe = String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, "''").replace(/\r?\n/g, ' ');
+    const rate = `${speed >= 1 ? '+' : ''}${Math.round((speed - 1) * 100)}%`;
     const ps = `
 Add-Type -AssemblyName System.Speech
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
 $ko = $synth.GetInstalledVoices() | Where-Object { $_.Enabled -and $_.VoiceInfo.Culture.Name -eq 'ko-KR' } | Select-Object -First 1
-if ($ko) { $synth.SelectVoice($ko.VoiceInfo.Name) }
-$synth.Rate = 1
-${alsoSpeakOnHost ? `$synth.SetOutputToDefaultAudioDevice(); $synth.Speak('${safe}');` : ''}
+if (!$ko) { throw 'No Korean Windows voice installed' }
+$synth.SelectVoice($ko.VoiceInfo.Name)
+$synth.Rate = 0
 $ms = New-Object System.IO.MemoryStream
 $synth.SetOutputToWaveStream($ms)
-$synth.Speak('${safe}')
+$synth.SpeakSsml('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ko-KR"><prosody rate="${rate}">${safe}</prosody></speak>')
 $synth.SetOutputToNull()
 [Convert]::ToBase64String($ms.ToArray())
 $synth.Dispose()
@@ -534,6 +510,7 @@ try {
 }
 
 const server = http.createServer(async (req, res) => {
+  try {
   const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
   if (!allowedHosts.has(String(req.headers.host || '').toLowerCase())) {
     return sendJson(res, 403, { ok: false, error: 'Invalid host' });
@@ -553,6 +530,18 @@ const server = http.createServer(async (req, res) => {
   const urlObj = new URL(req.url, `http://127.0.0.1:${PORT}`);
   const pathname = urlObj.pathname;
 
+  if (req.method === 'GET' && pathname === '/api/health') {
+    return sendJson(res, 200, { ok: true, service: 'jarvis', pid: process.pid, entry: path.basename(__filename), uptimeMs: Date.now() - SERVER_STARTED_AT });
+  }
+
+  if (req.method === 'GET' && pathname === '/api/brain/status') return sendJson(res, 200, getBrainStatus(butler.getConfig()));
+  if (req.method === 'POST' && pathname === '/api/brain/verify') {
+    await readBody(req);
+    const config = butler.getConfig();
+    await verifyBrain(config);
+    const status = getBrainStatus(butler.getConfig());
+    return sendJson(res, 200, { ...status, ok: !!status.last?.ok });
+  }
   // 1) GET /api/status or /api/butler/state
   if (req.method === 'GET' && (pathname === '/api/status' || pathname === '/api/butler/state')) {
     const cfg = butler.getConfig();
@@ -698,17 +687,96 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.method === 'GET' && pathname.startsWith('/api/research/')) {
+    const report = researchReports.get(pathname.slice('/api/research/'.length));
+    return sendJson(res, report ? 200 : 404, report || { error: '검색 결과가 없거나 만료됐습니다. 다시 검색해 주세요.' });
+  }
+  if (req.method === 'GET' && pathname === '/api/ecosystem/all') {
+    const q = urlObj.searchParams.get('q');
+    if (q) return sendJson(res, 200, searchEcosystems(q, { limit: Number(urlObj.searchParams.get('limit')) || 12 }));
+    return sendJson(res, 200, getEcosystemOverview());
+  }
+  if (req.method === 'GET' && (pathname === '/api/learning/status' || pathname === '/api/recursion/status')) {
+    const st = getLearningStatus();
+    return sendJson(res, 200, { ...st, activeRulesCount: st.activeCount, totalRulesCount: st.totalCount, promptInjectionChars: st.promptChars });
+  }
+  if (req.method === 'POST' && (pathname === '/api/learning/cycle' || pathname === '/api/recursion/cycle')) {
+    const body = await readBody(req);
+    return sendJson(res, 200, runRecursionCycle((body && body.reason) || 'api'));
+  }
+  if (req.method === 'POST' && (pathname === '/api/office/create' || pathname === '/api/docs/create')) {
+    try {
+      const body = await readBody(req, 512 * 1024);
+      const fmt = String(body.format || 'docx').toLowerCase();
+      const refReport = (body.researchId && researchReports.get(body.researchId)) || butler.lastResearchReport;
+      const spec = (refReport && !body.sections)
+        ? normalizeDocSpec({
+            title: body.title || refReport.title || refReport.query || '자비스 조사 보고서',
+            subtitle: body.subtitle || `질의: ${refReport.query || ''} · 제공: ${refReport.provider || 'JARVIS'}`,
+            summary: body.summary || refReport.summary || refReport.note || '',
+            sections: Array.isArray(refReport.sections) ? refReport.sections.map(s => ({ heading: s.title, body: s.text })) : [],
+            sources: refReport.sources || []
+          })
+        : normalizeDocSpec({
+            title: body.title || '자비스 오피스 문서',
+            subtitle: body.subtitle || 'JARVIS Office Document Engine',
+            summary: body.summary || '',
+            sections: Array.isArray(body.sections) ? body.sections : [{ heading: '본문', body: String(body.body || body.content || '') }],
+            sources: Array.isArray(body.sources) ? body.sources : []
+          });
+      const created = await createDocument(fmt, spec, body.outDir);
+      const verify = created && created.path ? verifyDocument(created.path) : { ok: false, bytes: 0 };
+      if (body.openFile !== false && created && created.ok && created.path) {
+        await WindowsHands.openApp(created.path).catch(() => {});
+      }
+      return sendJson(res, 200, { ...created, verify });
+    } catch (err) {
+      return sendJson(res, 400, { ok: false, error: err.message });
+    }
+  }
+  if (req.method === 'POST' && pathname === '/api/rea/analyze') {
+    try {
+      const body = await readBody(req);
+      return sendJson(res, 200, await runRea(body.target || 'C:\\자비스', body.query || ''));
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message });
+    }
+  }
+  if (req.method === 'POST' && pathname === '/api/laya/execute') {
+    try {
+      const body = await readBody(req);
+      if (body && body.startServer) {
+        const srv = await startLayaService();
+        if (!body.prompt) return sendJson(res, 200, srv);
+      }
+      const layaRes = await runLaya((body && body.prompt) || '현재 프로젝트 상태 점검', { mode: (body && body.mode) || 'auto' });
+      return sendJson(res, 200, { ...layaRes, serviceStatus: await getLayaStatus() });
+    } catch (err) {
+      return sendJson(res, 500, { ok: false, error: err.message });
+    }
+  }
+  if (false) {
+  }
   // 3) POST /api/butler/command
   if (req.method === 'POST' && pathname === '/api/butler/command') {
-    const body = await readBody(req);
-    const sentence = String(body.sentence || '').trim();
-    if (body.source === 'voice' && !voiceSessions.accept(body.voiceSession, sentence)) {
-      if (global.__jarvisLatestEarItem && global.__jarvisLatestEarItem.isFinal === false && global.__jarvisLatestEarItem.text === sentence) {
-        global.__jarvisLatestEarItem = { text: sentence, isFinal: true, intent: 'wakeRequired', hudTitle: '자비스라고 부른 뒤 명령해 주세요', hudColor: 'amber', ts: Date.now() };
+    const commandStartedAt = Date.now();
+    const body = await readBody(req, 2700000);
+    const sentence = String(body.sentence || body.text || '').trim().slice(0, 2000);
+    if (body.source === 'voice') {
+      if (global.__jarvisIsSpeaking) return sendJson(res, 200, { ok: true, ignored: true, reason: 'assistant-speaking' });
+      if (!voiceSessions.accept(body.voiceSession, sentence, { commit: false, ownerVerified: speakerGate.enabled })) {
+        return sendJson(res, 200, { ok: true, ignored: true, reason: 'wake-required' });
       }
-      return sendJson(res, 200, { ok: true, ignored: true });
+      const decision = await speakerGate.verify(body.speakerAudio);
+      if (!decision.allowed) {
+        recordEarEvent({ event: 'speaker-rejected', ts: Date.now(), reason: decision.reason, score: decision.score });
+        if (!speakerGate.enrolling) global.__jarvisLatestEarItem = { text: speakerMessage(decision.reason), isFinal: true, intent: 'speakerRejected', hudTitle: '음성 실행 보류', hudColor: 'amber', ts: Date.now() };
+        return sendJson(res, 200, { ok: true, ignored: true, reason: decision.reason });
+      }
+      if (global.__jarvisIsSpeaking || !voiceSessions.accept(body.voiceSession, sentence, { ownerVerified: decision.verified })) return sendJson(res, 200, { ok: true, ignored: true, reason: 'voice-session-expired' });
     }
     const executeOs = body.executeOs !== false;
+    const executionStartedAt = Date.now();
     global.__jarvisLatestEarItem = { text: sentence, isFinal: true, intent: 'processing', hudTitle: '○ 명령 처리 중', hudColor: 'cyan', ts: Date.now() };
     let result;
     try {
@@ -722,13 +790,15 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 500, { ok: false, error: '명령 실행 실패', detail: err.message,
         result: { intent: 'error', hudColor: 'amber', hudTitle: '⚠ 명령 실행 실패', hudSubtitle: err.message, spoken: '명령을 실행하지 못했습니다.' } });
     }
+    if (result && result.research) {
+      researchReports.set(result.research.id, result.research);
+      while(researchReports.size > 10) researchReports.delete(researchReports.keys().next().value);
+    }
     if (body.source === 'voice' && result && result.pendingSend) {
       voiceSessions.extend(body.voiceSession, result.pendingSend.expiresAt);
     }
     if (body.source === 'voice' && result && result.intent === 'awake') {
-      const wakeUntil = Date.now() + 45000;
-      global.__jarvisForceAwakeUntil = wakeUntil;
-      voiceSessions.wakeAll(wakeUntil);
+      voiceSessions.extend(body.voiceSession, Date.now() + 45000);
     }
     if (body.source === 'voice' && result && (result.intent === 'hush' || result.intent === 'bye')) {
       global.__jarvisForceAwakeUntil = 0;
@@ -750,6 +820,7 @@ const server = http.createServer(async (req, res) => {
     const syncItem = {
       text: sentence,
       intent: (result && result.intent) || '',
+      researchId: (result && result.researchId) || '',
       isFinal: true,
       hudColor: (result && result.hudColor) || 'lime',
       hudTitle: (result && result.hudTitle) || '✓ 실행 완료',
@@ -761,11 +832,16 @@ const server = http.createServer(async (req, res) => {
     global.__jarvisLatestEarItem = syncItem;
     global.__jarvisEarQueue.push(syncItem);
     if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
-    return sendJson(res, 200, { ok: true, result });
+    const timing = { totalMs: Date.now() - commandStartedAt, executionMs: Date.now() - executionStartedAt, inputMs: executionStartedAt - commandStartedAt };
+    recordEarEvent({ event: 'command-timing', ts: Date.now(), intent: result && result.intent, source: body.source || 'manual', ...timing,
+      ...(body.source === 'voice' && Number.isFinite(body.voiceTiming?.silenceMs) ? { silenceMs: Math.max(0, Math.min(300000, body.voiceTiming.silenceMs)) } : {}),
+      ...(result && result.llm ? { llm: result.llm } : {}) });
+    return sendJson(res, 200, { ok: !(result && result.error), result, timing });
   }
 
   // 4) POST /api/ear/listen-once (Windows Native Hardware Mic STT + Immediate Execution)
   if (req.method === 'POST' && pathname === '/api/ear/listen-once') {
+    if (speakerGate.enabled || speakerGate.enrolling) return sendJson(res, 409, { ok: false, error: '내 목소리 확인이 필요합니다. 메인 HUD의 상시 마이크를 사용하거나 직접 입력해 주세요.' });
     const body = await readBody(req);
     const heard = await listenWindowsNativeMicOnce(body.timeoutSec || 5);
     if (!heard.ok) {
@@ -780,7 +856,14 @@ const server = http.createServer(async (req, res) => {
   // 5) POST /api/config
   if (req.method === 'POST' && pathname === '/api/config') {
     const body = await readBody(req);
+    if ('sayVoice' in body || 'ttsVoice' in body || 'ttsSpeed' in body) {
+      if ('sayVoice' in body) body.ttsVoice = body.sayVoice;
+      else if ('ttsVoice' in body) body.sayVoice = body.ttsVoice;
+      try { speechOptions({ ...butler.getConfig(), ...body }); }
+      catch (error) { return sendJson(res, 400, { ok: false, error: error.message }); }
+    }
     const updated = butler.saveConfig(body);
+    if ('brainModel' in body || 'brainProvider' in body || 'geminiApiKey' in body) stopAntigravity();
     return sendJson(res, 200, { ok: true, config: updated });
   }
 
@@ -803,103 +886,64 @@ const server = http.createServer(async (req, res) => {
   if (!global.__jarvisEarQueue) global.__jarvisEarQueue = [];
   if (req.method === 'GET' && pathname === '/api/ear/health') {
     const health = global.__jarvisEarHealth;
-    const connected = Boolean(health && health.microphone === 'ready' && health.recognition === 'listening' && Date.now() - health.ts < 15000);
-    const recoverable = Date.now() - SERVER_STARTED_AT > 8000 && (!health || Date.now() - health.ts > 20000);
-    return sendJson(res, 200, { ok: true, connected, recoverable });
+    return sendJson(res, 200, getEarStatus(health, SERVER_STARTED_AT));
+  }
+  if (req.method === 'GET' && pathname === '/api/ear/events') {
+    return sendJson(res, 200, { ok: true, events: earEvents });
   }
   if (req.method === 'POST' && pathname === '/api/ear/health') {
     const body = await readBody(req);
-    global.__jarvisEarHealth = {
-      microphone: ['starting', 'ready', 'error'].includes(body.microphone) ? body.microphone : 'starting',
-      recognition: ['starting', 'listening', 'error'].includes(body.recognition) ? body.recognition : 'starting',
-      speechBuffer: ['pause-2000-v1', 'endpoint-v2', 'endpoint-media-v3', 'endpoint-media-v4'].includes(body.speechBuffer) ? body.speechBuffer : '',
-      turn: body.turn ? { finalSegments: Math.max(0, Math.min(1000, Number(body.turn.finalSegments) || 0)), interimChars: Math.max(0, Math.min(12000, Number(body.turn.interimChars) || 0)), finalizing: Boolean(body.turn.finalizing) } : null,
-      error: String(body.error || '').slice(0, 120), ts: Date.now()
-    };
+    global.__jarvisEarHealth = normalizeEarHealth(body);
+    const health = global.__jarvisEarHealth;
+    const eventKey = health.workerSession + ':' + health.sequence;
+    if (health.event && eventKey !== lastEarEventKey) { lastEarEventKey = eventKey; recordEarEvent(health); }
     return sendJson(res, 200, { ok: true });
   }
   if (req.method === 'POST' && pathname === '/api/ear/level') {
     const body = await readBody(req);
+    global.__jarvisSpeakerSamples = Math.max(0, Math.min(1e12, Number(body.speakerSamples) || 0));
     if (body && typeof body.level === 'number') {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.level) || 0));
     }
     const pitchHz = Number(body && body.pitchHz) || 0;
     const energy = Number(body && body.energy) || global.__jarvisMicLevel || 0;
     const zcr = Number(body && body.zcr) || 0;
-    if (global.__jarvisEnrollSamples && Array.isArray(global.__jarvisEnrollSamples)) {
-      if (energy >= 0.035 && pitchHz >= 75 && pitchHz <= 300) {
-        global.__jarvisEnrollSamples.push({ pitchHz, energy, zcr });
+    global.__jarvisLastVoiceFeatures = { pitchHz, energy, zcr, ts: Date.now() };
+    return sendJson(res, 200, {
+      ok: true, isSpeaking: Boolean(global.__jarvisIsSpeaking), mediaActive: butler.hasMediaContext(),
+      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0, speaker: speakerGate.status()
+    });
+  }
+  if (req.method === 'GET' && pathname === '/api/speaker/state') return sendJson(res, 200, { ...speakerGate.status(), captureReady: !!global.__jarvisEarHealth?.speakerCapture, captureSamples: global.__jarvisSpeakerSamples || 0 });
+  if (req.method === 'GET' && pathname === '/api/ear/voiceprint') return sendJson(res, 200, { ...speakerGate.status(), legacyPitchGate: false });
+  if (req.method === 'POST' && pathname === '/api/ear/enroll-voice') return sendJson(res, 409, { ok: false, error: '음높이 등록은 지원하지 않습니다. 환경설정 → 음성 · 마이크에서 내 목소리를 등록해 주세요.' });
+  if (req.method === 'POST' && pathname.startsWith('/api/speaker/')) {
+    try {
+      const body = await readBody(req, 1200000);
+      if (pathname === '/api/speaker/enroll/start') {
+        const health = global.__jarvisEarHealth;
+        if (!health || !health.speakerCapture || health.microphone !== 'ready' || Date.now()-health.ts > 15000) throw new Error('등록용 마이크 연결을 기다린 뒤 다시 눌러 주세요.');
+        if (global.__jarvisIsSpeaking) throw new Error('자비스 음성이 끝난 뒤 등록을 시작해 주세요.');
+        return sendJson(res, 200, speakerGate.start());
       }
+      if (pathname === '/api/speaker/enroll/complete') {
+        const result = await speakerGate.finish(body.id, body.audio, body.transcript);
+        global.__jarvisLatestEarItem = { text: '자비스, 지금 시간을 알려 주세요 라고 말씀해 보세요.', hudTitle: '내 목소리 등록 완료 · 내 목소리만 반응 켜짐', hudColor: 'lime', isFinal: true, ts: Date.now() };
+        voiceSessions.sessions.clear(); global.__jarvisForceAwakeUntil = 0;
+        return sendJson(res, 200, result);
+      }
+      if (pathname === '/api/speaker/enroll/cancel') return sendJson(res, 200, speakerGate.cancel());
+      if (pathname === '/api/speaker/enabled') {
+        if (typeof body.enabled !== 'boolean') throw new Error('켜기 또는 끄기를 선택해 주세요.');
+        voiceSessions.sessions.clear(); global.__jarvisForceAwakeUntil = 0;
+        return sendJson(res, 200, speakerGate.setEnabled(body.enabled));
+      }
+      if (pathname === '/api/speaker/forget') return sendJson(res, 200, speakerGate.forget());
+      return sendJson(res, 404, { ok: false, error: '지원하지 않는 목소리 설정입니다.' });
+    } catch (error) {
+      if (pathname === '/api/speaker/enroll/complete') global.__jarvisLatestEarItem = { text: speakerMessage(error.message), hudTitle: '목소리 등록 실패 · 다시 시도해 주세요', hudColor: 'amber', isFinal: true, ts: Date.now() };
+      return sendJson(res, 400, { ok: false, error: speakerMessage(error.message) });
     }
-    const matchInfo = evaluateOwnerVoiceMatch({ pitchHz, energy, zcr }, ownerVoicePrint);
-    global.__jarvisLastVoiceFeatures = {
-      pitchHz,
-      energy,
-      zcr,
-      matchScore: matchInfo.matchScore,
-      isOwnerVoice: matchInfo.isOwnerVoice,
-      ts: Date.now()
-    };
-    return sendJson(res, 200, {
-      ok: true,
-      isSpeaking: Boolean(global.__jarvisIsSpeaking),
-      mediaActive: butler.hasMediaContext(),
-      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0,
-      matchScore: matchInfo.matchScore,
-      isOwnerVoice: matchInfo.isOwnerVoice
-    });
-  }
-  if (req.method === 'GET' && pathname === '/api/ear/voiceprint') {
-    return sendJson(res, 200, {
-      ok: true,
-      voicePrint: ownerVoicePrint,
-      live: global.__jarvisLastVoiceFeatures || { pitchHz: 0, energy: 0, matchScore: 100, isOwnerVoice: true }
-    });
-  }
-  if (req.method === 'POST' && pathname === '/api/ear/enroll-voice') {
-    const body = await readBody(req);
-    if (body && typeof body.strictOwnerGate === 'boolean' && !body.enrollNow) {
-      ownerVoicePrint.strictOwnerGate = body.strictOwnerGate;
-      if (typeof body.minEnergy === 'number') ownerVoicePrint.minEnergy = body.minEnergy;
-      ownerVoicePrint.updatedAt = new Date().toISOString();
-      saveOwnerVoicePrint(ownerVoicePrint);
-      return sendJson(res, 200, { ok: true, voicePrint: ownerVoicePrint });
-    }
-    global.__jarvisEnrollSamples = [];
-    const durationMs = Math.max(2500, Math.min(7000, Number((body && body.durationMs) || 4000)));
-    await new Promise(r => setTimeout(r, durationMs));
-    const samples = global.__jarvisEnrollSamples || [];
-    global.__jarvisEnrollSamples = null;
-    if (samples.length > 0) {
-      const avgPitch = Math.round(samples.reduce((a, b) => a + b.pitchHz, 0) / samples.length);
-      const avgEnergy = Number((samples.reduce((a, b) => a + b.energy, 0) / samples.length).toFixed(3));
-      ownerVoicePrint = {
-        enrolled: true,
-        ownerName: '이건우 대표님',
-        pitchHz: avgPitch,
-        pitchRange: [Math.max(75, avgPitch - 42), Math.min(300, avgPitch + 48)],
-        minEnergy: Math.max(0.042, Number((avgEnergy * 0.65).toFixed(3))),
-        strictOwnerGate: true,
-        sampleCount: samples.length,
-        updatedAt: new Date().toISOString()
-      };
-    } else {
-      const lastP = (global.__jarvisLastVoiceFeatures && global.__jarvisLastVoiceFeatures.pitchHz) || 132;
-      ownerVoicePrint = {
-        ...ownerVoicePrint,
-        enrolled: true,
-        ownerName: '이건우 대표님',
-        pitchHz: lastP > 75 ? lastP : 132,
-        strictOwnerGate: true,
-        updatedAt: new Date().toISOString()
-      };
-    }
-    saveOwnerVoicePrint(ownerVoicePrint);
-    return sendJson(res, 200, {
-      ok: true,
-      voicePrint: ownerVoicePrint,
-      message: `이건우 대표님 성문 등록 완료 (${ownerVoicePrint.pitchHz}Hz · 근접 음성 필터 가동)`
-    });
   }
   if (req.method === 'POST' && pathname === '/api/ear/wake') {
     const body = await readBody(req);
@@ -929,8 +973,6 @@ const server = http.createServer(async (req, res) => {
     const mimeType = String((body && body.mimeType) || 'audio/webm').trim();
     const transcript = await transcribeAudioBufferWithGemini(audioBase64, mimeType);
     if (transcript) {
-      global.__jarvisForceAwakeUntil = Math.max(global.__jarvisForceAwakeUntil || 0, Date.now() + 120000);
-      try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
       const item = {
         text: transcript,
         isFinal: false,
@@ -948,47 +990,22 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && pathname === '/api/ear/speaking') {
     const body = await readBody(req);
     global.__jarvisIsSpeaking = Boolean(body && body.speaking);
+    recordEarEvent({ event: global.__jarvisIsSpeaking ? 'tts-start' : 'tts-end', ts: Date.now() });
+    clearTimeout(global.__jarvisSpeakingLease);
+    if (global.__jarvisIsSpeaking) {
+      global.__jarvisSpeakingLease = setTimeout(() => { global.__jarvisIsSpeaking = false; }, 45000);
+      global.__jarvisSpeakingLease.unref();
+    }
     return sendJson(res, 200, { ok: true });
   }
   if (req.method === 'POST' && pathname === '/api/ear/push') {
     const body = await readBody(req);
+    if (speakerGate.enabled || speakerGate.enrolling) return sendJson(res, 200, { ok: true, suppressed: true });
     if (body && typeof body.micLevel === 'number') {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.micLevel) || 0));
     }
     if (body && body.text && !global.__jarvisIsSpeaking) {
       const cleanText = String(body.text).trim();
-      if (body.status === 'recognition-error' && cleanText) {
-        try {
-          const result = await butler.execute(cleanText, true);
-          global.__jarvisForceAwakeUntil = Date.now() + (result && result.intent === 'awake' ? 60000 : 30000);
-          try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
-          try {
-            runJarvisHarness2EvolutionCycle(cleanText, {
-              intent: result && result.intent,
-              spoken: result && result.spoken,
-              hudTitle: result && result.hudTitle,
-              hudColor: result && result.hudColor,
-              source: 'voice-rescued',
-              partnerAgent: result && result.taskState && result.taskState.partnerAgent
-            });
-          } catch (_) {}
-          const syncItem = {
-            text: cleanText,
-            intent: (result && result.intent) || '',
-            isFinal: true,
-            hudColor: (result && result.hudColor) || 'cyan',
-            hudTitle: (result && result.hudTitle) || '✓ 실행 완료',
-            hudSubtitle: (result && result.hudSubtitle) || '',
-            awaitingConfirm: Boolean(result && result.awaitingConfirm),
-            spoken: (result && (result.spoken || result.hudSubtitle)) || cleanText,
-            ts: Date.now()
-          };
-          global.__jarvisLatestEarItem = syncItem;
-          global.__jarvisEarQueue.push(syncItem);
-          if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
-          return sendJson(res, 200, { ok: true, rescued: true, result, isSpeaking: Boolean(global.__jarvisIsSpeaking) });
-        } catch (_) {}
-      }
       const item = {
         text: cleanText,
         isFinal: Boolean(body.isFinal),
@@ -1009,8 +1026,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && pathname === '/api/ear/latest') {
     return sendJson(res, 200, {
       ok: true,
-      latest: global.__jarvisTimerDisplay && Date.now() < global.__jarvisTimerDisplayUntil
-        ? global.__jarvisTimerDisplay : global.__jarvisLatestEarItem || null,
+      latest: speakerEnrollmentHud() || (global.__jarvisTimerDisplay && Date.now() < global.__jarvisTimerDisplayUntil
+        ? global.__jarvisTimerDisplay : global.__jarvisLatestEarItem || null),
       earHealth: global.__jarvisEarHealth || null,
       micLevel: global.__jarvisMicLevel || 0,
       isSpeaking: Boolean(global.__jarvisIsSpeaking)
@@ -1209,6 +1226,7 @@ const server = http.createServer(async (req, res) => {
 <script src="/js/react18-runtime.js"></script>
 <script src="/js/speech-turn-buffer.js"></script>
 <script src="/js/media-intents.js"></script>
+<script src="/js/speaker-capture.js"></script>
 <script src="/js/jarvis-react-hud.js"></script>
 </head>
 <body>
@@ -1216,59 +1234,40 @@ const server = http.createServer(async (req, res) => {
 </body></html>`);
   }
 
-  // 8-A) GET /api/tts-mp3?text=... (24kHz 96kbps Studio HD Neural Voice with Clock Sync)
-  if (req.method === 'GET' && pathname === '/api/tts-mp3') {
-    const text = String(urlObj.searchParams.get('text') || '').trim();
-    const voice = urlObj.searchParams.get('voice') || butler.getConfig().sayVoice || 'ko-KR-HyunsuMultilingualNeural';
-    const wantWav = urlObj.searchParams.get('format') === 'wav';
-    if (!text) {
-      res.writeHead(204);
-      return res.end();
-    }
-    if (!wantWav) {
-      const mp3Buf = await synthesizeStudioNeuralMp3Buffer(text, voice);
-      if (mp3Buf && mp3Buf.length > 256) {
-        res.writeHead(200, {
-          ...CORS_HEADERS,
-          'Content-Type': 'audio/mpeg',
-          'Content-Length': mp3Buf.length,
-          'Cache-Control': 'no-store'
-        });
-        return res.end(mp3Buf);
-      }
-    }
-    const wav = await synthesizeWindowsNativeWav(text);
-    if (wav && wav.length > 44 && wav.subarray(0, 4).toString() === 'RIFF') {
-      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'audio/wav', 'Content-Length': wav.length, 'Cache-Control': 'no-store' });
-      return res.end(wav);
-    }
-    return sendJson(res, 503, { ok: false, error: 'Windows 음성 생성 실패' });
+  if (req.method === 'GET' && pathname === '/api/tts/status') {
+    const cfg = butler.getConfig();
+    return sendJson(res, 200, { ok: true, voices: VOICES, selectedVoice: cfg.sayVoice, speed: cfg.ttsSpeed, last: lastTtsStatus });
   }
-
-  // 8) POST /api/tts (Mouth.swift 1:1 Studio HD Neural Voice Stream)
-  if (req.method === 'POST' && pathname === '/api/tts') {
-    const body = await readBody(req);
-    const text = String(body.text || '').trim();
-    const voice = body.voice || butler.getConfig().sayVoice || 'ko-KR-HyunsuMultilingualNeural';
-    if (!text) {
-      return sendJson(res, 200, { ok: false });
+  if ((req.method === 'GET' && pathname === '/api/tts-mp3') || (req.method === 'POST' && pathname === '/api/tts')) {
+    const ttsStartedAt = Date.now();
+    const body = req.method === 'POST' ? await readBody(req) : Object.fromEntries(urlObj.searchParams);
+    const text = humanizeKoreanSpeechText(body.text);
+    if (!text) { res.writeHead(204); return res.end(); }
+    let options;
+    try { options = speechOptions(butler.getConfig(), body); }
+    catch (error) { return sendJson(res, 400, { ok: false, error: error.message }); }
+    const { voice, speed } = options;
+    let bytes = null, provider = 'edge-neural', actualVoice = voice, contentType = 'audio/mpeg';
+    let error = null;
+    if (voice !== 'windows-ko') {
+      try {
+        bytes = await synthesizeStudioNeuralMp3Buffer(text, voice, speed);
+        if (bytes.length <= 256) throw new Error('선택한 Neural 음성을 생성하지 못했습니다.');
+        if (body.format === 'wav') { bytes = await mp3ToWav(bytes); contentType = 'audio/wav'; }
+      } catch (err) { error = err.message; bytes = null; }
     }
-    const mp3Buf = await synthesizeStudioNeuralMp3Buffer(text, voice);
-    if (mp3Buf && mp3Buf.length > 256) {
-      res.writeHead(200, {
-        ...CORS_HEADERS,
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': mp3Buf.length,
-        'Cache-Control': 'no-store'
-      });
-      return res.end(mp3Buf);
+    if (!bytes || bytes.length <= 256) {
+      bytes = await synthesizeWindowsNativeWav(text, speed);
+      provider = 'windows-sapi'; actualVoice = 'windows-ko'; contentType = 'audio/wav';
     }
-    const wav = await synthesizeWindowsNativeWav(text);
-    if (wav && wav.length > 44 && wav.subarray(0, 4).toString() === 'RIFF') {
-      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'audio/wav', 'Content-Length': wav.length, 'Cache-Control': 'no-store' });
-      return res.end(wav);
-    }
-    return sendJson(res, 503, { ok: false, error: 'Windows 음성 생성 실패' });
+    const fallback = voice !== actualVoice;
+    const ok = !!(bytes && bytes.length > 44);
+    lastTtsStatus = { at: new Date().toISOString(), ok, requestedVoice: voice, actualVoice, speed, provider, fallback, error, bytes: bytes?.length || 0, contentType, elapsedMs: Date.now() - ttsStartedAt };
+    recordEarEvent({ event: 'tts-generated', ts: Date.now(), ...lastTtsStatus });
+    if (!ok) return sendJson(res, 503, { ok: false, error: '음성을 생성하지 못했습니다.' });
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': contentType, 'Content-Length': bytes.length, 'Cache-Control': 'no-store',
+      'X-Jarvis-Tts-Voice': actualVoice, 'X-Jarvis-Tts-Speed': String(speed), 'X-Jarvis-Tts-Provider': provider, 'X-Jarvis-Tts-Fallback': fallback ? '1' : '0' });
+    return res.end(bytes);
   }
 
   // 9) Static files
@@ -1285,6 +1284,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   sendJson(res, 404, { ok: false, error: 'Not Found' });
+  } catch (error) {
+    console.error('Request failed:', error.message);
+    if (!res.headersSent) sendJson(res, error instanceof SyntaxError ? 400 : 500, { ok: false, error: error instanceof SyntaxError ? 'Invalid JSON' : '요청 처리 실패' });
+    else res.end();
+  }
 });
 
 let timerCheckInterval;
@@ -1308,14 +1312,17 @@ server.on('listening', () => {
   checkTimers();
   timerCheckInterval = setInterval(checkTimers, 500);
 });
-server.on('close', () => clearInterval(timerCheckInterval));
+server.on('close', () => { clearInterval(timerCheckInterval); stopAntigravity(); if (speakerGate.worker.stop) speakerGate.worker.stop(); });
 
 if (require.main === module) {
   server.on('error', error => {
     console.error(error.code === 'EADDRINUSE' ? 'Jarvis port is already in use; existing processes were left running.' : error);
     process.exit(1);
   });
-  server.listen(PORT, '127.0.0.1', () => console.log('Jarvis server listening on 127.0.0.1:' + PORT));
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log('Jarvis server listening on 127.0.0.1:' + PORT);
+    if (butler.getConfig().brainProvider === 'antigravity-cli') verifyBrain(butler.getConfig()).catch(() => {});
+  });
 }
 
-module.exports = { server, butler, PORT };
+module.exports = { server, butler, PORT, speakerGate };

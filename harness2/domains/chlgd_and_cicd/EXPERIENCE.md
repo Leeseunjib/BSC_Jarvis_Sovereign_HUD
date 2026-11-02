@@ -13,3 +13,16 @@
 - **Trigger**: 네 자비스
 - **Surface**: 0 files (0/20000B, Valid=true)
 - **Ledger**: R=4000, P=3000 Verified
+
+## [2026-10-29 08:53:59 Harness² Recursion Pass]
+- **Trigger**: 자비스 시험
+- **Surface**: 0 files (0/20000B, Valid=true)
+- **Ledger**: R=4000, P=3000 Verified
+
+## [2026-11-02 CEO Rule Learned]
+- **Rule**: [2026-11-02 대표님 승인] C:\Warehouse(05.BSC_Skill_Warehouse)는 7대 도메인 × 18대 BSC_Originals × 19대 Imported 팩 × 32인 에이전트가 양방향 [[WikiLink]]로 연결된 옵시디언 뉴런 시스템(3.Obsidian_Vault / 00_Master_Neuron_MOC.md & warehouse_neuron_graph.json)으로 운영하며, 'bsc warehouse [--neuron|--audit|--search|--sync]' CLI 및 HQ MAPS 2-Hop 브레인 그래프(770 노드)와 자비스(JARVIS)가 실시간 연동된다.
+- **Source**: Antigravity MCP Bridge
+
+## [2026-11-02 CEO Rule Learned]
+- **Rule**: 앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘
+- **Source**: 대표님 실시간 대화 학습

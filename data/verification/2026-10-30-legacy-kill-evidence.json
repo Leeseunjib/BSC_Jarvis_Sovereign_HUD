@@ -1,0 +1,268 @@
+[
+  {
+    "File": "C:\\자비스\\data\\repair-backups\\legacy-launcher-20261030-105807\\JarvisHud_v20.exe.disabled",
+    "Sha256": "8B33E94C28E005710E876BAC99D3520032381EB9C9404EFCF96D58916DE18C20",
+    "Inspection": "Entry point IL inspected without invoking target code",
+    "Operations": [
+      {
+        "Offset": 2,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.GetCurrentThreadId"
+      },
+      {
+        "Offset": 7,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.GetThreadDesktop"
+      },
+      {
+        "Offset": 12,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.GetObjName"
+      },
+      {
+        "Offset": 18,
+        "String": "Main started on Desktop="
+      },
+      {
+        "Offset": 24,
+        "Call": "System.String.Concat"
+      },
+      {
+        "Offset": 29,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.WriteLog"
+      },
+      {
+        "Offset": 36,
+        "String": "Default"
+      },
+      {
+        "Offset": 42,
+        "Call": "System.String.Equals"
+      },
+      {
+        "Offset": 57,
+        "Call": "System.Diagnostics.Process.GetCurrentProcess"
+      },
+      {
+        "Offset": 62,
+        "Call": "System.Diagnostics.Process.get_MainModule"
+      },
+      {
+        "Offset": 67,
+        "Call": "System.Diagnostics.ProcessModule.get_FileName"
+      },
+      {
+        "Offset": 84,
+        "Call": "System.Runtime.InteropServices.Marshal.SizeOf"
+      },
+      {
+        "Offset": 96,
+        "String": "Winsta0\\Default"
+      },
+      {
+        "Offset": 107,
+        "String": "\""
+      },
+      {
+        "Offset": 113,
+        "String": "\" --on-default"
+      },
+      {
+        "Offset": 118,
+        "Call": "System.String.Concat"
+      },
+      {
+        "Offset": 140,
+        "String": "C:\\자비스"
+      },
+      {
+        "Offset": 149,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.CreateProcess"
+      },
+      {
+        "Offset": 167,
+        "String": "Re-spawned on Winsta0\\Default ok="
+      },
+      {
+        "Offset": 187,
+        "String": " pid="
+      },
+      {
+        "Offset": 211,
+        "Call": "System.String.Concat"
+      },
+      {
+        "Offset": 216,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.WriteLog"
+      },
+      {
+        "Offset": 228,
+        "Call": "System.Diagnostics.Process.GetCurrentProcess"
+      },
+      {
+        "Offset": 233,
+        "Call": "System.Diagnostics.Process.get_Id"
+      },
+      {
+        "Offset": 241,
+        "Call": "System.Diagnostics.Process.GetProcesses"
+      },
+      {
+        "Offset": 264,
+        "Call": "System.Diagnostics.Process.get_Id"
+      },
+      {
+        "Offset": 275,
+        "Call": "System.Diagnostics.Process.get_ProcessName"
+      },
+      {
+        "Offset": 280,
+        "String": "JarvisHud"
+      },
+      {
+        "Offset": 286,
+        "Call": "System.String.StartsWith"
+      },
+      {
+        "Offset": 307,
+        "Call": "System.Diagnostics.Process.Kill"
+      },
+      {
+        "Offset": 320,
+        "Call": "System.Diagnostics.Process.WaitForExit"
+      },
+      {
+        "Offset": 367,
+        "String": "Local\\JarvisDesktopHUD"
+      },
+      {
+        "Offset": 374,
+        "Call": "System.Threading.Mutex..ctor"
+      },
+      {
+        "Offset": 391,
+        "String": "HUD already running; duplicate launch ignored"
+      },
+      {
+        "Offset": 396,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.WriteLog"
+      },
+      {
+        "Offset": 405,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.RunOverlay"
+      },
+      {
+        "Offset": 417,
+        "Call": "System.Threading.Mutex.ReleaseMutex"
+      },
+      {
+        "Offset": 442,
+        "Call": "System.IDisposable.Dispose"
+      },
+      {
+        "Offset": 450,
+        "String": "Main exited normally"
+      },
+      {
+        "Offset": 455,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.WriteLog"
+      },
+      {
+        "Offset": 467,
+        "String": "Main fatal: "
+      },
+      {
+        "Offset": 474,
+        "Call": "System.Object.ToString"
+      },
+      {
+        "Offset": 479,
+        "Call": "System.String.Concat"
+      },
+      {
+        "Offset": 484,
+        "Call": "JarvisSasariSa.MonitorOverlayApp.WriteLog"
+      }
+    ]
+  },
+  {
+    "File": "C:\\자비스\\JarvisHud_v20.exe",
+    "Sha256": "631689E1E94A866F691EC031E2D8EFDDE3CB393AD7ACDD26AE72F9EFFEEABC84",
+    "Inspection": "Entry point IL inspected without invoking target code",
+    "Operations": [
+      {
+        "Offset": 2,
+        "Call": "System.AppDomain.get_CurrentDomain"
+      },
+      {
+        "Offset": 7,
+        "Call": "System.AppDomain.get_BaseDirectory"
+      },
+      {
+        "Offset": 14,
+        "String": "bin"
+      },
+      {
+        "Offset": 19,
+        "String": "JarvisHud.exe"
+      },
+      {
+        "Offset": 24,
+        "Call": "System.IO.Path.Combine"
+      },
+      {
+        "Offset": 31,
+        "Call": "System.IO.File.Exists"
+      },
+      {
+        "Offset": 42,
+        "String": "The installed Jarvis HUD is missing."
+      },
+      {
+        "Offset": 48,
+        "Call": "System.IO.FileNotFoundException..ctor"
+      },
+      {
+        "Offset": 54,
+        "Call": "System.Diagnostics.ProcessStartInfo..ctor"
+      },
+      {
+        "Offset": 62,
+        "Call": "System.Diagnostics.ProcessStartInfo.set_FileName"
+      },
+      {
+        "Offset": 70,
+        "Call": "System.Diagnostics.ProcessStartInfo.set_WorkingDirectory"
+      },
+      {
+        "Offset": 78,
+        "Call": "System.Diagnostics.ProcessStartInfo.set_UseShellExecute"
+      },
+      {
+        "Offset": 86,
+        "Call": "System.Diagnostics.ProcessStartInfo.set_CreateNoWindow"
+      },
+      {
+        "Offset": 94,
+        "Call": "System.Diagnostics.ProcessStartInfo.set_WindowStyle"
+      },
+      {
+        "Offset": 101,
+        "Call": "System.Diagnostics.Process.Start"
+      },
+      {
+        "Offset": 122,
+        "Call": "System.IDisposable.Dispose"
+      },
+      {
+        "Offset": 140,
+        "Call": "System.Exception.get_Message"
+      },
+      {
+        "Offset": 145,
+        "String": "Jarvis launcher"
+      },
+      {
+        "Offset": 153,
+        "Call": "System.Windows.Forms.MessageBox.Show"
+      }
+    ]
+  }
+]

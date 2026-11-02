@@ -4,3 +4,5 @@
 3. 의미 없는 더미/임시 폴더 생성 및 경로 날조(Path Hallucination) 절대 금지.
 4. 시크릿 키 및 자격 증명 평문 노출 절대 금지 (`.env` 격리).
 5. 대표님께서 말씀하시는 도중 먼저 끊거나 외부 소음에 혼자 발화하는 행위 절대 금지.
+- [2026-11-02 · CHLGD 작업 규칙 · 옵시디언 뉴런 & 창고(Warehouse) 자동화] [2026-11-02 대표님 승인] C:\Warehouse(05.BSC_Skill_Warehouse)는 7대 도메인 × 18대 BSC_Originals × 19대 Imported 팩 × 32인 에이전트가 양방향 [[WikiLink]]로 연결된 옵시디언 뉴런 시스템(3.Obsidian_Vault / 00_Master_Neuron_MOC.md & warehouse_neuron_graph.json)으로 운영하며, 'bsc warehouse [--neuron|--audit|--search|--sync]' CLI 및 HQ MAPS 2-Hop 브레인 그래프(770 노드)와 자비스(JARVIS)가 실시간 연동된다.
+- [2026-11-02 · 대화 학습 규칙] 앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘

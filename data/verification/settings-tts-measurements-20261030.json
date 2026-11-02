@@ -1,0 +1,67 @@
+[
+  {
+    "voice": "ko-KR-InJoonNeural",
+    "speed": 1,
+    "status": 200,
+    "actualVoice": "ko-KR-InJoonNeural",
+    "actualSpeed": "1",
+    "fallback": "0",
+    "wav": true,
+    "bytes": 695852,
+    "seconds": 7.248,
+    "elapsedMs": 781,
+    "sha256": "e595b604020480800afc1ca05f57519f9c9108b69c5e29bd01d94c081be08226"
+  },
+  {
+    "voice": "ko-KR-InJoonNeural",
+    "speed": 1.5,
+    "status": 200,
+    "actualVoice": "ko-KR-InJoonNeural",
+    "actualSpeed": "1.5",
+    "fallback": "0",
+    "wav": true,
+    "bytes": 465452,
+    "seconds": 4.848,
+    "elapsedMs": 573,
+    "sha256": "236aa13786ed57bf0641dc9d809c1f4b65a35d0f3a262ee2b6f3da08edcecd95"
+  },
+  {
+    "voice": "ko-KR-SunHiNeural",
+    "speed": 1.5,
+    "status": 200,
+    "actualVoice": "ko-KR-SunHiNeural",
+    "actualSpeed": "1.5",
+    "fallback": "0",
+    "wav": true,
+    "bytes": 421676,
+    "seconds": 4.392,
+    "elapsedMs": 523,
+    "sha256": "934d987dc07e67cca598fd9fd7fcdd1ba9bd85c1065c337da9944ffc672b1e08"
+  },
+  {
+    "voice": "windows-ko",
+    "speed": 1,
+    "status": 200,
+    "actualVoice": "windows-ko",
+    "actualSpeed": "1",
+    "fallback": "0",
+    "wav": true,
+    "bytes": 298530,
+    "seconds": 6.768390022675737,
+    "elapsedMs": 3737,
+    "sha256": "961d47a1c5aa1d60448b798cc8298583302ada491335cfdfb256801fa12df405"
+  },
+  {
+    "voice": "windows-ko",
+    "speed": 1.5,
+    "status": 200,
+    "actualVoice": "windows-ko",
+    "actualSpeed": "1.5",
+    "fallback": "0",
+    "wav": true,
+    "bytes": 193248,
+    "seconds": 4.381043083900226,
+    "elapsedMs": 3150,
+    "sha256": "4be5eeebe35e7b174824f01fb4de37a0cd997b9f7017f5105c5e428c75c0bee4"
+  }
+]

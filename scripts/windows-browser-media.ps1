@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 [Console]::InputEncoding=[Text.Encoding]::UTF8
 [Console]::OutputEncoding=[Text.Encoding]::UTF8
 Add-Type -AssemblyName UIAutomationClient
@@ -39,7 +39,7 @@ try {
   $targets=@();$browserCount=0;$tabCount=0;$totalTabs=0;$diagnostics=@()
   foreach($root in $roots) {
     $proc=Get-Process -Id $root.Current.ProcessId -ErrorAction SilentlyContinue
-    if($null -eq $proc -or $proc.ProcessName -notmatch '^(chrome|msedge|firefox|brave|opera)$' -or $root.Current.IsOffscreen) { continue }
+    if($null -eq $proc -or $proc.ProcessName -notmatch '^(chrome|msedge|firefox|brave|opera|whale)$' -or $root.Current.IsOffscreen) { continue }
     if($request.targetProcessId -and $root.Current.ProcessId -ne [int]$request.targetProcessId) { continue }
     $browserCount++
     $condition=New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty,[System.Windows.Automation.ControlType]::TabItem)

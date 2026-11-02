@@ -1,0 +1,37 @@
+{
+  "rules": [
+    {
+      "id": "rule-1793594080097-5x1w",
+      "kind": "explicit",
+      "text": "앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘",
+      "category": "문서 · 보고 규칙",
+      "intent": "research",
+      "need": 1,
+      "evidence": 1,
+      "status": "active",
+      "createdAt": "2026-11-02T04:34:40.097Z",
+      "lastSeen": "2026-11-02T04:34:40.097Z",
+      "examples": [
+        "앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘"
+      ],
+      "promotedAt": "2026-11-02T04:34:40.097Z"
+    }
+  ],
+  "lessons": [],
+  "intentStats": {
+    "research": {
+      "total": 4,
+      "failures": 0,
+      "lastAt": "2026-11-02T04:34:40.094Z"
+    }
+  },
+  "commandCounts": {
+    "우리시스템에서전자책빌드찾아서보여줘": 1,
+    "뷰티풀월드rea분석해줘": 1,
+    "라야로워드교정과전자책빌드중우선순위판단해줘": 1,
+    "앞으로검색결과는핵심출처와파일경로를먼저정리해줘": 1
+  },
+  "cycles": 0,
+  "createdAt": "2026-11-02T04:32:39.362Z",
+  "updatedAt": "2026-11-02T04:34:40.101Z"
+}

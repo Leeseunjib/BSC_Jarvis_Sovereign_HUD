@@ -1,0 +1,24 @@
+{
+  "RecoveredPid": 47516,
+  "RecoveryMs": 3280,
+  "Placement": {
+    "ProcessCount": 1,
+    "VisibleHudCount": 1,
+    "GlobalOnscreenHudCount": 1,
+    "PrimaryAndTopmost": true,
+    "Titles": [
+      "자비스 Monitor Top HUD"
+    ],
+    "OnscreenHuds": [
+      "47516|자비스 Monitor Top HUD"
+    ]
+  },
+  "OldPid": 59000,
+  "Test": "unexpected-exit-recovery",
+  "ExplicitQuit": {
+    "VerifiedVia": "HUD menu",
+    "SupervisorCount": 0,
+    "HudCount": 0,
+    "NormalExitLogged": true
+  }
+}

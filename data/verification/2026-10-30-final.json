@@ -1,0 +1,216 @@
+{
+  "Samples": [
+    {
+      "Time": "2026-10-30T10:01:24.8914452+09:00",
+      "Hud": {
+        "ProcessCount": 1,
+        "VisibleHudCount": 1,
+        "GlobalOnscreenHudCount": 1,
+        "PrimaryAndTopmost": true,
+        "Titles": [
+          "자비스 Monitor Top HUD"
+        ],
+        "OnscreenHuds": [
+          "16520|자비스 Monitor Top HUD"
+        ]
+      },
+      "OriginalHudSurvivedDuplicateLaunch": true,
+      "ServerPid": 57572,
+      "MicConnected": true
+    },
+    {
+      "Time": "2026-10-30T10:01:30.3302261+09:00",
+      "Hud": {
+        "ProcessCount": 1,
+        "VisibleHudCount": 1,
+        "GlobalOnscreenHudCount": 1,
+        "PrimaryAndTopmost": true,
+        "Titles": [
+          "자비스 Monitor Top HUD"
+        ],
+        "OnscreenHuds": [
+          "16520|자비스 Monitor Top HUD"
+        ]
+      },
+      "OriginalHudSurvivedDuplicateLaunch": true,
+      "ServerPid": 57572,
+      "MicConnected": true
+    },
+    {
+      "Time": "2026-10-30T10:01:35.6949185+09:00",
+      "Hud": {
+        "ProcessCount": 1,
+        "VisibleHudCount": 1,
+        "GlobalOnscreenHudCount": 1,
+        "PrimaryAndTopmost": true,
+        "Titles": [
+          "자비스 Monitor Top HUD"
+        ],
+        "OnscreenHuds": [
+          "16520|자비스 Monitor Top HUD"
+        ]
+      },
+      "OriginalHudSurvivedDuplicateLaunch": true,
+      "ServerPid": 57572,
+      "MicConnected": true
+    },
+    {
+      "Time": "2026-10-30T10:01:41.0798527+09:00",
+      "Hud": {
+        "ProcessCount": 1,
+        "VisibleHudCount": 1,
+        "GlobalOnscreenHudCount": 1,
+        "PrimaryAndTopmost": true,
+        "Titles": [
+          "자비스 Monitor Top HUD"
+        ],
+        "OnscreenHuds": [
+          "16520|자비스 Monitor Top HUD"
+        ]
+      },
+      "OriginalHudSurvivedDuplicateLaunch": true,
+      "ServerPid": 57572,
+      "MicConnected": true
+    },
+    {
+      "Time": "2026-10-30T10:01:46.5379598+09:00",
+      "Hud": {
+        "ProcessCount": 1,
+        "VisibleHudCount": 1,
+        "GlobalOnscreenHudCount": 1,
+        "PrimaryAndTopmost": true,
+        "Titles": [
+          "자비스 Monitor Top HUD"
+        ],
+        "OnscreenHuds": [
+          "16520|자비스 Monitor Top HUD"
+        ]
+      },
+      "OriginalHudSurvivedDuplicateLaunch": true,
+      "ServerPid": 57572,
+      "MicConnected": true
+    },
+    {
+      "Time": "2026-10-30T10:01:52.0016582+09:00",
+      "Hud": {
+        "ProcessCount": 1,
+        "VisibleHudCount": 1,
+        "GlobalOnscreenHudCount": 1,
+        "PrimaryAndTopmost": true,
+        "Titles": [
+          "자비스 Monitor Top HUD"
+        ],
+        "OnscreenHuds": [
+          "16520|자비스 Monitor Top HUD"
+        ]
+      },
+      "OriginalHudSurvivedDuplicateLaunch": true,
+      "ServerPid": 57572,
+      "MicConnected": true
+    }
+  ],
+  "SupervisorCount": 1,
+  "AudioDefault": [
+    {
+      "Id": "{0.0.0.00000000}.{2a6ccd22-01d6-44ad-8c51-f0f2ba87c243}",
+      "Name": "스피커 (Mixing Driver 1 for US-2x2 & US-4x4)",
+      "DefaultRoles": [
+        0,
+        1,
+        2
+      ],
+      "VolumePercent": 76.0,
+      "Muted": false,
+      "Sessions": [
+        {
+          "ProcessId": 24528,
+          "ProcessName": "Discord",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 0,
+          "ProcessName": "System Sounds",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 4572,
+          "ProcessName": "Discord",
+          "State": "Active",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 26932,
+          "ProcessName": "steam",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 34076,
+          "ProcessName": "Antigravity",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 15168,
+          "ProcessName": "msedgewebview2",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 52636,
+          "ProcessName": "Antigravity IDE",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 16520,
+          "ProcessName": "JarvisHud",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 50372,
+          "ProcessName": "chrome",
+          "State": "Active",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 30108,
+          "ProcessName": "chrome",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        },
+        {
+          "ProcessId": 16520,
+          "ProcessName": "JarvisHud",
+          "State": "Inactive",
+          "VolumePercent": 100.0,
+          "Muted": false
+        }
+      ],
+      "SessionError": null
+    }
+  ],
+  "Audibility": {
+    "Path": "HUD clock reply through TASCAM Mixing Driver 1",
+    "Answer": "들렸습니다",
+    "ConfirmedByUser": true,
+    "Note": "Digital playback alone was not treated as audibility confirmation."
+  },
+  "Limitations": [
+    "Original unexpected process exit cause not identified; recovery verified with controlled termination.",
+    "Physical microphone recognition was not re-tested in this session."
+  ]
+}
