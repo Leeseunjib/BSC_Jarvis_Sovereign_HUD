@@ -1,5 +1,5 @@
 {
-  "createdAt": "2026-11-02T04:34:14.953Z",
+  "createdAt": "2026-11-03T03:01:38.456Z",
   "hashes": {
     "server.js": "58e431163249ccfcf6f51ed4769557418757de60f8be6323b68c22add0a93680",
     "server.verified.js": "4490f9cfb8f60d14050338c42def6f76abe87b7ae1f5d12bc7dd01735cd7a103",
@@ -36,7 +36,7 @@
     "scripts/web-research.js": "0f3005afe301aa503a7f7e7e763b3d6da34796472fa2d38b3271e11ec93f0561",
     "scripts/Get-AudioDevices.ps1": "1b706bd619d3ab64b305fc0f582a02bd655ba850ae0209cf8cb82fe4fa596438",
     "scripts/tts-audio.js": "52a2a1c0bceac17c52ea48b5b83c4da467b999b83651161e5002ce7f9e287455",
-    "package.json": "2d082de29c7eb0dccbc36459a42cd00c348164b4dc7dcf9e4b498904c892e7fe",
+    "package.json": "d1dcfc2e8d9c3613eddf181382ee0fc16790f5770dbb094b7400410face900f7",
     "package-lock.json": "1816de6e65431e3022595f4ce43c25e1b9054597ade2639be73a31d2aacc414b",
     "scripts/voice-brain.js": "955fe797f55dd958ae19dcb048e2daea8c100d5f296476fdb959f0a234ed5341",
     "scripts/antigravity-brain.js": "cdbfdc9709d59471482d25f31f096adb8a157718518b0a2953cd0aa34a570814",

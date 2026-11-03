@@ -1,7 +1,7 @@
 {
   "name": "jarvis-sasarisa-windows",
-  "version": "0.7.3",
-  "description": "자비스 Windows 음성 비서 (Sasarisa 참고 구현)",
+  "version": "1.0.0",
+  "description": "BSC JARVIS Sovereign HUD — 이건우 대표님 공식 메인(Main SSOT) 및 상용(Commercial Production) AI 비서",
   "main": "server.js",
   "scripts": {
     "start": "node server.verified.js",

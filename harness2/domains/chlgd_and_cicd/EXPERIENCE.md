@@ -26,3 +26,11 @@
 ## [2026-11-02 CEO Rule Learned]
 - **Rule**: 앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘
 - **Source**: 대표님 실시간 대화 학습
+
+## [2026-11-03 CEO Rule Learned]
+- **Rule**: 앞으로 C:\자비스가 유일한 메인 상용 자비스 정본이며 다른 자비스 폴더(C:\BSC_Javis_OS 등)는 샌드박스로만 취급해줘
+- **Source**: Harness² 재귀 학습 (explicit, 근거 1회)
+
+## [2026-11-03 CEO Rule Learned]
+- **Rule**: [2026-11-03 대표님 공식 지정] C:\자비스(GitHub: BSC_Jarvis_Sovereign_HUD, Port 7788)가 유일한 진짜 메인 및 상용화(Commercial Production) 정본 자비스이며, 다른 자비스(C:\BSC_Javis_OS 등)는 실험용 샌드박스이다.
+- **Source**: 대표님 대화 학습
