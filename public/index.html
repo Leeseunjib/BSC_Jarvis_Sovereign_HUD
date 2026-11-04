@@ -3,35 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>자비스 — Windows 음성 비서</title>
+  <title>자비스 (JARVIS Sovereign OS) — 이건우 대표님 전용 3대 생태계 통합 관제 센터</title>
   <link rel="stylesheet" href="/css/jarvis-sasarisa.css" />
 </head>
 <body>
 
-  <!-- 1. Top MenuBar (Sources/MacButler/main.swift NSStatusBar ◉S -> ◉J 1:1) -->
+  <!-- 1. Top MenuBar (BSC JARVIS Sovereign Commercial OS v1.0.0) -->
   <header class="top-menubar">
     <div class="menubar-left">
-      <div class="status-pill" id="btnWakeToggle" title="클릭하여 자비스 부르기 (오른쪽 Alt 톡)">
+      <div class="status-pill" id="btnWakeToggle" title="클릭하여 자비스 부르기">
         <span id="statusDot">◉</span>
-        <span id="assistantTitleBadge">자비스 (SasariSa v0.7.3)</span>
+        <span id="assistantTitleBadge">자비스 (BSC Sovereign OS v1.0)</span>
       </div>
-      <button class="menu-btn highlight" id="btnAlwaysOnMic">🎙 상시 음성 대기 켜기 (Ear.swift)</button>
+      <button class="menu-btn highlight" id="btnAlwaysOnMic">🎙 상시 음성 대기 켜기</button>
       <button class="menu-btn" id="btnWinNativeMic">🎧 Windows 하드웨어 마이크 직접 듣기</button>
-      <button class="menu-btn" id="btnGreet">⚡ 인사하기 (BootScene)</button>
-      <button class="menu-btn" id="btnOpenSetup">🛠 준비 (Setup…)</button>
-      <button class="menu-btn" id="btnOpenSettings">⚙ 설정 (Settings…)</button>
-      <button class="menu-btn" id="btnForgetLearned">🧹 배운 것 지우기</button>
+      <button class="menu-btn" id="btnGreet">⚡ 대표님 출근 브리핑 (BootScene)</button>
+      <button class="menu-btn" id="btnOpenSetup">🛠 기본 환경 점검</button>
+      <button class="menu-btn" id="btnOpenSettings">⚙ 시스템 설정</button>
+      <button class="menu-btn" id="btnForgetLearned">🧹 배운 캐시 초기화</button>
     </div>
     <div class="menubar-right">
       <span id="micLevelIndicator" style="color:var(--cyan);font-family:monospace;font-size:12px;">MIC: 대기 중</span>
-      <button class="menu-btn highlight" id="btnOpenRea">🔬 REA 4단계 역공학 명세서</button>
+      <button class="menu-btn highlight" id="btnOpenRea">🔬 REA v6.8.0 · 3대 생태계 명세서</button>
     </div>
   </header>
 
-  <!-- 2. Floating HUD Panel (Image 3 & HUD.swift Minimalist 2-Line Pill: ○ 받아 적는 중 / 클래식 음악 좀 틀어 줘) -->
+  <!-- 2. Floating HUD Panel -->
   <section class="sasarisa-hud-wrapper pos-top" id="hudWrapper">
     <div class="sasarisa-hud-card color-cyan" id="hudCard" style="max-width:680px;margin:0 auto;min-height:114px;padding:14px 26px 14px 20px;border-radius:22px;">
-      <!-- 88px 3-Ring Counter-Rotating OrbView (Reacts to real microphone dB level) -->
+      <!-- 88px 3-Ring Counter-Rotating OrbView -->
       <div class="orb-view" id="orbView" title="클릭하여 음성 인식 시작/중지" style="width:88px;height:88px;flex:0 0 88px;">
         <div class="orb-ring r1"></div>
         <div class="orb-ring r2"></div>
@@ -40,9 +40,9 @@
       </div>
 
       <div class="hud-text-col" style="justify-content:center;gap:6px;">
-        <div class="hud-status-line" id="hudStatus" style="font-size:14.5px;font-weight:700;color:#4dd9ff;">○ 받아 적는 중</div>
+        <div class="hud-status-line" id="hudStatus" style="font-size:14.5px;font-weight:700;color:#4dd9ff;">○ 호출어 대기 · 자비스라고 불러 주세요</div>
         <div class="hud-heard-line" id="hudHeard" style="display:none;"></div>
-        <div class="hud-body-line" id="hudBody" style="font-size:24px;font-weight:800;color:#ffffff;line-height:1.25;">클래식 음악 좀 틀어 줘</div>
+        <div class="hud-body-line" id="hudBody" style="font-size:21px;font-weight:800;color:#ffffff;line-height:1.25;">무엇을 도와드릴까요? (3대 생태계 검색 · 문서 제작 · REA · Laya)</div>
 
         <div class="hud-input-row" style="margin-top:4px;display:flex;gap:8px;">
           <button class="hud-action-btn yes" id="btnConfirmYes" style="display:none;">응 (전송)</button>
@@ -52,45 +52,45 @@
     </div>
   </section>
 
-  <!-- 2-B. Practical Use-Case Guide Banner (이 프로젝트를 어떻게 활용하면 좋을지 한눈에 보기) -->
+  <!-- 2-B. BeausCreators 3-Ecosystem Executive Command Banner -->
   <section style="max-width:1200px;margin:0 auto 18px auto;padding:0 24px;">
     <div style="background:linear-gradient(135deg, rgba(6,22,38,0.92), rgba(4,12,24,0.95));border:1.5px solid rgba(77,217,255,0.45);border-radius:18px;padding:18px 22px;box-shadow:0 0 28px rgba(77,217,255,0.15);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div style="font-size:17px;font-weight:800;color:#4dd9ff;">
-          🚀 유튜버 화면(사사리사) 그대로! 목소리 한마디로 자동 실행되는 5가지 핵심 활용법 (클릭 시 즉시 시연)
+          🏛 이건우 대표님 직속 자비스 — 3대 생태계(BeausCreators · BeautifulWorld · Warehouse) &amp; Harness² 5대 핵심 워크플로우
         </div>
-        <span class="badge">무터치 상시 음성 대기 ON</span>
+        <span class="badge">3대 생태계 · 26인 에이전트 · 665 스킬 직결</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:10px;margin-bottom:14px;">
-        <div class="cmd-chip" data-cmd="아빠 왔어" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
-          <div style="color:#4dd9ff;font-weight:800;font-size:13.5px;margin-bottom:4px;">① “아빠 왔어” (출근 부트)</div>
-          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">팔짱 끼고 “아빠 왔어” 한마디만 하면 아이언맨 부트 화면과 환영 음성이 자동으로 열립니다.</div>
+        <div class="cmd-chip" data-cmd="오늘 할 일 정리해 줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#4dd9ff;font-weight:800;font-size:13.5px;margin-bottom:4px;">① 본사 작업일지 · 보고서 브리핑</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;"><code>01.BSC_HQ/1.Documents</code>의 최신 작업일지·보고서·26인 에이전트 상태를 전용 창에 즉시 브리핑합니다.</div>
         </div>
-        <div class="cmd-chip" data-cmd="클래식 음악 좀 틀어 줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
-          <div style="color:#73ff99;font-weight:800;font-size:13.5px;margin-bottom:4px;">② “클래식 음악 좀 틀어 줘”</div>
-          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">유튜버 영상처럼 상단 HUD에 『○ 받아 적는 중 / 클래식 음악 좀 틀어 줘』가 뜨며 바로 재생합니다.</div>
+        <div class="cmd-chip" data-cmd="뉴런에서 REA 검색해줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#73ff99;font-weight:800;font-size:13.5px;margin-bottom:4px;">② Warehouse 옵시디언 뉴런 (2-Hop)</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;"><code>C:\Warehouse</code>의 79개 노드·138개 시냅스(18대 정본 스킬×32인 에이전트)를 2-Hop 탐색합니다.</div>
         </div>
-        <div class="cmd-chip" data-cmd="오늘 해야 할 일 정리해 줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
-          <div style="color:#ffb840;font-weight:800;font-size:13.5px;margin-bottom:4px;">③ “오늘 할 일 정리해 줘”</div>
-          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">유튜버 모니터 우측 하단처럼 오늘 해야 할 일을 우선순위 순서대로 정리해 창을 띄웁니다.</div>
+        <div class="cmd-chip" data-cmd="방금 검색 결과 워드로 만들어줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#ffb840;font-weight:800;font-size:13.5px;margin-bottom:4px;">③ 4대 오피스 문서 즉시 생성</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">검색 결과나 지시 주제를 Word(<code>.docx</code>), PDF(<code>.pdf</code>), PPT(<code>.pptx</code>), MD(<code>.md</code>)로 즉시 제작합니다.</div>
         </div>
-        <div class="cmd-chip" data-cmd="카톡 영웅님한테 오늘도 힘내세요라고 답장해" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
-          <div style="color:#4dd9ff;font-weight:800;font-size:13.5px;margin-bottom:4px;">④ 카톡 음성 답장 (안전 확인)</div>
-          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">음성으로 카톡 답장을 받아 적고, “응”이라고 승인할 때만 전송해 오타 사고를 막습니다.</div>
+        <div class="cmd-chip" data-cmd="뷰티풀월드 출판 시스템 점검해줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#4dd9ff;font-weight:800;font-size:13.5px;margin-bottom:4px;">④ BeautifulWorld 출판 OS</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">도서출판 아름다운 세상(<code>C:\BeautifulWorld</code>) 7-Class OS와 ePub 3.0 전자책 파이프라인을 점검합니다.</div>
         </div>
-        <div class="cmd-chip" data-cmd="쿠팡에서 맥미니 찾아" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
-          <div style="color:#f472b6;font-weight:800;font-size:13.5px;margin-bottom:4px;">⑤ 0-토큰 쇼핑·길찾기·취소</div>
-          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">“쿠팡에서 맥미니 찾아”, “강남역 가는 길”, “되돌려”를 API 비용 0원으로 즉시 처리합니다.</div>
+        <div class="cmd-chip" data-cmd="라야로 현재 프로젝트 상태 점검해줘" style="text-align:left;padding:12px;border-radius:12px;cursor:pointer;">
+          <div style="color:#f472b6;font-weight:800;font-size:13.5px;margin-bottom:4px;">⑤ REA v6.8.0 · Laya · 재귀 학습</div>
+          <div style="color:#e2e8f0;font-size:12px;line-height:1.4;">REA v6.8.0 4분할 역공학, Laya 의사결정 언어, Google Harness² 재귀 규칙 진화를 실행합니다.</div>
         </div>
       </div>
 
-      <!-- 보조 텍스트 입력 바 (상단 HUD 알약 밖으로 분리하여 유튜버 화면처럼 깔끔하게 유지) -->
+      <!-- 보조 텍스트 입력 바 -->
       <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid rgba(77,217,255,0.2);">
         <input
           type="text"
           class="hud-cmd-input"
           id="hudCommandInput"
-          placeholder="상단 마이크가 자동으로 음성을 듣고 있습니다. 키보드로 직접 테스트하려면 여기에 입력 후 Enter를 누르세요 (예: 클래식 음악 좀 틀어 줘)"
+          placeholder="음성 또는 텍스트로 오더를 입력하세요 (예: 오늘 할 일 정리해 줘 / 뉴런에서 REA 검색해줘 / 방금 검색 결과 워드로 만들어줘)"
           style="flex:1;"
         />
         <button class="hud-action-btn yes" id="btnMicListen">🎙 내 음성 듣기 (상시 켜짐)</button>
@@ -99,67 +99,67 @@
     </div>
   </section>
 
-  <!-- 3. Main Workspace: Quick Command Deck + 5-Step Tutorial (docs/tutorial.html 1:1) -->
+  <!-- 3. Main Workspace: BSC Sovereign Command Deck + Live Ecosystem Status -->
   <main class="main-stage">
-    <!-- Left Column: Voice Conversation & Deterministic Command Deck -->
+    <!-- Left Column: BSC 3-Ecosystem & CHLGD Command Deck -->
     <div class="glass-panel">
       <div class="panel-header">
-        <div class="panel-title">🗣 실시간 음성 대화 & 34종 빠른 명령 덱 (`Commands.swift` + `Brain.swift`)</div>
-        <span class="badge" id="voiceEngineBadge">Neural TTS: ko-KR-SunHiNeural</span>
+        <div class="panel-title">🗣 실시간 음성 대화 &amp; BSC 3대 생태계 명령 덱</div>
+        <span class="badge" id="voiceEngineBadge">Neural TTS: ko-KR-HyunsuMultilingualNeural</span>
       </div>
 
       <div class="chip-grid">
-        <button class="cmd-chip" data-cmd="자비스 내 말 들려?">🎙 “자비스 내 말 들려?”</button>
-        <button class="cmd-chip" data-cmd="자비스 넌 누구야?">🤖 “자비스 넌 누구야?”</button>
-        <button class="cmd-chip" data-cmd="시스템 상태 어때?">💻 “시스템 상태 어때?”</button>
-        <button class="cmd-chip" data-cmd="아빠 왔어">⚡ “아빠 왔어” (BootScene)</button>
-        <button class="cmd-chip" data-cmd="유튜브에서 로파이 검색해">▶ “유튜브에서 로파이 검색해”</button>
-        <button class="cmd-chip" data-cmd="1번 틀어">1️⃣ “1번 틀어”</button>
-        <button class="cmd-chip" data-cmd="쿠팡에서 맥미니 찾아">🛒 “쿠팡에서 맥미니 찾아”</button>
-        <button class="cmd-chip" data-cmd="강남역 가는 길">🗺 “강남역 가는 길”</button>
-        <button class="cmd-chip" data-cmd="카톡 영웅님한테 오늘도 힘내세요라고 답장해">💬 “카톡 영웅님한테 답장해” (2단계 미리보기)</button>
-        <button class="cmd-chip" data-cmd="소리 키워">🔊 “소리 키워”</button>
-        <button class="cmd-chip" data-cmd="되돌려">↩ “되돌려” (Undo)</button>
-        <button class="cmd-chip" data-cmd="방금 뭐 했어">📋 “방금 뭐 했어?”</button>
-        <button class="cmd-chip" data-cmd="창 다 꺼">🧹 “창 다 꺼”</button>
-        <button class="cmd-chip" data-cmd="몇 시야">🕒 “몇 시야”</button>
+        <button class="cmd-chip" data-cmd="대표님 출근">⚡ “대표님 출근” (3대 생태계 부트 브리핑)</button>
+        <button class="cmd-chip" data-cmd="오늘 할 일 정리해 줘">📋 “오늘 할 일 정리해 줘” (본사 작업일지)</button>
+        <button class="cmd-chip" data-cmd="우리 시스템에서 하네스 검색해줘">🗂 “우리 시스템에서 하네스 검색해줘”</button>
+        <button class="cmd-chip" data-cmd="뉴런에서 REA 검색해줘">🧠 “뉴런에서 REA 검색해줘” (2-Hop 시냅스)</button>
+        <button class="cmd-chip" data-cmd="뷰티풀월드 출판 시스템 점검해줘">📚 “뷰티풀월드 출판 시스템 점검해줘”</button>
+        <button class="cmd-chip" data-cmd="웨어하우스 감사 돌려줘">🛡 “웨어하우스 감사 돌려줘” (6-Gate CI/CD)</button>
+        <button class="cmd-chip" data-cmd="방금 검색 결과 워드로 만들어줘">📘 “방금 검색 결과 워드로 만들어줘”</button>
+        <button class="cmd-chip" data-cmd="방금 검색 결과 파워포인트로 만들어줘">📙 “방금 검색 결과 PPT로 만들어줘”</button>
+        <button class="cmd-chip" data-cmd="자비스 REA 역공학 분석해줘">🔬 “자비스 REA v6.8.0 역공학 분석해줘”</button>
+        <button class="cmd-chip" data-cmd="라야로 현재 프로젝트 상태 점검해줘">🧬 “라야로 현재 프로젝트 상태 점검해줘”</button>
+        <button class="cmd-chip" data-cmd="재귀 학습 현황 보여줘">🔁 “재귀 학습 현황 보여줘” (Harness²)</button>
+        <button class="cmd-chip" data-cmd="거누에게 시스템 점검 협력 요청해">🤝 “거누에게 시스템 점검 협력 요청해”</button>
+        <button class="cmd-chip" data-cmd="CHLGD 코드 검증 돌려줘">✅ “CHLGD 코드 검증 돌려줘”</button>
+        <button class="cmd-chip" data-cmd="유튜브에서 로파이 음악 틀어줘">🎵 “유튜브에서 로파이 음악 틀어줘”</button>
       </div>
 
       <div id="ytResultsContainer" style="display:none;">
         <div style="font-size:13px;color:var(--cyan);font-weight:700;margin-bottom:6px;">
-          ▶ 유튜브 실시간 검색 상위 5개 (`Butler.swift ytList` — 번호를 말씀하시거나 클릭하세요)
+          ▶ 유튜브 실시간 검색 상위 5개 (번호를 말씀하시거나 클릭하세요)
         </div>
         <div class="yt-list-box" id="ytListBox"></div>
       </div>
 
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
-        <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;">📊 실시간 음성 인식 및 답변 로그 (`conversation.log`)</div>
+        <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;">📊 실시간 음성 인식 및 CHLGD 오더 실행 로그 (`ceo-orders-log.jsonl`)</div>
         <pre id="liveLogBox" style="background:rgba(0,0,0,0.35);padding:12px;border-radius:10px;font-size:12.5px;color:#cbd5e1;max-height:170px;overflow-y:auto;white-space:pre-wrap;"></pre>
       </div>
     </div>
 
-    <!-- Right Column: 5-Step Interactive Tutorial (docs/tutorial.js 1:1) & Telemetry -->
+    <!-- Right Column: 5-Step BSC Sovereign Guide & Live 3-Ecosystem Telemetry -->
     <div class="glass-panel">
       <div class="panel-header">
-        <div class="panel-title">🎓 1분 만에 배우는 자비스 (사사리사 5단계 튜토리얼)</div>
+        <div class="panel-title">🎓 BeausCreators × 자비스 5대 핵심 아키텍처 가이드</div>
         <span class="badge" id="tutStepBadge">1 / 5 단계</span>
       </div>
 
       <div id="tutorialBox" style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,235,255,0.22);border-radius:14px;padding:16px;">
-        <h3 id="tutTitle" style="font-size:16px;color:var(--cyan);margin-bottom:6px;">1단계 · 부르기 (“자비스” 또는 오른쪽 Alt)</h3>
+        <h3 id="tutTitle" style="font-size:16px;color:var(--cyan);margin-bottom:6px;">1단계 · 3대 생태계 통합 검색 &amp; 본사 작업일지 브리핑</h3>
         <p id="tutDesc" style="font-size:13.5px;color:#cbd5e1;line-height:1.5;margin-bottom:12px;">
-          평소엔 조용히 대기하다가 부르는 말(「자비스」, 「사사리사」)을 듣거나 Alt 키를 톡 누르면 깨어납니다. 한글 발음 유사도 매칭(`Config.soundAlike`)으로 “재비스”, “싸싸리싸”라고 들려도 정확히 알아듣습니다.
+          <code>C:\BeausCreators</code>(본사·26인 에이전트), <code>C:\BeautifulWorld</code>(도서출판 아름다운 세상), <code>C:\Warehouse</code>(스킬 창고·옵시디언 뉴런) 24,693개 파일을 실시간 인덱싱하여 브리핑합니다.
         </p>
         <div style="display:flex;gap:8px;justify-content:space-between;">
           <button class="menu-btn" id="btnTutPrev">← 이전</button>
-          <button class="menu-btn highlight" id="btnTutTry">이 단계 바로 체험하기</button>
+          <button class="menu-btn highlight" id="btnTutTry">이 단계 바로 실행하기</button>
           <button class="menu-btn" id="btnTutNext">다음 →</button>
         </div>
       </div>
 
       <div style="margin-top:16px;">
         <div class="panel-header" style="margin-bottom:8px;">
-          <div class="panel-title" style="font-size:14.5px;">🖥 Windows 11 실시간 하드웨어 & AI 사용량 (`AIUsage.swift`)</div>
+          <div class="panel-title" style="font-size:14.5px;">🖥 3대 생태계 실시간 지표 &amp; 하드웨어 텔레메트리</div>
         </div>
         <div id="telemetryBox" style="font-size:13px;color:#cbd5e1;line-height:1.7;background:rgba(0,0,0,0.3);padding:12px;border-radius:12px;">
           로딩 중…
@@ -168,7 +168,7 @@
     </div>
   </main>
 
-  <!-- 4. Full-Screen BootScene Overlay (Sources/MacButler/BootScene.swift 1:1) -->
+  <!-- 4. Full-Screen BootScene Overlay -->
   <div class="boot-scene-overlay" id="bootSceneOverlay">
     <div class="boot-grid" id="bootGrid"></div>
     <div class="boot-scanline"></div>
@@ -206,14 +206,14 @@
 
     <div class="boot-clock-panel">
       <div class="boot-clock-hm" id="bootClockHm">12:00</div>
-      <div class="boot-clock-date" id="bootClockDate">2026.10.27 TUESDAY</div>
-      <div class="boot-nominal">● ALL SYSTEMS NOMINAL</div>
+      <div class="boot-clock-date" id="bootClockDate">2026.11.04 WEDNESDAY</div>
+      <div class="boot-nominal">● BSC 3-ECOSYSTEMS NOMINAL</div>
     </div>
 
     <div class="boot-greeting-bottom">
       <div class="boot-title-big" id="bootTitleBig">J A R V I S</div>
-      <div style="font-family:monospace;font-size:18px;color:#cbd5e1;margin-top:4px;">SASARISA v0.7.3 · WINDOWS 11 CLEAN-ROOM EDITION</div>
-      <div class="boot-hello-big" id="bootHelloBig">어서 오십시오, 대표님.</div>
+      <div style="font-family:monospace;font-size:18px;color:#cbd5e1;margin-top:4px;">BEAUSCREATORS SOVEREIGN AI BUTLER · HARNESS² &amp; REA v6.8.0</div>
+      <div class="boot-hello-big" id="bootHelloBig">어서 오십시오, 이건우 대표님.</div>
     </div>
   </div>
 

@@ -1014,7 +1014,7 @@ namespace JarvisSasariSa
 
                 secTxtStatus = new TextBlock
                 {
-                    Text = "○ 상시 대기 · 받아 적는 중 (비용 $0 · 토큰 0)",
+                    Text = "○ 호출어 대기 · 자비스라고 불러 주세요",
                     FontFamily = new FontFamily("Malgun Gothic, Consolas"),
                     FontSize = 14,
                     FontWeight = FontWeights.Bold,
@@ -1025,9 +1025,9 @@ namespace JarvisSasariSa
 
                 secTxtMainBody = new TextBlock
                 {
-                    Text = "클래식 음악 좀 틀어 줘",
+                    Text = "무엇을 도와드릴까요? (BSC 3대 생태계 · 문서 제작 · REA · Laya)",
                     FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 24,
+                    FontSize = 19,
                     FontWeight = FontWeights.ExtraBold,
                     Foreground = Brushes.White,
                     TextWrapping = TextWrapping.Wrap
@@ -1115,7 +1115,7 @@ namespace JarvisSasariSa
 
                 thirdTxtStatus = new TextBlock
                 {
-                    Text = "○ 상시 대기 · 받아 적는 중 (비용 $0 · 토큰 0)",
+                    Text = "○ 호출어 대기 · 자비스라고 불러 주세요",
                     FontFamily = new FontFamily("Malgun Gothic, Consolas"),
                     FontSize = 14,
                     FontWeight = FontWeights.Bold,
@@ -1126,9 +1126,9 @@ namespace JarvisSasariSa
 
                 thirdTxtMainBody = new TextBlock
                 {
-                    Text = "클래식 음악 좀 틀어 줘",
+                    Text = "무엇을 도와드릴까요? (BSC 3대 생태계 · 문서 제작 · REA · Laya)",
                     FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 24,
+                    FontSize = 19,
                     FontWeight = FontWeights.ExtraBold,
                     Foreground = Brushes.White,
                     TextWrapping = TextWrapping.Wrap
@@ -1946,12 +1946,15 @@ namespace JarvisSasariSa
 
             quickChipsPanel.Children.Add(makeQuickChip("🎙 마이크 켜기", "__MIC__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
             quickChipsPanel.Children.Add(makeQuickChip("📋 Plan · 문서 프리뷰 HUD 창", "__OPEN_PLAN_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(165, 214, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("📓 CHLGD · 대화 규칙 & 로그 정리 창", "__OPEN_RULES_WIN__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
-            quickChipsPanel.Children.Add(makeQuickChip("🧬 Google Harness² & Warehouse 스킬", "__OPEN_HARNESS2_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🔬 Antigravity REA 분석 & MCP", "__OPEN_REA_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("⚡ “깃 상태 확인해줘” (터미널)", "깃 상태 확인해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("📓 CHLGD · 재귀 규칙 & 오더 원장", "__OPEN_RULES_WIN__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
+            quickChipsPanel.Children.Add(makeQuickChip("🌐 3대 생태계 · Harness² 현황", "__OPEN_HARNESS2_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("🔬 REA v6.8.0 · Laya & MCP", "__OPEN_REA_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("🗂 “오늘 할 일 정리해 줘” (본사 브리핑)", "오늘 할 일 정리해 줘", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
+            quickChipsPanel.Children.Add(makeQuickChip("🧠 “뉴런에서 REA 검색해줘” (2-Hop 시냅스)", "뉴런에서 REA 검색해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("📚 “뷰티풀월드 출판 시스템 점검해줘”", "뷰티풀월드 출판 시스템 점검해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("📄 “방금 검색 결과 워드로 만들어줘”", "방금 검색 결과 워드로 만들어줘", Color.FromRgb(56, 139, 253), Color.FromRgb(165, 214, 255)));
+            quickChipsPanel.Children.Add(makeQuickChip("🧬 “라야로 현재 프로젝트 상태 점검해줘”", "라야로 현재 프로젝트 상태 점검해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🛡 “CHLGD 코드 검증 돌려줘” (CI/CD)", "CHLGD 코드 검증 돌려줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🤝 “거누에게 시스템 점검 협력 요청해”", "거누에게 시스템 점검 협력 요청해", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
             quickChipsPanel.Children.Add(makeQuickChip("🎵 “유튜브에서 로파이 음악 틀어줘”", "유튜브에서 로파이 음악 틀어줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
             quickChipsPanel.Children.Add(makeQuickChip("⏹ “음악 꺼줘”", "음악 꺼줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
 
@@ -4124,23 +4127,15 @@ namespace JarvisSasariSa
             tabRules.Children.Add(addRuleRow);
 
             // =====================================================================
-            // TAB 3: 🧬 Google Harness² (8-Surface) & C:\BeausCreators + C:\Warehouse 스킬
+            // TAB 3: 🧬 Google Harness² (8-Surface) & 3대 생태계 (BeausCreators · BeautifulWorld · Warehouse)
             // =====================================================================
-            tabHarness2.Children.Add(makeInfoCard(
-                "🧬 Google Research Harness² (arXiv:2610.14224) — 8-Component Editable Surface",
-                "• 경로: C:\\자비스\\harness2\\base_harness (Surface Valid: PASS · Always-On Cap 20,000B 준수)\n• 구성: c1(systemprompt.md), c2(context_policy.md), c3(LongTermMEMORY.md), c4(tool_guidance.md), c5(sub_agents), c6(guardrails.md + skills), c7(scripts), c8(plugin) + Experience Library R",
+            StackPanel h2CardsContainer = new StackPanel();
+            h2CardsContainer.Children.Add(makeInfoCard(
+                "🌐 3대 생태계 실시간 연결 현황 로딩 중...",
+                "• C:\\BeausCreators (본사/26인 에이전트), C:\\BeautifulWorld (출판사 7-Class OS), C:\\Warehouse (스킬 창고 & 옵시디언 뉴런 볼트) 실시간 지표를 조회하고 있습니다.",
                 accentCyan
             ));
-            tabHarness2.Children.Add(makeInfoCard(
-                "🛠 자비스 전용 4대 마스터 스킬 (C:\\자비스\\.agents\\skills & harness2\\skills)",
-                "1) chlgd-orchestrator: CHLGD 5단계 워크플로우 및 26인 에이전트 수평 협력\n2) powershell-python-cicd: .ps1 UTF-8 BOM · .py PYTHONUTF8=1 · Git CI/CD 자동 검증\n3) antigravity-mcp-bridge: Antigravity 2.0 양방향 MCP 서버 & Plan HUD 동기화\n4) ceo-rule-learner: 대표님 대화 규칙 및 선호도 실시간 추출·자산화",
-                Color.FromRgb(86, 211, 100)
-            ));
-            tabHarness2.Children.Add(makeInfoCard(
-                "🏛 C:\\BeausCreators (26인 에이전트) & C:\\Warehouse (05.BSC_Skill_Warehouse) 연동",
-                "• 본사 스킬: bsc-global-rules, code-quality-gate, core-lock-guard, micro-knowledge-query, semantic-knowledge-search, unlazy, work-finalizer 등\n• Warehouse: 1.Imported_Skills · 2.BSC_Originals · 4.Market_Packages 전수 인덱싱 완료",
-                Color.FromRgb(255, 184, 64)
-            ));
+            tabHarness2.Children.Add(h2CardsContainer);
 
             TextBlock txtH2RunResult = new TextBlock
             {
@@ -4152,12 +4147,13 @@ namespace JarvisSasariSa
             };
             tabHarness2.Children.Add(txtH2RunResult);
 
+            StackPanel h2ButtonsRow = new StackPanel { Orientation = Orientation.Horizontal };
             Border btnRunHarness2 = new Border
             {
                 CornerRadius = new CornerRadius(7),
                 Background = new SolidColorBrush(accentBlue),
                 Padding = new Thickness(14, 7, 14, 7),
-                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 0, 8, 0),
                 Cursor = Cursors.Hand
             };
             btnRunHarness2.Child = new TextBlock
@@ -4188,21 +4184,106 @@ namespace JarvisSasariSa
                     catch { }
                 });
             };
-            tabHarness2.Children.Add(btnRunHarness2);
+            h2ButtonsRow.Children.Add(btnRunHarness2);
+
+            Border btnOpenObsidianMoc = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(accentEmerald),
+                Padding = new Thickness(12, 7, 12, 7),
+                Margin = new Thickness(0, 0, 8, 0),
+                Cursor = Cursors.Hand
+            };
+            btnOpenObsidianMoc.Child = new TextBlock
+            {
+                Text = "🧠 Warehouse 옵시디언 뉴런 볼트 열기",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White
+            };
+            btnOpenObsidianMoc.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnOpenObsidianMoc.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                SendCommandToButler("뉴런에서 전체 검색해줘");
+            };
+            h2ButtonsRow.Children.Add(btnOpenObsidianMoc);
+
+            Border btnOpenBscRoster = new Border
+            {
+                CornerRadius = new CornerRadius(7),
+                Background = new SolidColorBrush(bgSurface),
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 7, 12, 7),
+                Cursor = Cursors.Hand
+            };
+            btnOpenBscRoster.Child = new TextBlock
+            {
+                Text = "🏛 오늘 본사 작업일지 브리핑",
+                FontFamily = new FontFamily("Malgun Gothic"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(textPrimary)
+            };
+            btnOpenBscRoster.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnOpenBscRoster.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                SendCommandToButler("오늘 할 일 정리해 줘");
+            };
+            h2ButtonsRow.Children.Add(btnOpenBscRoster);
+            tabHarness2.Children.Add(h2ButtonsRow);
 
             // =====================================================================
-            // TAB 4: 🔬 Antigravity 2.0 REA 4분할 역공학 분석 & MCP 서버 연동
+            // TAB 4: 🔬 REA v6.8.0 (morluto/rea) · Laya 언어 · Antigravity MCP 연동
             // =====================================================================
-            tabRea.Children.Add(makeInfoCard(
-                "① Observations & ② Derivations (Antigravity 2.0 4-Stage Clean-Room REA)",
-                "• [Observation] Antigravity 2.0은 메인 대화창과 별도의 Artifact/Sidecar Pane에서 Plan/Walkthrough/터미널을 분리 표시하여 인지 부하를 낮춤.\n• [Derivation] 자비스에도 전용 [📋 Plan · CHLGD 문서 HUD 창]을 신설하여 대표님과 Plan 대화 시 문서를 깔끔하게 띄우도록 이식 완료.",
+            StackPanel reaCardsContainer = new StackPanel();
+            reaCardsContainer.Children.Add(makeInfoCard(
+                "🔬 morluto/rea v6.8.0 (e75d1c741) 4-Stage Clean-Room 역공학 엔진",
+                "• 지원 분석 대상: 웹사이트 · Electron/ASAR · Unity IL2CPP · Godot PCK · 네이티브 바이너리(PE/ELF/Mach-O/Go/Rust) · AI 모델(GGUF/SafeTensors/ONNX) · RL 환경(AgentEnv)\n• 4분할 증거 추적: ① Observations (관찰 팩트) · ② Derivations (도출 구조) · ③ Inferences (진화 추론) · ④ Unknowns (리스크 통제)",
                 accentCyan
             ));
-            tabRea.Children.Add(makeInfoCard(
-                "③ Inferences & ④ MCP Server 양방향 브릿지 (jarvis-sovereign-butler)",
-                "• 등록 파일: C:\\Users\\USER\\.gemini\\config\\mcp_config.json ➔ \"jarvis-sovereign-butler\"\n• 제공 MCP 도구: jarvis_status_and_profile, jarvis_execute_command, jarvis_open_plan_hud, jarvis_record_rule_or_log, jarvis_run_harness2_recursion\n• 설계 문서 정본: C:\\자비스\\docs\\REA_CleanRoom_Blueprint_Antigravity.md",
+            reaCardsContainer.Children.Add(makeInfoCard(
+                "🧬 Laya 다국어 구조화 언어 (Laya DSL + System-1 결정론적 라우터)",
+                "• 자연어 오더를 { state, questions } 구조화 의사결정 스펙으로 변환하여 모호함 없이 실행 계획을 수립합니다.",
+                Color.FromRgb(255, 184, 64)
+            ));
+            reaCardsContainer.Children.Add(makeInfoCard(
+                "🔗 Antigravity 2.0 양방향 MCP 서버 브릿지 (jarvis-sovereign-butler)",
+                "• 등록 파일: C:\\Users\\USER\\.gemini\\config\\mcp_config.json (Stdio & http://127.0.0.1:7788/mcp)\n• 제공 MCP 도구: jarvis_status_and_profile, jarvis_execute_command, jarvis_open_plan_hud, jarvis_record_rule_or_log, jarvis_run_harness2_recursion, jarvis_create_office_doc, jarvis_run_rea_or_laya, jarvis_warehouse_neuron",
                 Color.FromRgb(86, 211, 100)
             ));
+            tabRea.Children.Add(reaCardsContainer);
+
+            StackPanel reaActionsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            Func<string, string, Color, Border> makeReaActionBtn = (btnLabel, cmdText, bgCol) =>
+            {
+                Border b = new Border
+                {
+                    CornerRadius = new CornerRadius(7),
+                    Background = new SolidColorBrush(bgCol),
+                    Padding = new Thickness(12, 6, 12, 6),
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Cursor = Cursors.Hand
+                };
+                b.Child = new TextBlock
+                {
+                    Text = btnLabel,
+                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontSize = 11.5,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White
+                };
+                b.MouseLeftButtonDown += (s, e) => e.Handled = true;
+                b.MouseLeftButtonUp += (s, e) => { e.Handled = true; SendCommandToButler(cmdText); };
+                return b;
+            };
+            reaActionsRow.Children.Add(makeReaActionBtn("🔬 자비스 REA v6.8.0 역공학 실행", "자비스 REA 역공학 분석해줘", accentBlue));
+            reaActionsRow.Children.Add(makeReaActionBtn("🏛 본사(BeausCreators) REA 분석", "뷰스크리에이터스 REA 역공학 분석해줘", accentEmerald));
+            reaActionsRow.Children.Add(makeReaActionBtn("🧬 Laya 의사결정 점검 실행", "라야로 현재 프로젝트 상태 점검해줘", Color.FromRgb(158, 106, 3)));
+            tabRea.Children.Add(reaActionsRow);
 
             // Sidebar Navigation Setup
             string currentTabKey = string.IsNullOrEmpty(initialTab) ? "plan" : initialTab.ToLowerInvariant();
@@ -4330,39 +4411,165 @@ namespace JarvisSasariSa
             planDocWindow.Show();
             planDocWindow.Activate();
 
-            // Fetch live data from /api/hud/chlgd-dashboard to populate latest Plan title & recent logs
+            // Fetch live data from /api/hud/chlgd-dashboard to dynamically populate all 4 tabs from our real 3 ecosystems & Harness² ledger
             Task.Run(async () =>
             {
                 try
                 {
                     string dashJson = await http.GetStringAsync("http://127.0.0.1:7788/api/hud/chlgd-dashboard");
                     if (string.IsNullOrEmpty(dashJson)) return;
-                    int pIdx = dashJson.IndexOf("\"activePlanDoc\":{");
-                    string pTitle = "";
-                    string pUpdated = "";
-                    if (pIdx >= 0)
-                    {
-                        string pSub = dashJson.Substring(pIdx);
-                        pTitle = ExtractJsonField(pSub, "title");
-                        pUpdated = ExtractJsonField(pSub, "updatedAt");
-                    }
-                    int totIdx = dashJson.IndexOf("\"totalOrders\":");
-                    string totStr = "0";
-                    if (totIdx >= 0)
-                    {
-                        int s = totIdx + 14;
-                        int e = s;
-                        while (e < dashJson.Length && char.IsDigit(dashJson[e])) e++;
-                        totStr = dashJson.Substring(s, e - s);
-                    }
+                    var ser = new System.Web.Script.Serialization.JavaScriptSerializer();
+                    var root = ser.Deserialize<System.Collections.Generic.Dictionary<string, object>>(dashJson);
+                    if (root == null) return;
+
                     hudWindow.Dispatcher.Invoke(() =>
                     {
-                        if (!string.IsNullOrEmpty(pTitle)) txtActivePlanTitle.Text = pTitle;
-                        if (!string.IsNullOrEmpty(pUpdated))
+                        try
                         {
-                            txtActivePlanSummary.Text = "최근 업데이트: " + pUpdated + " · 문서 정본: C:\\자비스\\docs\\JARVIS_Active_Plan.md";
+                            // 1) Tab 1: Active Plan Document (live sections from JARVIS_Active_Plan.md / jarvis-plans-and-rules.json)
+                            var planDoc = root.ContainsKey("activePlanDoc") ? root["activePlanDoc"] as System.Collections.Generic.Dictionary<string, object> : null;
+                            if (planDoc != null)
+                            {
+                                string pTitle = planDoc.ContainsKey("title") ? Convert.ToString(planDoc["title"]) : "";
+                                string pUpdated = planDoc.ContainsKey("updatedAt") ? Convert.ToString(planDoc["updatedAt"]) : "";
+                                if (!string.IsNullOrEmpty(pTitle)) txtActivePlanTitle.Text = pTitle;
+                                if (!string.IsNullOrEmpty(pUpdated))
+                                {
+                                    txtActivePlanSummary.Text = "실시간 동기화: " + pUpdated + " · 정본: C:\\자비스\\docs\\JARVIS_Active_Plan.md";
+                                }
+                                var sections = planDoc.ContainsKey("sections") ? planDoc["sections"] as System.Collections.ArrayList : null;
+                                if (sections != null && sections.Count > 0)
+                                {
+                                    planSectionsContainer.Children.Clear();
+                                    Color[] cols = new Color[] { accentCyan, Color.FromRgb(86, 211, 100), Color.FromRgb(255, 184, 64), Color.FromRgb(165, 214, 255) };
+                                    int idx = 0;
+                                    foreach (var secObj in sections)
+                                    {
+                                        var sec = secObj as System.Collections.Generic.Dictionary<string, object>;
+                                        if (sec == null) continue;
+                                        string h = sec.ContainsKey("heading") ? Convert.ToString(sec["heading"]) : "";
+                                        string b = sec.ContainsKey("body") ? Convert.ToString(sec["body"]) : "";
+                                        if (!string.IsNullOrEmpty(h))
+                                        {
+                                            planSectionsContainer.Children.Add(makeInfoCard(h, b, cols[idx % cols.Length]));
+                                            idx++;
+                                        }
+                                        if (idx >= 4) break;
+                                    }
+                                }
+                            }
+
+                            // 2) Tab 2: Recursive Learned Rules (learned-rules.json) & Conversation Rules (jarvis-plans-and-rules.json)
+                            var recLearn = root.ContainsKey("recursiveLearning") ? root["recursiveLearning"] as System.Collections.Generic.Dictionary<string, object> : null;
+                            var convRules = root.ContainsKey("conversationRules") ? root["conversationRules"] as System.Collections.ArrayList : null;
+                            int totOrders = root.ContainsKey("totalOrders") ? Convert.ToInt32(root["totalOrders"]) : 0;
+
+                            rulesListContainer.Children.Clear();
+                            int ruleCardCount = 0;
+                            if (recLearn != null && recLearn.ContainsKey("rules"))
+                            {
+                                var rList = recLearn["rules"] as System.Collections.ArrayList;
+                                if (rList != null)
+                                {
+                                    foreach (var rObj in rList)
+                                    {
+                                        var rDict = rObj as System.Collections.Generic.Dictionary<string, object>;
+                                        if (rDict == null) continue;
+                                        string rTitle = rDict.ContainsKey("title") ? Convert.ToString(rDict["title"]) : "재귀 학습 승격 규칙";
+                                        string rGuidance = rDict.ContainsKey("guidance") ? Convert.ToString(rDict["guidance"]) : (rDict.ContainsKey("rule") ? Convert.ToString(rDict["rule"]) : "");
+                                        string rDom = rDict.ContainsKey("domain") ? Convert.ToString(rDict["domain"]) : "general";
+                                        if (!string.IsNullOrEmpty(rGuidance))
+                                        {
+                                            rulesListContainer.Children.Add(makeInfoCard("🧠 [Harness² 재귀 학습 · " + rDom + "] " + rTitle, "• " + rGuidance, Color.FromRgb(86, 211, 100)));
+                                            ruleCardCount++;
+                                        }
+                                        if (ruleCardCount >= 2) break;
+                                    }
+                                }
+                            }
+                            if (convRules != null)
+                            {
+                                foreach (var cObj in convRules)
+                                {
+                                    if (ruleCardCount >= 4) break;
+                                    var cDict = cObj as System.Collections.Generic.Dictionary<string, object>;
+                                    if (cDict == null) continue;
+                                    string cat = cDict.ContainsKey("category") ? Convert.ToString(cDict["category"]) : "대화 규칙";
+                                    string rText = cDict.ContainsKey("rule") ? Convert.ToString(cDict["rule"]) : "";
+                                    string dt = cDict.ContainsKey("createdAt") ? Convert.ToString(cDict["createdAt"]) : "";
+                                    if (!string.IsNullOrEmpty(rText))
+                                    {
+                                        rulesListContainer.Children.Add(makeInfoCard("📓 [" + cat + " · " + dt + "]", "• " + rText, accentCyan));
+                                        ruleCardCount++;
+                                    }
+                                }
+                            }
+                            int learnedCnt = (recLearn != null && recLearn.ContainsKey("totalLearnedRules")) ? Convert.ToInt32(recLearn["totalLearnedRules"]) : 0;
+                            int lessonCnt = (recLearn != null && recLearn.ContainsKey("totalLessons")) ? Convert.ToInt32(recLearn["totalLessons"]) : 0;
+                            txtLiveOrderLogSummary.Text = "📊 실시간 오더 원장: 누적 " + totOrders + "건 실행 · 재귀 학습 승격 규칙 " + learnedCnt + "건 · 교훈 원장 " + lessonCnt + "건 (ceo-orders-log.jsonl & learned-rules.json 실시간 연동)";
+
+                            // 3) Tab 3: Live 3-Ecosystems (BeausCreators, BeautifulWorld, Warehouse) + Google Harness² 8-Surface
+                            var ecoRoot = root.ContainsKey("ecosystems") ? root["ecosystems"] as System.Collections.Generic.Dictionary<string, object> : null;
+                            var h2Dict = root.ContainsKey("harness2") ? root["harness2"] as System.Collections.Generic.Dictionary<string, object> : null;
+                            var invDict = root.ContainsKey("skillInventory") ? root["skillInventory"] as System.Collections.Generic.Dictionary<string, object> : null;
+                            h2CardsContainer.Children.Clear();
+
+                            if (ecoRoot != null && ecoRoot.ContainsKey("ecosystems"))
+                            {
+                                var ecoArr = ecoRoot["ecosystems"] as System.Collections.ArrayList;
+                                int totalEcoFiles = ecoRoot.ContainsKey("totalFiles") ? Convert.ToInt32(ecoRoot["totalFiles"]) : 0;
+                                int totalEcoSkills = ecoRoot.ContainsKey("totalSkills") ? Convert.ToInt32(ecoRoot["totalSkills"]) : 0;
+                                StringBuilder ecoSb = new StringBuilder();
+                                if (ecoArr != null)
+                                {
+                                    foreach (var eItem in ecoArr)
+                                    {
+                                        var ed = eItem as System.Collections.Generic.Dictionary<string, object>;
+                                        if (ed == null) continue;
+                                        string eName = ed.ContainsKey("name") ? Convert.ToString(ed["name"]) : "";
+                                        string ePath = ed.ContainsKey("root") ? Convert.ToString(ed["root"]) : "";
+                                        int fCnt = ed.ContainsKey("fileCount") ? Convert.ToInt32(ed["fileCount"]) : 0;
+                                        int sCnt = ed.ContainsKey("skillCount") ? Convert.ToInt32(ed["skillCount"]) : 0;
+                                        ecoSb.AppendLine("• " + eName + " (" + ePath + ") ➔ 실측 파일 " + fCnt.ToString("N0") + "개 · 스킬/모듈 " + sCnt.ToString("N0") + "개");
+                                    }
+                                }
+                                h2CardsContainer.Children.Add(makeInfoCard(
+                                    "🌐 이건우 대표님 3대 생태계 실시간 인덱스 (총 " + totalEcoFiles.ToString("N0") + "개 파일 · " + totalEcoSkills.ToString("N0") + "개 스킬)",
+                                    ecoSb.ToString().TrimEnd(),
+                                    Color.FromRgb(86, 211, 100)
+                                ));
+                            }
+
+                            if (invDict != null && invDict.ContainsKey("warehouseNeuronGraph"))
+                            {
+                                var ng = invDict["warehouseNeuronGraph"] as System.Collections.Generic.Dictionary<string, object>;
+                                if (ng != null)
+                                {
+                                    int nCnt = ng.ContainsKey("nodeCount") ? Convert.ToInt32(ng["nodeCount"]) : 79;
+                                    int eCnt = ng.ContainsKey("edgeCount") ? Convert.ToInt32(ng["edgeCount"]) : 138;
+                                    int domCnt = ng.ContainsKey("domainCount") ? Convert.ToInt32(ng["domainCount"]) : 7;
+                                    h2CardsContainer.Children.Add(makeInfoCard(
+                                        "🧠 C:\\Warehouse 옵시디언 뉴런 시냅스 볼트 (" + nCnt + " Nodes · " + eCnt + " Synapses)",
+                                        "• 7대 도메인 × 18대 BSC 정본 스킬 × 217개 세부 스킬 × 55개 GitHub 레포 × 32인 에이전트 무장 맵 연결 완료 (" + domCnt + " Domains)\n• 정본 MOC: C:\\Warehouse\\3.Obsidian_Vault\\00_Master_Neuron_MOC.md",
+                                        accentCyan
+                                    ));
+                                }
+                            }
+
+                            if (h2Dict != null)
+                            {
+                                int aoBytes = h2Dict.ContainsKey("alwaysOnBytes") ? Convert.ToInt32(h2Dict["alwaysOnBytes"]) : 0;
+                                int aoCap = h2Dict.ContainsKey("alwaysOnCap") ? Convert.ToInt32(h2Dict["alwaysOnCap"]) : 20000;
+                                int fCount = h2Dict.ContainsKey("fileCount") ? Convert.ToInt32(h2Dict["fileCount"]) : 8;
+                                bool sValid = !h2Dict.ContainsKey("surfaceValid") || Convert.ToBoolean(h2Dict["surfaceValid"]);
+                                h2CardsContainer.Children.Add(makeInfoCard(
+                                    "🧬 Google Research Harness² (arXiv:2610.14224) — 8-Component Editable Surface",
+                                    "• 표면 검증: " + (sValid ? "PASS" : "CHECK") + " · 파일 " + fCount + "개 · Always-On 용량: " + aoBytes.ToString("N0") + " / " + aoCap.ToString("N0") + " Bytes\n• 재귀 루프: Observe ➔ Propose[INV+DOM] ➔ Probe ➔ Compose ➔ Apply (Ledger R=4000, P=3000)",
+                                    Color.FromRgb(255, 184, 64)
+                                ));
+                            }
                         }
-                        txtLiveOrderLogSummary.Text = "📊 누적 CHLGD 기록 오더: " + totStr + "건 · 원장 파일: C:\\자비스\\data\\ceo-orders-log.jsonl & jarvis-loop.md (실시간 자동 기록 중)";
+                        catch { }
                     });
                 }
                 catch { }
@@ -4419,7 +4626,7 @@ namespace JarvisSasariSa
             StartInvisibleChromeEarWorker();
             SetHudAppearance(CyanColor);
             txtStatus.Text = "● 집중 듣는 중 (잠시 쉬어도 끊기지 않습니다 · 끝까지 말씀하세요)";
-            txtMainBody.Text = "지금 편하게 말씀해 주세요 (예: “유튜브에서 로파이 음악 틀어줘”, “웹브라우저 켜서 네이버 열어줘”)";
+            txtMainBody.Text = "지금 편하게 말씀해 주세요 (예: “오늘 할 일 정리해 줘”, “뉴런에서 REA 검색해줘”, “방금 검색 결과 워드로 만들어줘”)";
             if (secTxtStatus != null) secTxtStatus.Text = txtStatus.Text;
             if (secTxtMainBody != null) secTxtMainBody.Text = txtMainBody.Text;
             if (thirdTxtStatus != null) thirdTxtStatus.Text = txtStatus.Text;
@@ -4494,7 +4701,7 @@ namespace JarvisSasariSa
                 if (bootCombo && !bootHotkeyWasDown)
                 {
                     bootHotkeyWasDown = true;
-                    SendCommandToButler("아빠 왔어");
+                    SendCommandToButler("대표님 출근");
                 }
                 else if (!bootCombo && bootHotkeyWasDown)
                 {

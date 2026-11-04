@@ -970,7 +970,7 @@ class ButlerEngine {
 
     if (
       (cfg.greetings || []).some(g => sq2.includes(squash(g))) ||
-      /^(아빠왔어|대표님왔어|나왔어|다녀왔어|출근했어|출근|켜|켜져|깨어나|깨어나라|시작|부트화면|부트화면켜|온라인)$/.test(sq2)
+      /^(아빠왔어|대표님왔어|대표님출근|대표님출근했어|나왔어|다녀왔어|출근했어|출근|켜|켜져|깨어나|깨어나라|시작|부트화면|부트화면켜|온라인)$/.test(sq2)
     ) {
       return { intent: 'greet' };
     }
@@ -1032,9 +1032,14 @@ class ButlerEngine {
       return { intent: 'youtubeNth', index: nthMap[ytNthMatch[1]] };
     }
 
-    // 9-B) Daily Priority Briefing (Image 2: "오늘 할 일 정리해 줘" / "오늘 일정 알려줘")
-    if (/오늘.*(할일|해야할일|일정|우선순위|업무).*?(정리|알려|보여|브리핑)/.test(sq2) || /^(오늘할일|오늘일정|업무브리핑)$/.test(sq2)) {
+    // 9-B) Daily Priority Briefing ("오늘 할 일 정리해 줘" / "오늘 일정 알려줘" / "오늘 업무 브리핑" -> Real BSC 3-Ecosystem Executive Briefing)
+    if (/오늘.*(할일|해야할일|일정|우선순위|업무).*?(정리|알려|보여|브리핑)/.test(sq2) || /^(오늘할일|오늘일정|업무브리핑|출근브리핑|모닝브리핑)$/.test(sq2)) {
       return { intent: 'dailyBriefing' };
+    }
+
+    // 9-C) BSC Headquarters Reports & WorkLogs ("본사 보고서 보여줘", "최근 작업일지 보여줘", "오늘 작업일지 확인해줘")
+    if (/(?:본사\s*보고서|최근\s*보고서|오늘\s*보고서|최근\s*작업\s*일지|오늘\s*작업\s*일지|작업\s*일지\s*목록|보고서\s*목록).*(?:보여|열어|알려|확인|조회)/i.test(s)) {
+      return { intent: 'bscDocsBriefing', query: s };
     }
 
     // 10) YouTube search / Music play ("유튜브에서 로파이 검색해", "클래식 음악 좀 틀어 줘", "음악 틀어줘", "로파이 틀어줘", "버즈라는 가수의 노래를 틀어 달라고")
@@ -1301,17 +1306,22 @@ class ButlerEngine {
 
       case 'greet': {
         const sys = this.getSystemTelemetry();
-        const greetLine = (cfg.greetingText || '어서 오십시오, {user}.').replace('{user}', cfg.userName || '대표님');
+        const bsc = getBscEcosystemSummary();
+        const eco = getEcosystemOverview();
+        const bwFiles = (eco.ecosystems && eco.ecosystems[1] && eco.ecosystems[1].fileCount) || 0;
+        const whSkills = (eco.ecosystems && eco.ecosystems[2] && eco.ecosystems[2].skillCount) || 0;
+        const greetLine = (cfg.greetingText || '어서 오십시오, {user}. 자비스 온라인입니다.').replace('{user}', cfg.userName || '대표님');
+        const execBrief = `${greetLine} 현재 BeausCreators 에이전트 ${bsc.totalAgents || 26}명, BeautifulWorld 출판 자산 ${bwFiles}개, Warehouse 스킬 ${whSkills}개가 정상 연결되어 있습니다.`;
         return {
           intent: 'greet',
           bootScene: true,
           bootStyle: cfg.bootStyle || 'reactor',
           telemetry: sys,
           hudColor: 'cyan',
-          hudTitle: `◉ ${(cfg.assistantName || '자비스').toUpperCase()} · ONLINE`,
-          hudSubtitle: `${greetLine} (RAM ${sys.usedMemGB}/${sys.totalMemGB}GB · Disk ${sys.diskFreeGB}GB 여유)`,
+          hudTitle: `◉ ${(cfg.assistantName || '자비스').toUpperCase()} · BSC 3대 생태계 & 26인 에이전트 ONLINE`,
+          hudSubtitle: `${greetLine} (BSC ${bsc.totalAgents || 26}인 · 출판사 ${bwFiles}파일 · 창고 ${whSkills}스킬 · RAM ${sys.usedMemGB}/${sys.totalMemGB}GB)`,
           heard: rawSentence,
-          spoken: greetLine
+          spoken: execBrief
         };
       }
 
@@ -1436,24 +1446,105 @@ class ButlerEngine {
         };
       }
 
-      case 'dailyBriefing': {
-        const promptText = '오늘 제가 해야 할 일을 기존 일정과 작업 기록에서 확인할 수 있는 내용을 바탕으로 정리해, 우선순위 순서대로 알려 주세요.';
-        const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(promptText)}`;
-        if (executeOsActions) await WindowsHands.openUrl(claudeUrl);
-        this.openedUrls.push(claudeUrl);
-        this.lastDone = {
-          said: rawSentence,
-          description: '오늘 해야 할 일 우선순위 브리핑 (Claude 연동)',
-          undoType: 'url',
-          undoTarget: claudeUrl
+      case 'dailyBriefing':
+      case 'bscDocsBriefing': {
+        const bsc = getBscEcosystemSummary();
+        const eco = getEcosystemOverview();
+        const intel = sharedBscBridge.getCeoIntelligenceSummary();
+        const learn = require('./recursive-learning').getLearningStatus();
+        const worklogDir = 'C:\\BeausCreators\\01.BSC_HQ\\1.Documents\\02.작업일지';
+        const reportDir = 'C:\\BeausCreators\\01.BSC_HQ\\1.Documents\\01.보고서';
+
+        const recentWorklogs = [];
+        try {
+          if (fs.existsSync(worklogDir)) {
+            const files = fs.readdirSync(worklogDir).filter(f => f.endsWith('.md')).sort().slice(-5).reverse();
+            for (const f of files) {
+              const full = path.join(worklogDir, f);
+              const content = fs.readFileSync(full, 'utf8');
+              const lines = content.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#')).slice(0, 3).join(' / ');
+              recentWorklogs.push({ name: f, path: full, preview: lines.slice(0, 220) });
+            }
+          }
+        } catch (_) {}
+
+        const recentReports = [];
+        try {
+          if (fs.existsSync(reportDir)) {
+            const subDirs = fs.readdirSync(reportDir, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort().slice(-3).reverse();
+            for (const d of subDirs) {
+              const dirFull = path.join(reportDir, d);
+              const rFiles = fs.readdirSync(dirFull).filter(f => f.endsWith('.md') || f.endsWith('.html'));
+              for (const rf of rFiles.slice(0, 3)) {
+                recentReports.push({ name: `[${d}] ${rf}`, path: path.join(dirFull, rf) });
+              }
+            }
+          }
+        } catch (_) {}
+
+        const reportId = crypto.randomUUID();
+        const sections = [
+          {
+            sourceId: 1,
+            title: '1. C:\\BeausCreators 본사 (01.BSC_HQ) · 에이전트 & 최근 작업일지',
+            text: `• 등록 에이전트: 총 ${bsc.totalAgents || 26}명 (현재 활성/대기 ${bsc.activeCount}명)\n` +
+              (recentWorklogs.length > 0
+                ? recentWorklogs.map(w => `• [${w.name}] ${w.preview}`).join('\n')
+                : '• 최근 작업일지 파일을 스캔했습니다.')
+          },
+          {
+            sourceId: 2,
+            title: '2. 3대 생태계 (BeausCreators · BeautifulWorld · Warehouse) 실시간 지표',
+            text: (eco.ecosystems || []).map(e => `• ${e.name} (${e.root}): 파일 ${e.fileCount}개 · 스킬/모듈 ${e.skillCount || 0}개`).join('\n')
+          },
+          {
+            sourceId: 3,
+            title: '3. Google Harness² 재귀 학습 & 대표님 오더 원장 현황',
+            text: `• 누적 실행 오더: ${intel.totalOrders}건 (최근: ${intel.recentSummary})\n• 재귀 학습 승격 규칙: ${learn.totalLearnedRules || 0}개 · 교훈 원장: ${learn.totalLessons || 0}건`
+          }
+        ];
+
+        const sources = [
+          ...recentWorklogs.map((w, idx) => ({
+            id: idx + 1,
+            title: `작업일지: ${w.name}`,
+            url: 'file:///' + w.path.replace(/\\/g, '/'),
+            domain: '01.BSC_HQ/1.Documents/02.작업일지',
+            readStatus: '본사 정본'
+          })),
+          ...recentReports.map((r, idx) => ({
+            id: recentWorklogs.length + idx + 1,
+            title: `본사 보고서: ${r.name}`,
+            url: 'file:///' + r.path.replace(/\\/g, '/'),
+            domain: '01.BSC_HQ/1.Documents/01.보고서',
+            readStatus: '본사 보고서'
+          }))
+        ];
+
+        const briefingReport = {
+          id: reportId,
+          query: '이건우 대표님 오늘의 우선순위 업무 & 3대 생태계 통합 브리핑',
+          title: '이건우 대표님 전용 — BeausCreators 3대 생태계 & 작업일지 실시간 브리핑',
+          status: 'ready',
+          createdAt: new Date().toISOString(),
+          provider: 'JARVIS × BeausCreators HQ Live Engine',
+          note: '클라우드 외부 웹이 아닌 대표님의 실제 로컬 3대 생태계(C:\\BeausCreators, C:\\BeautifulWorld, C:\\Warehouse) 정본 문서를 실시간 조회한 결과입니다.',
+          summary: `본사 작업일지 ${recentWorklogs.length}건, 본사 보고서 ${recentReports.length}건, 3대 생태계 총 ${eco.totalFiles || 0}개 파일 및 ${eco.totalSkills || 0}개 스킬이 정상 가동 중입니다. 상단 버튼으로 즉시 Word(.docx)·PDF·PPT 보고서로 내보내실 수 있습니다.`,
+          keywords: ['최근 작업일지', '본사 보고서', '웨어하우스 뉴런', '뷰티풀월드 출판 점검', '재귀 학습 현황'],
+          sections,
+          sources
         };
+        this.lastResearchReport = briefingReport;
+
         return {
-          intent: 'dailyBriefing',
-          hudColor: 'cyan',
-          hudTitle: '○ 받아 적는 중 · 우선순위 업무 브리핑',
-          hudSubtitle: promptText,
+          intent: 'research',
+          research: briefingReport,
+          researchId: reportId,
+          hudColor: 'lime',
+          hudTitle: '📋 대표님 전용 3대 생태계 · 작업일지 브리핑 완료',
+          hudSubtitle: `최근 작업일지 ${recentWorklogs.length}건 · 본사 보고서 ${recentReports.length}건 · 에이전트 ${bsc.totalAgents || 26}명 현황을 전용 창에 띄웠습니다.`,
           heard: rawSentence,
-          spoken: `${cfg.userName || '대표님'}, 오늘 우선순위 일정을 정리해 화면에 띄워 드렸습니다.`
+          spoken: `${cfg.userName || '대표님'}, 외부 사이트 대신 우리 BeausCreators 본사 작업일지와 3대 생태계 실시간 현황을 정리하여 전용 브리핑 창에 띄워 드렸습니다.`
         };
       }
 

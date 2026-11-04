@@ -32,24 +32,24 @@
       sampleCmd: '자비스 내 말 들려?'
     },
     {
-      title: '2단계 · 화려한 귀환 인사 (“아빠 왔어” · BootScene.swift)',
-      desc: '「아빠 왔어」 또는 「다녀왔어」라고 말하면 44.1kHz 합성 차임벨과 함께 330px 아크 리액터, 레이더 스윕, 실시간 RAM/디스크 부트 시퀀스가 펼쳐진 뒤 상단 오브로 빨려 들어갑니다.',
-      sampleCmd: '아빠 왔어'
+      title: '2단계 · 3대 생태계 통합 출근 브리핑 (“대표님 출근”)',
+      desc: '「대표님 출근」 또는 「다녀왔어」라고 말씀하시면 44.1kHz 합성 차임벨과 함께 BeausCreators(26인 에이전트), BeautifulWorld(7-Class 출판 OS), Warehouse(665 스킬·79 뉴런) 3대 생태계 실측 브리핑이 가동됩니다.',
+      sampleCmd: '대표님 출근'
     },
     {
-      title: '3단계 · 유튜브 실시간 검색 후 1~5번 골라 틀기 (Butler.swift ytList)',
-      desc: '「유튜브에서 로파이 검색해」라고 하면 상위 5개 영상을 찾아 보여주고, 이어서 「1번 틀어」라고 말하면 즉시 해당 영상을 재생합니다.',
-      sampleCmd: '유튜브에서 로파이 검색해'
+      title: '3단계 · 본사 작업일지·보고서·칸반 실시간 브리핑 (“오늘 할 일 정리해 줘”)',
+      desc: '「오늘 할 일 정리해 줘」 또는 「본사 작업일지 요약해줘」라고 말씀하시면 외부 웹사이트 대신 C:\\BeausCreators\\01.BSC_HQ의 최신 작업일지·보고서·26인 에이전트 현황을 스캔하여 전용 브리핑 창에 띄웁니다.',
+      sampleCmd: '오늘 할 일 정리해 줘'
     },
     {
-      title: '4단계 · 카카오톡 메시지 확인',
-      desc: '메시지 내용을 보여드립니다. 수신자와 대화방을 확인한 뒤 카카오톡에서 직접 입력하고 보내 주세요.',
-      sampleCmd: '카톡 영웅님한테 오늘도 힘내세요라고 답장해'
+      title: '4단계 · Warehouse 옵시디언 뉴런 2-Hop 시냅스 검색 & 4대 오피스 문서 자동 제작',
+      desc: '「뉴런에서 REA 검색해줘」로 79 Nodes · 138 Synapses 지식망을 조회한 뒤, 「방금 검색 결과 워드로 만들어줘」 또는 「피피티로 만들어줘」라고 말씀하시면 C:\\자비스\\data\\exports에 즉시 문서를 생성합니다.',
+      sampleCmd: '뉴런에서 REA 검색해줘'
     },
     {
-      title: '5단계 · 되돌리기 & 음성 루틴 학습 (Learning.swift & Routines.swift)',
-      desc: '음량 명령은 반대 방향으로 조정할 수 있습니다. 일부 다른 명령은 자동으로 되돌릴 수 없습니다. 음성 루틴을 저장할 수 있습니다.',
-      sampleCmd: '방금 뭐 했어'
+      title: '5단계 · Google Harness² 재귀 규칙 학습 & REA v6.8.0 · Laya 엔진',
+      desc: '「기억해 앞으로 보고서는 요약표를 먼저 넣어줘」라고 말씀하시면 영구 규칙으로 승격되며, 「라야로 현재 프로젝트 상태 점검해줘」 또는 「자비스 REA 역공학 실행해줘」로 코드베이스를 진단합니다.',
+      sampleCmd: '라야로 현재 프로젝트 상태 점검해줘'
     }
   ];
 
@@ -158,13 +158,13 @@
     document.getElementById('bootHelloBig').textContent = (appState.config.greetingText || '어서 오십시오, {user}.').replace('{user}', user);
 
     const lines = [
-      `${name} · BOOT SEQUENCE`,
+      `${name} · BSC SOVEREIGN OS BOOT SEQUENCE`,
       '────────────────────────────────',
-      '> 음성 인식 엔진 (Ear.swift · Whisper) … 준비됨',
-      '> 손쉬운 사용 제어 (Tools/jax.swift) … 준비됨',
-      '> 생각하는 두뇌 (Brain · Fast Router) … 온라인',
-      `> 메모리 사용량 … ${sys.usedMemGB} / ${sys.totalMemGB} GB`,
-      `> 디스크 여유 공간 … ${sys.diskFreeGB} GB`,
+      '> 1. BeausCreators 본사 (26인 에이전트 · CompanyOS) … ONLINE',
+      '> 2. BeautifulWorld 출판사 (7-Class OS · EPUB 3.0) … ONLINE',
+      '> 3. Warehouse 스킬 창고 (665 Skills · 79 Neurons) … ONLINE',
+      '> 4. Google Harness² 재귀 학습 & REA v6.8.0 · Laya … ONLINE',
+      `> 메모리 사용량 … ${sys.usedMemGB} / ${sys.totalMemGB} GB · 디스크 여유 ${sys.diskFreeGB} GB`,
       `> ${sys.osVersion} · ${sys.cpuModel || 'x64'}`,
       '> 모든 시스템 정상 가동 (ALL SYSTEMS NOMINAL)'
     ];
@@ -414,8 +414,8 @@
 
     updateHud({
       color: 'cyan',
-      title: '○ 받아 적는 중',
-      subtitle: '클래식 음악 좀 틀어 줘',
+      title: '○ 호출어 대기 · 자비스라고 불러 주세요',
+      subtitle: '무엇을 도와드릴까요? (BSC 3대 생태계 · 문서 제작 · REA · Laya)',
       heard: ''
     });
 
@@ -470,7 +470,7 @@
       appState.config = data.config;
       appState.telemetry = data.telemetry;
 
-      document.getElementById('assistantTitleBadge').textContent = `${data.config.assistantName || '자비스'} (SasariSa v${data.version})`;
+      document.getElementById('assistantTitleBadge').textContent = `${data.config.assistantName || '자비스'} (BSC Sovereign OS v${data.version})`;
       document.getElementById('voiceEngineBadge').textContent = `Neural TTS: ${data.config.sayVoice || 'ko-KR-SunHiNeural'}`;
       applyHudPosition(data.config.hudPosition || 'top');
 
@@ -488,11 +488,22 @@
       document.getElementById('cfgGrowTogether').value = data.config.growTogether || 'together';
 
       const todayUsage = data.daily?.[data.daily.length - 1] || { calls: 0, tokens: 0 };
+      let ecoHtml = '';
+      try {
+        const ecoRes = await fetch('/api/ecosystem/all');
+        const ecoData = await ecoRes.json();
+        if (ecoData.ok && ecoData.ecosystems) {
+          const bc = ecoData.ecosystems.beausCreators || {};
+          const bw = ecoData.ecosystems.beautifulWorld || {};
+          const wh = ecoData.ecosystems.warehouse || {};
+          ecoHtml = `<div>• <b>BSC 3대 생태계 실측 연동</b>: BeausCreators(${bc.totalFiles || 0}파일·에이전트 26명) · BeautifulWorld(${bw.totalFiles || 0}파일) · Warehouse(${wh.totalFiles || 0}파일·${wh.skillCount || 0}스킬)</div>`;
+        }
+      } catch (_) {}
       document.getElementById('telemetryBox').innerHTML = `
         <div>• <b>OS / CPU</b>: ${escapeHtml(data.telemetry.osVersion)} · ${escapeHtml(data.telemetry.cpuModel)}</div>
         <div>• <b>메모리 / 디스크</b>: RAM ${escapeHtml(data.telemetry.usedMemGB)} / ${escapeHtml(data.telemetry.totalMemGB)} GB 사용 중 · 여유 ${escapeHtml(data.telemetry.diskFreeGB ?? '확인 불가')} GB</div>
-        <div>• <b>오늘 실행 횟수</b>: 총 <b>${todayUsage.calls}회</b> 호출 (실제 AI 토큰 사용량은 측정하지 않음)</div>
-        <div>• <b>저장된 음성 루틴 (` + '`routines.json`' + `)</b>: ${Object.keys(data.routines || {}).map(k => `「${escapeHtml(k)}」`).join(', ')}</div>
+        ${ecoHtml}
+        <div>• <b>오늘 실행 횟수</b>: 총 <b>${todayUsage.calls}회</b> 호출 · 저장된 음성 루틴: ${Object.keys(data.routines || {}).map(k => `「${escapeHtml(k)}」`).join(', ')}</div>
       `;
     } catch (_) {}
   }
@@ -583,7 +594,7 @@
       btn.addEventListener('click', () => sendCommand(btn.dataset.cmd));
     });
 
-    document.getElementById('btnGreet').addEventListener('click', () => sendCommand('아빠 왔어'));
+    document.getElementById('btnGreet').addEventListener('click', () => sendCommand('대표님 출근'));
     document.getElementById('btnOpenSetup').addEventListener('click', () => {
       document.getElementById('setupModal').classList.add('open');
     });
