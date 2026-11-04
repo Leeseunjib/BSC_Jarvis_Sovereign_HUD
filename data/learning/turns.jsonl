@@ -3,3 +3,5 @@
 {"ts":"2026-11-02T04:32:56.211Z","sentence":"라야로 워드 교정과 전자책 빌드 중 우선순위 판단해줘","intent":"research","failed":false,"hudTitle":"🧬 Laya 언어 구조화 의사결정 (system1-router)","error":"","source":"hud_text"}
 {"ts":"2026-11-02T04:34:40.094Z","sentence":"앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘","intent":"research","failed":false,"hudTitle":"🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)","error":"","source":"hud_text"}
 {"ts":"2026-11-03T03:01:37.906Z","sentence":"앞으로 C:\\자비스가 유일한 메인 상용 자비스 정본이며 다른 자비스 폴더(C:\\BSC_Javis_OS 등)는 샌드박스로만 취급해줘","intent":"rememberRule","failed":false,"hudTitle":"","error":"","source":"ceo_order"}
+{"ts":"2026-11-03T03:10:33.549Z","sentence":"옵시디언 뉴런에서 REA 검색해줘","intent":"research","failed":false,"hudTitle":"🔬 REA 4-Stage 역공학 분석 완료 (자비스)","error":"","source":"manual"}
+{"ts":"2026-11-03T03:12:02.344Z","sentence":"옵시디언 뉴런에서 REA 검색해줘","intent":"research","failed":false,"hudTitle":"🧠 Warehouse 옵시디언 뉴런 2-Hop 시냅스 (6직접 · 8연결)","error":"","source":"manual"}

@@ -1,6 +1,6 @@
 /**
  * @file C:\자비스\scripts\rea-analyzer.js
- * @description REA (Reverse Engineer Anything v6.7.0 + BSC 4-Stage Clean-Room Analyzer)
+ * @description REA (Reverse Engineer Anything v6.8.0 + BSC 4-Stage Clean-Room Analyzer)
  *              Supports Swift (.swift), JS/TS, HTML/CSS, Shell (.sh), and JSON targets.
  *              Strictly enforces 4-Split Evidence Provenance:
  *              [1] observations (Physical Surface Census)

@@ -21,7 +21,14 @@ const { askVoiceBrain } = require('./voice-brain');
 const { classifyMediaControl } = require('../public/js/media-intents');
 const { sharedTerminalManager, sharedBscBridge } = require('./bsc-collaboration-bridge');
 const { createDocument, normalizeDocSpec } = require('./office-doc-engine');
-const { searchEcosystems, toResearchReport: ecoToResearchReport, getEcosystemOverview } = require('./ecosystem-index');
+const {
+  searchEcosystems,
+  toResearchReport: ecoToResearchReport,
+  getEcosystemOverview,
+  getWarehouseNeuronGraph,
+  searchWarehouseNeurons,
+  neuronToResearchReport
+} = require('./ecosystem-index');
 const { runRea, reaToResearchReport, runLaya, startLayaService, layaToResearchReport } = require('./rea-laya-bridge');
 const { toResearchReport: learningToResearchReport } = require('./recursive-learning');
 
@@ -301,6 +308,10 @@ const WindowsHands = {
     '블렌더': 'blender',
     '뷰스크리에이터스': 'C:\\BeausCreators',
     '본사폴더': 'C:\\BeausCreators\\01.BSC_HQ',
+    '스킬창고': 'C:\\Warehouse',
+    '웨어하우스': 'C:\\Warehouse',
+    '뉴런볼트': 'C:\\Warehouse\\3.Obsidian_Vault',
+    '옵시디언뉴런': 'C:\\Warehouse\\3.Obsidian_Vault\\00_Master_Neuron_MOC.md',
     '에이전트로스터': 'C:\\BeausCreators\\01.BSC_HQ\\2.Agents\\에이전트\\AI_Agent_Roster.html',
     '에이전트관제판': 'C:\\BeausCreators\\01.BSC_HQ\\2.Agents\\에이전트\\AI_Agent_Roster.html'
   },
@@ -1085,6 +1096,20 @@ class ButlerEngine {
       return { intent: 'officeDoc', format, topic: cleanedTopic };
     }
 
+    // 10-B2) Warehouse Obsidian Neuron 2-Hop Synapse Search ("뉴런에서 ~ 찾아줘", "옵시디언 뉴런 보여줘", "창고 뉴런 검색해줘", "스킬 시냅스 보여줘")
+    if (/(?:옵시디언\s*뉴런|창고\s*뉴런|웨어하우스\s*뉴런|스킬\s*뉴런|뉴런\s*그래프|뉴런\s*시냅스|스킬\s*시냅스|뉴런\s*시스템)/i.test(s) && !/뉴런\s*볼트.*열어/i.test(s)) {
+      const cleanedNeuronQ = s
+        .replace(/(?:옵시디언\s*뉴런|창고\s*뉴런|웨어하우스\s*뉴런|스킬\s*뉴런|뉴런\s*그래프|뉴런\s*시냅스|스킬\s*시냅스|뉴런\s*시스템)(?:에서|으로|로|의|내에서)?/gi, ' ')
+        .replace(/(?:검색해서\s*보여|찾아서\s*보여|검색해|찾아봐|찾아|보여|알려|열어|조회해)(?:\s*줘|\s*주세요|\s*봐)?$/gi, '')
+        .replace(/(?:좀|를|을)$/g, '')
+        .trim();
+      return { intent: 'warehouseNeuron', query: cleanedNeuronQ || '전체' };
+    }
+    const neuronDirectMatch = s.match(/^(?:뉴런|시냅스)(?:에서|으로|로)?\s+(.+?)\s*(?:검색해서\s*보여|찾아서\s*보여|검색해|찾아봐|찾아|보여|알려|조회해)(?:\s*줘|\s*주세요|\s*봐)?$/i);
+    if (neuronDirectMatch && neuronDirectMatch[1].trim()) {
+      return { intent: 'warehouseNeuron', query: neuronDirectMatch[1].replace(/(?:좀|를|을)$/g, '').trim() };
+    }
+
     // 10-C) REA 4-Stage Clean-Room Reverse Engineering Analysis
     if (/(?:\brea\b|알이에이|역공학|클린룸\s*분석)/i.test(s) && !/안티그래비티.*플랜창/i.test(sq2)) {
       return { intent: 'reaAnalyze', target: s };
@@ -1602,6 +1627,25 @@ class ButlerEngine {
           hudSubtitle: `${parsed.query} · BeausCreators / BeautifulWorld / Warehouse`,
           heard: rawSentence,
           spoken: `우리 시스템 3대 생태계에서 ${parsed.query} 관련 문서와 스킬 ${found.hits.length}건을 찾아 결과 창에 띄워 드렸습니다.`
+        };
+      }
+
+      case 'warehouseNeuron': {
+        const q = parsed.query || '전체';
+        const neuronRes = searchWarehouseNeurons(q);
+        const report = neuronToResearchReport(q, neuronRes, crypto.randomUUID());
+        this.lastResearchReport = report;
+        const directCnt = Array.isArray(neuronRes.directHits) ? neuronRes.directHits.length : 0;
+        const twoHopCnt = Array.isArray(neuronRes.twoHopNeighbors) ? neuronRes.twoHopNeighbors.length : 0;
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          hudColor: directCnt > 0 ? 'lime' : 'cyan',
+          hudTitle: `🧠 Warehouse 옵시디언 뉴런 2-Hop 시냅스 (${directCnt}직접 · ${twoHopCnt}연결)`,
+          hudSubtitle: `${q} · 79 Nodes / 138 Synapses (7대 도메인 × 18대 정본 스킬 × 32인 에이전트)`,
+          heard: rawSentence,
+          spoken: `네, 대표님. Warehouse 옵시디언 뉴런 그래프에서 ${q} 관련 1홉 직접 뉴런 ${directCnt}개와 2홉 시냅스 연결 노드 ${twoHopCnt}개를 찾아 전용 결과 창에 띄워 드렸습니다.`
         };
       }
 

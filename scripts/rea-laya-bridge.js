@@ -55,20 +55,26 @@ function runRea(targetPath, query) {
 function reaToResearchReport(rep, id) {
   const ev = rep.evidenceProvenance || {};
   const obs = ev.observations || {}, der = ev.derivations || {}, inf = ev.inferences || {};
+  const dec = rep.deconstruction || {};
   const topExt = Object.entries((rep.surface && rep.surface.extCounts) || {}).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${v}`).join(', ');
+  const binLines = (dec.binaryHeaders || []).slice(0, 6).map(b => `• ${b.relPath}: ${b.format} (${b.arch}${b.clrVersion ? ', ' + b.clrVersion : ''})`).join('\n');
   const sections = [
-    { title: '① Observations (관찰 사실)', text: `파일 ${obs.totalFiles}개 · ${Math.round((obs.totalBytes || 0) / 1024)}KB · ${obs.totalLines}줄\n주요 확장자: ${topExt}\n매니페스트 ${(obs.manifests || []).length}개 · 라이선스: ${obs.detectedLicense}`, sourceId: 1 },
-    { title: '② Derivations (구조 도출)', text: `클래스 ${der.recoveredClassesCount} · 함수 ${der.recoveredFunctionsCount} · 엔드포인트 ${(der.tracedEndpoints || []).length}개\n가드 위반 ${der.guardViolationsCount}건 · 기술부채 표식 ${der.techDebtCount}건`, sourceId: 1 },
-    { title: '③ Inferences (추론)', text: `아키텍처 패턴: ${(inf.architecturalPatterns || []).join(', ') || '특정 패턴 미검출'}\n카피레프트 위험: ${inf.copyleftRiskLevel}`, sourceId: 1 },
-    { title: '④ Unknowns (미확인 영역)', text: (ev.unknowns || []).join('\n'), sourceId: 1 }
+    { title: '① Observations (물리·바이너리·모델 표면 실측)', text: `파일 ${obs.totalFiles}개 · ${Math.round((obs.totalBytes || 0) / 1024)}KB · ${obs.totalLines}줄\n주요 확장자: ${topExt}\n매니페스트 ${(obs.manifests || []).length}개 · 라이선스: ${obs.detectedLicense}${binLines ? '\n바이너리/모델 헤더:\n' + binLines : ''}`, sourceId: 1 },
+    { title: '② Derivations (심볼·엔드포인트·RL 환경 도출)', text: `클래스 ${der.recoveredClassesCount} · 함수 ${der.recoveredFunctionsCount} · 엔드포인트 ${(der.tracedEndpoints || []).length}개\n가드 위반 ${der.guardViolationsCount}건 · 기술부채 표식 ${der.techDebtCount}건${(der.tracedEndpoints || []).length ? '\nRL AgentEnv 후보 엔드포인트: ' + der.tracedEndpoints.slice(0, 8).join(', ') : ''}`, sourceId: 1 },
+    { title: '③ Inferences (아키텍처 패턴 추론)', text: `아키텍처 패턴: ${(inf.architecturalPatterns || []).join(', ') || '특정 패턴 미검출'}\n카피레프트 위험: ${inf.copyleftRiskLevel}`, sourceId: 1 },
+    { title: '④ Unknowns (정적 분석 경계 및 미확인 영역)', text: (ev.unknowns || []).join('\n'), sourceId: 1 }
   ];
+  const engineVer = rep.upstreamEngine || 'morluto/rea@6.8.0';
   return {
-    id, query: `REA 분석 · ${rep.targetName}`, title: `REA 4-Stage 분석 · ${rep.targetName}`, status: 'ready', createdAt: new Date().toISOString(),
-    provider: 'BeausCreators Invoke-ReaAnalyzer.js (정적 분석)',
+    id, query: `REA v6.8.0 분석 · ${rep.targetName}`, title: `REA 4-Stage 분석 (${engineVer}) · ${rep.targetName}`, status: 'ready', createdAt: new Date().toISOString(),
+    provider: `morluto/rea v6.8.0 (e75d1c741) × BeausCreators Invoke-ReaAnalyzer.js`,
     note: `정적 분석 결과입니다(실행 중 동작은 관찰하지 않음). 소요 ${rep.elapsed_ms}ms · 블루프린트: ${rep.blueprintPath}`,
     summary: sections.map(s => s.title + '\n' + s.text.split('\n')[0]).join('\n\n'),
     keywords: (inf.architecturalPatterns || []).slice(0, 8), sections,
-    sources: [{ id: 1, title: 'REA 클린룸 블루프린트 (Markdown)', url: 'file:///' + String(rep.blueprintPath || '').replace(/\\/g, '/'), domain: rep.surface && rep.surface.resolvedPath, readStatus: '로컬 파일' }],
+    sources: [
+      { id: 1, title: 'REA 클린룸 블루프린트 (Markdown)', url: 'file:///' + String(rep.blueprintPath || '').replace(/\\/g, '/'), domain: rep.surface && rep.surface.resolvedPath, readStatus: '로컬 파일' },
+      { id: 2, title: 'morluto/rea v6.8.0 로컬 저장소', url: 'file:///C:/BeausCreators/05.BSC_Skill_Warehouse/1.Imported_Skills/2026-10-19_TechPack/rea', domain: 'https://github.com/morluto/rea', readStatus: 'v6.8.0 최신 동기화' }
+    ],
     errors: []
   };
 }

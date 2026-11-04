@@ -20,7 +20,7 @@
   ],
   "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
   "stats": {
-    "totalOrders": 62,
+    "totalOrders": 64,
     "intentCounts": {
       "youtubeAutoPlay": 5,
       "mediaNext": 2,
@@ -31,7 +31,7 @@
       "hush": 2,
       "resumeMusic": 2,
       "clock": 5,
-      "research": 11
+      "research": 13
     },
     "favoriteMusicQueries": [
       "유튜브에서 로파이 음악 틀어줘",
@@ -55,6 +55,18 @@
     ]
   },
   "recentOrders": [
+    {
+      "ts": "2026-11-03 03:12:02",
+      "sentence": "옵시디언 뉴런에서 REA 검색해줘",
+      "intent": "research",
+      "title": "🧠 Warehouse 옵시디언 뉴런 2-Hop 시냅스 (6직접 · 8연결)"
+    },
+    {
+      "ts": "2026-11-03 03:10:33",
+      "sentence": "옵시디언 뉴런에서 REA 검색해줘",
+      "intent": "research",
+      "title": "🔬 REA 4-Stage 역공학 분석 완료 (자비스)"
+    },
     {
       "ts": "2026-11-02 04:34:40",
       "sentence": "앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘",
@@ -222,19 +234,7 @@
       "sentence": "음악 꺼줘",
       "intent": "stopMusic",
       "title": "⏸ 음악 정지 확인"
-    },
-    {
-      "ts": "2026-10-30 00:54:07",
-      "sentence": "음악 다시 틀어줘",
-      "intent": "resumeMusic",
-      "title": "▶ 음악 재생 확인"
-    },
-    {
-      "ts": "2026-10-30 00:54:04",
-      "sentence": "음악 꺼줘",
-      "intent": "stopMusic",
-      "title": "⏸ 음악 정지 확인"
     }
   ],
-  "updatedAt": "2026-11-02T04:34:40.086Z"
+  "updatedAt": "2026-11-03T03:12:02.340Z"
 }

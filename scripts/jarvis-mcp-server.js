@@ -28,6 +28,7 @@ const {
 const { sharedBscBridge } = require('./bsc-collaboration-bridge');
 const { createDocument, normalizeDocSpec } = require('./office-doc-engine');
 const { runRea, runLaya } = require('./rea-laya-bridge');
+const { getWarehouseNeuronGraph, searchWarehouseNeurons, neuronToResearchReport } = require('./ecosystem-index');
 
 const MCP_SERVER_INFO = {
   name: 'jarvis-sovereign-butler',
@@ -161,6 +162,18 @@ const MCP_TOOLS = [
         targetOrPrompt: { type: 'string', description: '분석 대상 경로 또는 Laya 한국어 프롬프트' }
       },
       required: ['engine', 'targetOrPrompt']
+    }
+  },
+  {
+    name: 'jarvis_warehouse_neuron',
+    description: 'C:\\Warehouse (05.BSC_Skill_Warehouse) 옵시디언 뉴런 그래프(79 Nodes · 138 Synapses · 7대 도메인 · 18대 정본 스킬 · 32인 에이전트 무장 맵)를 2-Hop 시냅스 검색하거나 재구축하고 자비스 HUD에 연동합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '검색할 뉴런 키워드 (예: REA, Unity, 출판, 마케팅, 거누, 전체)' },
+        rebuild: { type: 'boolean', description: '옵시디언 뉴런 볼트(3.Obsidian_Vault) 재구축 여부' },
+        openPlanHud: { type: 'boolean', description: '자비스 바탕화면 Plan HUD 창에 뉴런 시냅스 맵을 즉시 표시할지 여부' }
+      }
     }
   }
 ];
@@ -456,6 +469,42 @@ async function handleMcpJsonRpcRequest(rpcReq, butlerInstance = null) {
           jsonrpc: '2.0',
           id,
           result: { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] }
+        };
+      }
+
+      if (toolName === 'jarvis_warehouse_neuron') {
+        const q = String(args.query || '전체').trim();
+        const rebuild = Boolean(args.rebuild);
+        const neuronRes = searchWarehouseNeurons(q, { rebuild });
+        const report = neuronToResearchReport(q, neuronRes, `neuron-${Date.now()}`);
+        if (args.openPlanHud !== false) {
+          createOrUpdatePlanDocument({
+            title: report.title,
+            category: 'Warehouse Obsidian Neuron 2-Hop Map',
+            summary: report.summary,
+            sections: (report.sections || []).map(s => ({ heading: s.title, body: s.text })),
+            triggerOpenWindow: true,
+            targetTab: 'plan'
+          });
+          if (!butlerInstance) {
+            await postLocalJarvisApi('/api/warehouse/neurons', {
+              query: q,
+              rebuild,
+              openPlanHud: true
+            }).catch(() => {});
+          }
+        }
+        return {
+          jsonrpc: '2.0',
+          id,
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ ok: true, ...neuronRes, report }, null, 2)
+              }
+            ]
+          }
         };
       }
 

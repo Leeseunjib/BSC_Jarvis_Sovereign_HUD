@@ -60,3 +60,5 @@
 {"ts":"2026-11-02T04:32:56.166Z","sentence":"뷰티풀월드 REA 분석해줘","intent":"research","hudTitle":"🔬 REA 4-Stage 역공학 분석 완료 (BeautifulWorld)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}
 {"ts":"2026-11-02T04:32:56.206Z","sentence":"라야로 워드 교정과 전자책 빌드 중 우선순위 판단해줘","intent":"research","hudTitle":"🧬 Laya 언어 구조화 의사결정 (system1-router)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}
 {"ts":"2026-11-02T04:34:40.086Z","sentence":"앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘","intent":"research","hudTitle":"🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)","status":"verified","source":"hud_text","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-11-03T03:10:33.546Z","sentence":"옵시디언 뉴런에서 REA 검색해줘","intent":"research","hudTitle":"🔬 REA 4-Stage 역공학 분석 완료 (자비스)","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}
+{"ts":"2026-11-03T03:12:02.340Z","sentence":"옵시디언 뉴런에서 REA 검색해줘","intent":"research","hudTitle":"🧠 Warehouse 옵시디언 뉴런 2-Hop 시냅스 (6직접 · 8연결)","status":"verified","source":"manual","partnerAgent":"jarvis-core","harness2":"pass"}

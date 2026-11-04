@@ -17,7 +17,13 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { ButlerEngine, WindowsHands, FILES } = require('./scripts/butler-engine');
-const { getEcosystemOverview, searchEcosystems } = require('./scripts/ecosystem-index');
+const {
+  getEcosystemOverview,
+  searchEcosystems,
+  getWarehouseNeuronGraph,
+  searchWarehouseNeurons,
+  neuronToResearchReport
+} = require('./scripts/ecosystem-index');
 const { createDocument, verifyDocument, normalizeDocSpec } = require('./scripts/office-doc-engine');
 const { runRea, runLaya, startLayaService, getLayaStatus } = require('./scripts/rea-laya-bridge');
 const { getLearningStatus, runRecursionCycle } = require('./scripts/recursive-learning');
@@ -695,6 +701,39 @@ const server = http.createServer(async (req, res) => {
     const q = urlObj.searchParams.get('q');
     if (q) return sendJson(res, 200, searchEcosystems(q, { limit: Number(urlObj.searchParams.get('limit')) || 12 }));
     return sendJson(res, 200, getEcosystemOverview());
+  }
+  if (req.method === 'GET' && pathname === '/api/warehouse/neurons') {
+    const q = urlObj.searchParams.get('q');
+    const rebuild = urlObj.searchParams.get('rebuild') === '1';
+    if (q) {
+      const neuronRes = searchWarehouseNeurons(q, { rebuild });
+      const report = neuronToResearchReport(q, neuronRes, `neuron-${Date.now()}`);
+      researchReports.set(report.id, report);
+      while (researchReports.size > 10) researchReports.delete(researchReports.keys().next().value);
+      return sendJson(res, 200, { ...neuronRes, researchId: report.id, report });
+    }
+    return sendJson(res, 200, getWarehouseNeuronGraph({ forceRebuild: rebuild }));
+  }
+  if (req.method === 'POST' && pathname === '/api/warehouse/neurons') {
+    const body = await readBody(req);
+    const q = String((body && body.query) || '전체').trim();
+    const rebuild = Boolean(body && body.rebuild);
+    const neuronRes = searchWarehouseNeurons(q, { rebuild });
+    const report = neuronToResearchReport(q, neuronRes, `neuron-${Date.now()}`);
+    researchReports.set(report.id, report);
+    while (researchReports.size > 10) researchReports.delete(researchReports.keys().next().value);
+    butler.lastResearchReport = report;
+    if (body && body.openPlanHud) {
+      createOrUpdatePlanDocument({
+        title: report.title,
+        category: 'Warehouse Obsidian Neuron 2-Hop Map',
+        summary: report.summary,
+        sections: (report.sections || []).map(s => ({ heading: s.title, body: s.text })),
+        triggerOpenWindow: true,
+        targetTab: 'plan'
+      });
+    }
+    return sendJson(res, 200, { ok: true, ...neuronRes, researchId: report.id, report });
   }
   if (req.method === 'GET' && (pathname === '/api/learning/status' || pathname === '/api/recursion/status')) {
     const st = getLearningStatus();

@@ -52,9 +52,16 @@ const BSC_PATHS = {
   startContextJs: path.join(BSC_HQ, '3.CompanyOS', 'Scripts', 'Start-Context.js'),
   verifyCodePs1: path.join(BSC_HQ, '3.CompanyOS', 'Scripts', 'Verify-Code.ps1'),
   finalizeWorkPs1: path.join(BSC_HQ, '3.CompanyOS', 'Scripts', 'Finalize-Work.ps1'),
+  bscCliPs1: path.join(BSC_HQ, '3.CompanyOS', 'Scripts', 'bsc-cli.ps1'),
   verifyDeliverableJs: path.join(BSC_HQ, '3.CompanyOS', 'Scripts', 'verify_deliverable.js'),
   auditColdObjectivityJs: path.join(BSC_HQ, '3.CompanyOS', 'Scripts', 'Audit-ColdObjectivity.js'),
-  updateAgentStatusJs: path.join(BSC_HQ, '2.Agents', '에이전트', '00.시스템', '05.System_Data_and_Docs', 'update_agent_status.js')
+  updateAgentStatusJs: path.join(BSC_HQ, '2.Agents', '에이전트', '00.시스템', '05.System_Data_and_Docs', 'update_agent_status.js'),
+  // C:\Warehouse Obsidian Neuron & CI/CD Audit Scripts
+  warehouseRoot: 'C:\\Warehouse',
+  warehouseNeuronJs: 'C:\\Warehouse\\scripts\\Build-WarehouseNeuronGraph.js',
+  warehouseAuditPs1: 'C:\\Warehouse\\scripts\\Test-MasterAuditAndVerification.ps1',
+  warehouseNeuronJson: 'C:\\Warehouse\\00.운영\\warehouse_neuron_graph.json',
+  warehouseObsidianMoc: 'C:\\Warehouse\\3.Obsidian_Vault\\00_Master_Neuron_MOC.md'
 };
 
 /**
@@ -577,6 +584,36 @@ class BscCollaborationBridge {
         chlgdPhase: 'Publisher OS',
         partnerAgent: partner,
         spoken: `네, 대표님. 출판 에디터 ${partner.name} 요원과 함께 C 드라이브 BeautifulWorld 7클래스 출판 시스템과 ePub 3.0 빌드 스크립트 현황을 점검했습니다.`
+      };
+    }
+
+    // E-3) Warehouse (C:\Warehouse 옵시디언 뉴런 재구축 · 18대 정본 스킬 6-Gate CI/CD 감사) 오더
+    if (/창고감사|창고점검|웨어하우스감사|웨어하우스점검|스킬창고점검|뉴런빌드|뉴런갱신|뉴런재구축|bscwarehouse/.test(sq)) {
+      const partner = this.findPartnerAgent('비서실장 qc 태준');
+      const isAudit = /감사|점검|audit|검증/.test(sq);
+      const cmd = isAudit && fs.existsSync(BSC_PATHS.warehouseAuditPs1)
+        ? `& "${BSC_PATHS.warehouseAuditPs1}"`
+        : `node "${BSC_PATHS.warehouseNeuronJs}" --query="REA"`;
+      const planSt = createOrUpdatePlanDocument({
+        title: isAudit ? '🛡️ C:\\Warehouse 6-Gate 마스터 CI/CD 감사 리포트' : '🧠 C:\\Warehouse 옵시디언 뉴런 (79 Nodes · 138 Synapses) 재구축',
+        category: 'Warehouse CHLGD & Obsidian Neuron',
+        rawTopic: s,
+        triggerOpenWindow: true,
+        targetTab: 'harness2'
+      });
+      return {
+        kind: 'terminal',
+        openPlanWindow: true,
+        openWindowSeq: planSt.openWindowSeq,
+        activeTab: 'harness2',
+        title: isAudit ? 'C:\\Warehouse 18대 정본 스킬 & 6-Gate CI/CD 전수 감사' : 'C:\\Warehouse 옵시디언 뉴런 볼트 (79 Nodes · 138 Synapses) 재구축',
+        command: cmd,
+        cwd: fs.existsSync(BSC_PATHS.warehouseRoot) ? BSC_PATHS.warehouseRoot : 'C:\\자비스',
+        chlgdPhase: 'Warehouse Neuron & CI/CD',
+        partnerAgent: partner,
+        spoken: isAudit
+          ? `네, 대표님. 비서실장 ${partner.name} 요원과 함께 C 드라이브 Warehouse 18대 정본 스킬과 5907개 파일의 6단계 마스터 CI/CD 감사를 실시간 터미널에서 실행합니다.`
+          : `네, 대표님. C 드라이브 Warehouse 옵시디언 뉴런 그래프 79개 노드와 138개 시냅스를 실시간 재구축하고 HUD 창에 연동했습니다.`
       };
     }
 

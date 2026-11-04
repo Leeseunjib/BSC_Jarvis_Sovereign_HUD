@@ -1,10 +1,10 @@
 {
-  "createdAt": "2026-11-03T03:01:38.456Z",
+  "createdAt": "2026-11-04T03:54:26.486Z",
   "hashes": {
-    "server.js": "58e431163249ccfcf6f51ed4769557418757de60f8be6323b68c22add0a93680",
-    "server.verified.js": "4490f9cfb8f60d14050338c42def6f76abe87b7ae1f5d12bc7dd01735cd7a103",
-    "scripts/butler-engine.js": "a028a0ca6d33bea411117eb03a02f0cc9d319691b6ac74023e2e645c92cf774a",
-    "scripts/butler-engine.verified.js": "a028a0ca6d33bea411117eb03a02f0cc9d319691b6ac74023e2e645c92cf774a",
+    "server.js": "c253dbcba03d0dfb0653704dc2d9c319ac4a0e4a1a8f8782eac9f72f0c552901",
+    "server.verified.js": "27a731515c5b552abca5ed44f17721da976f8a7cbc5c2b73a7c8b7c4eb32f60f",
+    "scripts/butler-engine.js": "a43ca7c92f8d2bee612b8751350bb0416b7a6bfb6e4a82e046dbac5a7a27fed4",
+    "scripts/butler-engine.verified.js": "a43ca7c92f8d2bee612b8751350bb0416b7a6bfb6e4a82e046dbac5a7a27fed4",
     "scripts/voice-session.js": "a9b455a0114e604393f1783195915c7c7cd053d1e883b4f3f582f22211c59adb",
     "scripts/media-control.js": "a32eb14ed3b7e750cdd175b311f7215a551eb7bc5bcd80a72827135e57e04ae6",
     "scripts/windows-media.ps1": "78cbdc7855f15c4b6707a85b4992ec3d71aa173a0c00ea0d16e08a28b5756e8e",
@@ -19,8 +19,8 @@
     "bin/hud-build.json": "1c1ea6b2fe70b6be106bf095a64fe2281c3feed54fc1d4864734ab90550ae5eb",
     "scripts/Build-VerifiedHud.ps1": "d57f3b44d912648d2051d3e947675a7f853c38b45ec92d5e94d94b3b4e8b64eb",
     "scripts/Install-VerifiedRuntime.ps1": "729c30fdd3c9e97d490684d112d6fa054f20245c7a7cdd64b48e4d945bc153f3",
-    "scripts/jarvis-harness2-engine.js": "eed87147918d681870f0ff35e5cc08254c557ba477a7db4cab1bce8acb421a37",
-    "scripts/bsc-collaboration-bridge.js": "09614805bb60fffdf58006c75e6a315e8c40383116b0ba6975cb159b2e4ea0aa",
+    "scripts/jarvis-harness2-engine.js": "46be1c712efa1ec9b921addab8f1a83d3f4c6b8ce26d439805ace48f690471e4",
+    "scripts/bsc-collaboration-bridge.js": "a38ef813604359f2fa8f963480aae55d3bb844eed0ff45178da373da72019a44",
     "scripts/Watch-JarvisHud.ps1": "f40e75319b02dad9821d8c36b64b934ff59ccd9fd450eb12e7b1b8f8e8f21106",
     "scripts/Verify-HudStartup.ps1": "1f4285551832a9c515c4e1f359b8f63ae524550aa4125e7c2c20be1f392eb420",
     "scripts/Check-HudWindows.ps1": "82adc625442bb6312def0dc5be8f832a5aed7c5a4eba5e9961b1141887d58ed4",
@@ -46,9 +46,9 @@
     "public/js/speaker-capture.js": "8fd8cfe71bb0a3e00e8e1a0d057204983c7300e57ebf6c6d0731c9a2ea4457f8",
     "public/js/speaker-capture-worklet.js": "c5f551d107b802b97f1afaf5a3eacf5b7c62e589b63bd6009c30f82cd3099633",
     "public/js/jarvis-app.js": "da1b458571af20026b04636ff7cd912926470d6f85bbb6b3de6df04db06e9d6a",
-    "scripts/ecosystem-index.js": "bcd93712261a0ceaf17dcfc8d8eb5e4378d3c884abb1e5a625ee711a0c3c5b87",
+    "scripts/ecosystem-index.js": "4d7b60e47e6e6aefd44058acb24b28f178a41f3cae850e079fff93c86c6fbdbb",
     "scripts/office-doc-engine.js": "9c78cb3be8bbecf82f5f129c6a92904db6c277204d137e4edeaf77020da4f167",
-    "scripts/rea-laya-bridge.js": "0580f0495552ced78ce39913a90d8967a2336e6d60b565238d4ebf8a2674ce3d",
+    "scripts/rea-laya-bridge.js": "8983dd56cd5ed682c2163b04363c372a70adca339c2805251b48ba2d26973086",
     "scripts/recursive-learning.js": "9a0281db902f55f6c3684ad96b2e032c62791f63ec189457799b683af81174eb"
   }
 }

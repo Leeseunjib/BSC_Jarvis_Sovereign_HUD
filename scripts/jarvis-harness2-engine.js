@@ -147,6 +147,26 @@ const JARVIS_CORE_SKILLS = [
 
 ## 2. Laya Language (\`convaiinnovations/laya-multilingual\` + System-1 Router)
 - 한국어 자연어 오더를 Laya 구조화 상태·질문 DSL(\`{ state, questions }\`) 및 System-1 결정론적 라우터/GRPO 보상 루프로 해석하여 모호함 없는 실행 계획을 도출합니다.`
+  },
+  {
+    name: 'warehouse-obsidian-neuron',
+    title: 'Warehouse 옵시디언 뉴런 (79 Nodes · 138 Synapses) & 7대 도메인 시냅스 스킬',
+    triggers: '뉴런, 옵시디언, 시냅스, 웨어하우스, warehouse, 스킬창고, 창고뉴런, bsc warehouse, 2-hop, 7대도메인',
+    description: 'C:\\Warehouse (05.BSC_Skill_Warehouse)의 7대 도메인, 18대 BSC 정본 스킬, 217개 세부 스킬, 55개 GitHub 오픈소스, 32인 에이전트 무장 맵을 옵시디언 뉴런 그래프(79 Nodes / 138 Synapses)로 2-Hop 검색·시각화·검증하는 스킬입니다.',
+    body: `# Warehouse Obsidian Neuron & 2-Hop Synapse Skill
+
+## 1. 5-Layer 옵시디언 뉴런 볼트 (\`C:\\Warehouse\\3.Obsidian_Vault\`)
+- **Layer 0 (Master MOC)**: \`00_Master_Neuron_MOC.md\`
+- **Layer 1 (7대 도메인 허브)**: \`01_Domains/DOM-01..DOM-07.md\`
+- **Layer 2 (18대 BSC 정본 스킬)**: \`02_Originals/*.md\`
+- **Layer 3 (19대 외부 패키지 & 55대 GitHub 레포)**: \`03_Imported_Packs/*.md\`
+- **Layer 4 (32인 전사 에이전트 무장 맵)**: \`04_Agents_Skill_Map/Agent_*.md\`
+- **Layer 5 (REA Clean-Room 블루프린트)**: \`05_REA_Blueprints/REA_Blueprints_Hub.md\`
+
+## 2. 자비스 실행 및 API 연동
+- **음성/텍스트 오더**: *"자비스, 뉴런에서 REA 검색해줘"*, *"창고 뉴런 보여줘"*, *"창고 감사 돌려줘"*
+- **REST API**: \`GET /api/warehouse/neurons?q=...\`, \`POST /api/warehouse/neurons\`
+- **CLI**: \`bsc warehouse --neuron\`, \`bsc warehouse --audit\`, \`bsc warehouse --search <keyword>\``
   }
 ];
 
@@ -449,9 +469,30 @@ function getWarehouseAndBscSkillInventory() {
     description: s.description
   }));
 
+  let warehouseNeuronGraph = null;
+  try {
+    const neuronJsonFile = path.join(activeWarehouseRoot, '00.운영', 'warehouse_neuron_graph.json');
+    if (fs.existsSync(neuronJsonFile)) {
+      const ng = JSON.parse(fs.readFileSync(neuronJsonFile, 'utf8'));
+      warehouseNeuronGraph = {
+        ok: true,
+        builtAt: ng.builtAt,
+        version: ng.version,
+        nodeCount: ng.nodeCount || (ng.nodes ? ng.nodes.length : 0),
+        edgeCount: ng.edgeCount || (ng.edges ? ng.edges.length : 0),
+        domainCount: Array.isArray(ng.domains) ? ng.domains.length : 7,
+        originalSkillCount: originalSkills.length,
+        subskillCount: 217,
+        githubRepoCount: 55,
+        mocPath: path.join(activeWarehouseRoot, '3.Obsidian_Vault', '00_Master_Neuron_MOC.md')
+      };
+    }
+  } catch (_) {}
+
   return {
     warehouseRoot: activeWarehouseRoot,
     warehouseExists: fs.existsSync(activeWarehouseRoot),
+    warehouseNeuronGraph,
     bscRoot: 'C:\\BeausCreators',
     bscExists: fs.existsSync('C:\\BeausCreators\\01.BSC_HQ'),
     beautifulWorldRoot: 'C:\\BeautifulWorld',
