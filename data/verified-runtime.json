@@ -1,5 +1,5 @@
 {
-  "createdAt": "2026-11-04T04:21:39.690Z",
+  "createdAt": "2026-11-04T04:39:27.213Z",
   "hashes": {
     "server.js": "c253dbcba03d0dfb0653704dc2d9c319ac4a0e4a1a8f8782eac9f72f0c552901",
     "server.verified.js": "27a731515c5b552abca5ed44f17721da976f8a7cbc5c2b73a7c8b7c4eb32f60f",
@@ -13,10 +13,10 @@
     "public/js/speech-turn-buffer.js": "d9d1ec410495a10953d7f7edb9c990c16c83f46fefc7a3c3486233229ccbf39c",
     "public/js/jarvis-react-hud.js": "a13e902f303698214246edaa72d875cc307310c4bb1ac11f45939ab239baaaef",
     "scripts/Open-JarvisHud.ps1": "b575fe1250cd1c4bec2d29961022480f626b4d963e2181d5d39613c43b0ec0c7",
-    "scripts/JarvisMonitorOverlay.cs": "222695e78d1fa47fa0a14c5a704205e79c66981455d15c159e87b27fa7155891",
-    "scripts/verified-hud/MonitorOverlayApp.cs": "222695e78d1fa47fa0a14c5a704205e79c66981455d15c159e87b27fa7155891",
-    "bin/JarvisHud.exe": "4da27dc80ea66583368ae87ad9a3fbad8f9ea60d22fdbc847247573aac30b5d4",
-    "bin/hud-build.json": "48c8614d788c490f32f84e9af18273d608a04b94b627b20850fab6d2448c8a11",
+    "scripts/JarvisMonitorOverlay.cs": "d80d07c84be915dc9fdc10c05711faecb3684423d7dea2c23aa94b56114b8739",
+    "scripts/verified-hud/MonitorOverlayApp.cs": "d80d07c84be915dc9fdc10c05711faecb3684423d7dea2c23aa94b56114b8739",
+    "bin/JarvisHud.exe": "cc4952436a459991966b5204dabea5f49fa77ab855c4ad0d85b32cdb7e25dec2",
+    "bin/hud-build.json": "b45e53c199b0748dec56d903f1c274f3fd040a92107a30cb08ba8d3c8b777e75",
     "scripts/Build-VerifiedHud.ps1": "d57f3b44d912648d2051d3e947675a7f853c38b45ec92d5e94d94b3b4e8b64eb",
     "scripts/Install-VerifiedRuntime.ps1": "729c30fdd3c9e97d490684d112d6fa054f20245c7a7cdd64b48e4d945bc153f3",
     "scripts/jarvis-harness2-engine.js": "46be1c712efa1ec9b921addab8f1a83d3f4c6b8ce26d439805ace48f690471e4",
