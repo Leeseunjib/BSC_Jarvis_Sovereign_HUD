@@ -1,10 +1,10 @@
 {
-  "createdAt": "2026-11-04T04:39:27.213Z",
+  "createdAt": "2026-11-04T08:39:25.184Z",
   "hashes": {
     "server.js": "c253dbcba03d0dfb0653704dc2d9c319ac4a0e4a1a8f8782eac9f72f0c552901",
     "server.verified.js": "27a731515c5b552abca5ed44f17721da976f8a7cbc5c2b73a7c8b7c4eb32f60f",
-    "scripts/butler-engine.js": "e7bbbd60db1acea16d429cba34426f9f7bb697fd520c3e03bf619d87a39d8f5f",
-    "scripts/butler-engine.verified.js": "e7bbbd60db1acea16d429cba34426f9f7bb697fd520c3e03bf619d87a39d8f5f",
+    "scripts/butler-engine.js": "5012d2ba4962781b87513338313357146bf8fe8ad2ea7dcabf008111813a3557",
+    "scripts/butler-engine.verified.js": "5012d2ba4962781b87513338313357146bf8fe8ad2ea7dcabf008111813a3557",
     "scripts/voice-session.js": "a9b455a0114e604393f1783195915c7c7cd053d1e883b4f3f582f22211c59adb",
     "scripts/media-control.js": "a32eb14ed3b7e750cdd175b311f7215a551eb7bc5bcd80a72827135e57e04ae6",
     "scripts/windows-media.ps1": "78cbdc7855f15c4b6707a85b4992ec3d71aa173a0c00ea0d16e08a28b5756e8e",

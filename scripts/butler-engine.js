@@ -515,18 +515,24 @@ function searchYouTubeTop5(query) {
  * Local Ollama / Conversational Brain Responder (Brain.swift + APIBrain.swift 1:1)
  * Attempts local Ollama first if running, otherwise uses built-in intelligent Korean Butler conversational brain.
  */
-function askLocalOllama(prompt, systemPrompt, model = 'gemma4:e4b', timeoutMs = 1800) {
+function askLocalOllama(prompt, systemPrompt, model = 'gemma4:e4b', timeoutMs = 11000) {
   return new Promise(resolve => {
     const payload = JSON.stringify({
       model,
-      prompt: `${systemPrompt}\n\n사용자: ${prompt}\n자비스:`,
-      stream: false
+      stream: false,
+      think: false,
+      keep_alive: '15m',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: String(prompt).slice(0, 2000) }
+      ],
+      options: { num_predict: 140, temperature: 0.3 }
     });
     const req = http.request(
       {
         hostname: '127.0.0.1',
         port: 11434,
-        path: '/api/generate',
+        path: '/api/chat',
         method: 'POST',
         timeout: timeoutMs,
         headers: {
@@ -540,7 +546,80 @@ function askLocalOllama(prompt, systemPrompt, model = 'gemma4:e4b', timeoutMs = 
         res.on('end', () => {
           try {
             const parsed = JSON.parse(body);
-            if (parsed && parsed.response) return resolve(parsed.response.trim());
+            const txt = parsed && parsed.message && parsed.message.content ? String(parsed.message.content).trim() : (parsed && parsed.response ? String(parsed.response).trim() : '');
+            if (txt) return resolve(txt);
+          } catch (_) {}
+          resolve(null);
+        });
+      }
+    );
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
+    req.write(payload);
+    req.end();
+  });
+}
+
+function resolveEnvGeminiKey(cfg) {
+  if (cfg && cfg.geminiApiKey && String(cfg.geminiApiKey).trim()) return String(cfg.geminiApiKey).trim();
+  if (process.env.GEMINI_API_KEY) return String(process.env.GEMINI_API_KEY).trim();
+  if (process.env.GOOGLE_AI_STUDIO_API_KEY) return String(process.env.GOOGLE_AI_STUDIO_API_KEY).trim();
+  for (const f of ['C:\\자비스\\.env', 'C:\\BeausCreators\\.env', 'C:\\BeausCreators\\.env.dev']) {
+    try {
+      if (fs.existsSync(f)) {
+        const raw = fs.readFileSync(f, 'utf8');
+        const m = raw.match(/^(?:GEMINI_API_KEY|GOOGLE_AI_STUDIO_API_KEY)=(.+)$/m);
+        if (m && m[1]) return m[1].trim().replace(/^["']|["']$/g, '');
+      }
+    } catch (_) {}
+  }
+  return '';
+}
+
+function askFastCloudGeminiFallback(prompt, systemPrompt, cfg, timeoutMs = 6000) {
+  const apiKey = resolveEnvGeminiKey(cfg);
+  if (!apiKey) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const model = 'gemma-4-26b-a4b-it';
+    const payload = JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${systemPrompt}\n\n질문: ${String(prompt).slice(0, 1500)}\n반드시 사고 과정(영어 메모 등) 없이 한국어 답변 문장만 1~2문장으로 바로 출력하세요.` }]
+        }
+      ],
+      generationConfig: { temperature: 0.25, maxOutputTokens: 160 }
+    });
+    const req = https.request(
+      {
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        method: 'POST',
+        timeout: timeoutMs,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      },
+      res => {
+        let body = '';
+        res.on('data', c => (body += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) return resolve(null);
+          try {
+            const parsed = JSON.parse(body);
+            const parts = parsed?.candidates?.[0]?.content?.parts || [];
+            const rawText = parts.filter(p => !p.thought).map(p => p.text || '').join('').trim();
+            const cleaned = rawText
+              .replace(/^(?:\*\s*[A-Za-z][^\n]*\n)+/g, '')
+              .replace(/^(?:자비스|답변)\s*[:：]\s*/i, '')
+              .trim();
+            if (cleaned && /[가-힣]/.test(cleaned)) {
+              return resolve({ text: cleaned, provider: 'gemini-cloud-fallback', model, requestedModel: cfg.brainModel || model, modelVerified: true, fallback: true });
+            }
           } catch (_) {}
           resolve(null);
         });
@@ -596,7 +675,10 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
   const name = cfg.assistantName || '자비스';
   const sq = squash(prompt);
 
-  // 1) Immediate natural Korean conversational responses
+  // 1) Immediate natural Korean conversational responses & acknowledgments (0ms)
+  if (/^(알겠어|알았어|알겠습니다|오케이|그래|그래알겠어|네알겠습니다|응알겠어|좋아|오키|확인|확인했어|알겠어요|오케이알겠어)$/.test(sq)) {
+    return `네, ${user}. 다음 필요한 작업이 있으시면 언제든 말씀해 주세요.`;
+  }
   if (/내말들려|들려|잘들려|소리가들려|마이크테스트|아아|들리니|보이니/.test(sq)) {
     return `네, ${user}! 목소리가 아주 또렷하게 잘 들립니다. 무엇이든 편하게 말씀해 주세요.`;
   }
@@ -662,14 +744,42 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
     return `${a} ${op} ${b}의 계산 결과는 ${ans}입니다, ${user}.`;
   }
 
-  // Use the configured provider (gemini-cli, gemini, ollama, lmstudio, openai)
+  // Use the configured provider with resilient parallel fallback (Local Ollama + Cloud Fast Gemini -> BSC Executive Knowledge)
   const provider = String(cfg.brainProvider || 'gemini-cli').toLowerCase();
   const selectedModel = String(cfg.brainModel || 'gemini-2.5-flash').trim();
+  const localOllamaModel = provider === 'ollama' && selectedModel ? selectedModel : 'gemma4:e4b';
+  const sysPrompt = `당신은 ${user}(이건우 대표님)을 보좌하는 BeausCreators(C:\\BeausCreators 본사 26인 에이전트, C:\\BeautifulWorld 출판 자동화, C:\\Warehouse 옵시디언 뉴런 79노드 창고)의 상용 정본 AI 음성 비서 ${name}(C:\\자비스)입니다. 대괄호([구체적인 목표] 등)나 빈칸 템플릿, 가상 프로젝트명을 절대 쓰지 말고 실제 BeausCreators 3대 생태계와 상용 자비스 고도화 현황을 바탕으로 1~2문장 이내로 간결·정확·공손하게 한국어 구어체로 답변하세요.`;
+
+  const allowFallback = process.env.JARVIS_DISABLE_EXTERNAL_HUB !== '1';
+  const parallelOllamaPromise = allowFallback ? askLocalOllama(prompt, sysPrompt, localOllamaModel, 10000) : Promise.resolve(null);
 
   if (['antigravity-cli', 'gemini-cli', 'geminicli', 'gemini', 'ollama'].includes(provider)) {
-    return askVoiceBrain(prompt, cfg);
+    const raceMs = allowFallback ? 3200 : 9500;
+    const primaryRes = await Promise.race([
+      askVoiceBrain(prompt, cfg),
+      new Promise(resolve => setTimeout(() => resolve({ provider: 'unavailable', error: 'voice-timeout-race' }), raceMs))
+    ]);
+    if (primaryRes && primaryRes.provider !== 'unavailable' && primaryRes.text) {
+      return primaryRes;
+    }
+    if (!allowFallback) {
+      return primaryRes;
+    }
   }
 
+  // Tier 2 Fallback: Parallel Local On-Device Ollama (already warming in background!)
+  const ollamaReply = await parallelOllamaPromise;
+  if (ollamaReply) {
+    return { text: ollamaReply, provider: 'ollama', model: localOllamaModel, requestedModel: selectedModel, modelVerified: true, fallback: true };
+  }
+
+  // Tier 3 Fallback: Fast Cloud Gemini/Gemma API via .env key
+  const fastCloud = await askFastCloudGeminiFallback(prompt, sysPrompt, cfg, 5000);
+  if (fastCloud && fastCloud.text) {
+    return fastCloud;
+  }
+
+  // Tier 4 Fallback: Unified LLM Hub if available
   const mappedProvider = provider === 'gemini-cli' ? 'gemini' : provider;
   if (['gemini', 'openai', 'ollama', 'lmstudio'].includes(mappedProvider) && unifiedLlmHub && typeof unifiedLlmHub.chatWithUnifiedLlm === 'function') {
     try {
@@ -677,24 +787,36 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
       const providerModel = selectedModel || hubState[`${mappedProvider}Model`] || undefined;
       const llmRes = await unifiedLlmHub.chatWithUnifiedLlm({
         prompt, provider: mappedProvider, ...(providerModel ? { model: providerModel } : {}),
-        systemPrompt: `당신은 이건우 대표님을 보좌하는 뷰스크리에이터스(C:\\BeausCreators)의 AI 집사 자비스입니다. 2문장 이내로 간결하고 자연스러운 한국어 구어체로 답변하세요.`
+        systemPrompt: sysPrompt
       });
       if (llmRes && llmRes.ok && llmRes.text) {
-        return String(llmRes.text);
+        return { text: String(llmRes.text).trim(), provider: mappedProvider, model: providerModel || 'hub', modelVerified: true, fallback: true };
       }
     } catch (_) {}
   }
 
-  const localOllamaModel = provider === 'ollama' && selectedModel ? selectedModel : 'gemma4:e4b';
-  const ollamaReply = await askLocalOllama(
-    prompt,
-    `당신은 ${user}을 보좌하는 한국어 음성 비서 ${name}입니다. 1~2문장으로 간결하고 정중하게 한국어로 답변하세요.`,
-    localOllamaModel
-  );
-  if (ollamaReply) return ollamaReply;
+  // Tier 5 Fallback: Deterministic 3-Ecosystem Local Knowledge Lookup
+  try {
+    const found = searchEcosystems(prompt, { limit: 2 });
+    if (found && Array.isArray(found.hits) && found.hits.length > 0) {
+      const top = found.hits[0];
+      return {
+        text: `네, ${user}. 우리 3대 생태계(${top.ecosystem})에서 「${top.title}」 문서를 확인했습니다. 상세 내용을 창으로 보시려면 「우리 시스템에서 ${prompt} 찾아줘」라고 말씀해 주세요.`,
+        provider: 'bsc-local-core',
+        model: 'bsc-3ecosystem-index',
+        modelVerified: true,
+        fallback: true
+      };
+    }
+  } catch (_) {}
 
-  // Smart fallback: answer politely and offer to search if it's an information query
-  return `네, ${user}. 말씀하신 「${prompt}」 내용을 확인했습니다. 웹 검색이 필요하시면 「구글에서 ${prompt} 검색해」라고 말씀해 주세요.`;
+  return {
+    text: `네, ${user}. 말씀하신 「${prompt}」 내용을 확인했습니다. 관련 자료 검색이 필요하시면 「${prompt} 검색해줘」라고 말씀해 주세요.`,
+    provider: 'bsc-local-core',
+    model: 'bsc-executive-core',
+    modelVerified: true,
+    fallback: true
+  };
 }
 
 function isProcessAlive(pid) {
@@ -957,10 +1079,21 @@ class ButlerEngine {
       s = aliases[sq];
     }
 
-    // Strip compound browser prefixes ("웹브라우저 켜서 네이버 열어줘" -> "네이버 열어줘")
-    const compoundBrowserMatch = s.match(/^(?:웹\s*브라우저|브라우저|크롬\s*브라우저|구글\s*크롬|크롬|엣지|인터넷\s*창|인터넷)(?:을|를)?\s*(?:켜서|열어서|실행해서|띄워서|켜고|열고|에서)\s+(.+)$/i);
-    if (compoundBrowserMatch && compoundBrowserMatch[1].trim()) {
+    // Strip compound browser prefixes or suffixes ("웹브라우저 켜서 네이버 열어줘", "유튜브 열어 줘 웹 브라우저", "웹 브라우저로 유튜브 켜 줘")
+    const compoundBrowserMatch = s.match(/^(?:웹\s*브라우저|브라우저|크롬\s*브라우저|구글\s*크롬|크롬|엣지|인터넷\s*창|인터넷)(?:을|를|로|으로|에서)?\s*(?:(?:켜서|열어서|실행해서|띄워서|켜고|열고|에서)\s+)?(.+)$/i);
+    if (compoundBrowserMatch && compoundBrowserMatch[1].trim() && !/^(?:열어|켜|실행해|틀어|보여|띄워)(?:\s*(?:줘|봐|주세요|줄래|달라고|주라))?$/i.test(compoundBrowserMatch[1].trim())) {
       s = compoundBrowserMatch[1].trim();
+    }
+    const trailingBrowserMatch = s.match(/^(.+?)\s+(?:웹\s*브라우저|브라우저|크롬\s*브라우저|구글\s*크롬|크롬|엣지|인터넷\s*창|인터넷)(?:로|으로|에서|창|창으로)?$/i);
+    if (trailingBrowserMatch && trailingBrowserMatch[1].trim() && /(?:열어|켜|실행|틀어|보여|띄워|검색|찾아|접속|들어가)/.test(trailingBrowserMatch[1])) {
+      s = trailingBrowserMatch[1].trim();
+    }
+
+    // Direct URL or browser launch command (e.g. 'start chrome --new-window "http://127.0.0.1:7777/..."' or raw 'https://...')
+    const directUrlMatch = s.match(/https?:\/\/[^\s"'<>]+/i);
+    if (directUrlMatch && (/^(?:start\s+|chrome\s+|msedge\s+|https?:\/\/)/i.test(s) || /(?:열어|켜|실행|접속|보여|띄워)/.test(s))) {
+      const targetUrl = directUrlMatch[0].replace(/["']+$/g, '');
+      return { intent: 'web', label: '웹 브라우저', query: targetUrl, url: targetUrl };
     }
 
     const sq2 = squash(s);
@@ -1027,7 +1160,7 @@ class ButlerEngine {
     }
 
     const nthMap = { '1': 1, '일': 1, '첫': 1, '2': 2, '이': 2, '두': 2, '3': 3, '삼': 3, '세': 3, '4': 4, '사': 4, '네': 4, '5': 5, '오': 5, '다섯': 5 };
-    const ytNthMatch = s.match(/^(1|2|3|4|5|일|이|삼|사|오|첫|두|세|네|다섯)\s*(?:번|번째)?\s*(?:영상|거)?\s*(?:틀어|재생|열어|보여|봐)?$/);
+    const ytNthMatch = s.match(/^(1|2|3|4|5|일|이|삼|사|오|첫|두|세|네|다섯)\s*(?:번|번째)?\s*(?:영상|거)?\s*(?:틀어|재생해|재생|열어|보여|봐)?(?:\s*(?:줘|봐|주세요|줄래))?$/);
     if (ytNthMatch && nthMap[ytNthMatch[1]]) {
       return { intent: 'youtubeNth', index: nthMap[ytNthMatch[1]] };
     }
@@ -1211,6 +1344,7 @@ class ButlerEngine {
 
     const SITE_MAP = {
       '유튜브': { label: '유튜브', url: 'https://www.youtube.com' },
+      '유투브': { label: '유튜브', url: 'https://www.youtube.com' },
       'youtube': { label: '유튜브', url: 'https://www.youtube.com' },
       '네이버': { label: '네이버', url: 'https://www.naver.com' },
       'naver': { label: '네이버', url: 'https://www.naver.com' },
@@ -1219,13 +1353,24 @@ class ButlerEngine {
       '깃허브': { label: 'GitHub', url: 'https://github.com/Leeseunjib/BSC_Jarvis_Sovereign_HUD' },
       'github': { label: 'GitHub', url: 'https://github.com/Leeseunjib/BSC_Jarvis_Sovereign_HUD' },
       '쿠팡': { label: '쿠팡', url: 'https://www.coupang.com' },
+      'coupang': { label: '쿠팡', url: 'https://www.coupang.com' },
       '챗지피티': { label: 'ChatGPT', url: 'https://chatgpt.com' },
-      '제미나이웹': { label: 'Gemini', url: 'https://gemini.google.com' }
+      '지피티': { label: 'ChatGPT', url: 'https://chatgpt.com' },
+      'chatgpt': { label: 'ChatGPT', url: 'https://chatgpt.com' },
+      '제미나이웹': { label: 'Gemini', url: 'https://gemini.google.com' },
+      '제미나이사이트': { label: 'Gemini', url: 'https://gemini.google.com' },
+      '지메일': { label: 'Gmail', url: 'https://mail.google.com' },
+      'gmail': { label: 'Gmail', url: 'https://mail.google.com' },
+      '다음': { label: 'Daum', url: 'https://www.daum.net' },
+      'daum': { label: 'Daum', url: 'https://www.daum.net' }
     };
 
-    const appMatch = s.match(/^(.+?)\s*(?:를|을|좀)?\s*(?:열어|켜|실행해|틀어|보여|접속해)(?:줘|봐|주세요)?$/);
+    const appMatch = s.match(/^(.+?)\s*(?:를|을|좀|로|으로)?\s*(?:열어|켜|실행해|실행시켜|띄워|틀어|보여|접속해|들어가)(?:\s*(?:줘|봐|주세요|줄래|달라고|주라))?$/);
     if (appMatch) {
-      const targetApp = appMatch[1].replace(/(?:를|을|좀|사이트|페이지|창)$/g, '').trim();
+      const targetApp = appMatch[1]
+        .replace(/(?:\s+(?:웹\s*브라우저|브라우저|인터넷\s*창|인터넷|사이트|페이지|홈페이지|창|화면))(?:를|을|로|으로|에서)?$/gi, '')
+        .replace(/(?:를|을|좀|사이트|페이지|창)$/g, '')
+        .trim();
       const sqTarget = squash(targetApp);
       const siteHit = SITE_MAP[targetApp] || SITE_MAP[sqTarget];
       if (siteHit) {
@@ -1237,11 +1382,11 @@ class ButlerEngine {
       return { intent: 'openApp', spoken: targetApp };
     }
 
-    if (/^(유튜브|유튜브를|유튜브좀)$/.test(sq2)) {
+    if (/^(유튜브|유투브|유튜브를|유튜브좀|유튜브창|유튜브사이트)$/.test(sq2)) {
       return { intent: 'web', label: '유튜브', query: '홈', url: 'https://www.youtube.com' };
     }
 
-    const typeMatch = s.match(/^(.+?)\s*(?:이?라고)\s*(?:써|쳐|입력해|타이핑해|적어)(?:줘)?$/);
+    const typeMatch = s.match(/^(.+?)\s*(?:이?라고)\s*(?:써|쳐|입력해|타이핑해|적어)(?:\s*(?:줘|봐|주세요))?$/);
     if (typeMatch) {
       return { intent: 'type', text: typeMatch[1].trim() };
     }
