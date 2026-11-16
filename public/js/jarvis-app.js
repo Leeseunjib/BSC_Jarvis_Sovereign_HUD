@@ -193,7 +193,7 @@
     }, 4650);
   }
 
-  // 4. Speak via 3-Tier Korean Voice Output (96kbps Neural MP3 -> Windows SAPI WAV -> Web Speech)
+  // 4. Speak via Studio Neural Korean Voice Output (Never fallback to Windows female SAPI voice)
   async function speakText(text) {
     if (!text) return;
     if (appState.currentAudio) {
@@ -210,18 +210,13 @@
       audio.onended = () => {
         orbView.classList.remove('fast');
         appState.speaking = false;
-        appState.awakeUntil = Date.now() + 8000;
+        appState.awakeUntil = Date.now() + 30000;
       };
       await audio.play();
       return;
     } catch (_) {
       orbView.classList.remove('fast');
       appState.speaking = false;
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ko-KR';
-        window.speechSynthesis.speak(utterance);
-      }
     }
   }
 
@@ -420,7 +415,16 @@
     });
 
     rec.onresult = ev => {
-      if (!appState.listening || appState.recognition !== rec || discardResults || appState.speaking) return;
+      if (!appState.listening || appState.recognition !== rec || discardResults) return;
+      if (appState.speaking) {
+        if (appState.currentAudio) {
+          try { appState.currentAudio.pause(); } catch (_) {}
+          appState.currentAudio = null;
+        }
+        appState.speaking = false;
+        appState.awakeUntil = Date.now() + 45000;
+        fetch('/api/ear/barge-in', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) }).catch(() => {});
+      }
       let interim = '';
       const finals = [];
       for (let i = ev.resultIndex; i < ev.results.length; i++) {

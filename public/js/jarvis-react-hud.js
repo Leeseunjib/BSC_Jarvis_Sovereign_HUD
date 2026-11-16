@@ -52,7 +52,7 @@
     return { isSpeaking, speakHd };
   }
 
-  function useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef) {
+  function useMicrophoneMeter(serverSpeakingRef, serverSpeakingTextRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef) {
     const [micLevel, setMicLevel] = useState(0);
     const [micActive, setMicActive] = useState(false);
     const [micDeviceLabel, setMicDeviceLabel] = useState('');
@@ -207,6 +207,9 @@
                 if (d && typeof d.isSpeaking === 'boolean' && serverSpeakingRef) {
                   serverSpeakingRef.current = d.isSpeaking;
                 }
+                if (d && typeof d.speakingText === 'string' && serverSpeakingTextRef) {
+                  serverSpeakingTextRef.current = d.speakingText;
+                }
                 if (d && captureRef.current) captureRef.current.sync(d.speaker, d.isSpeaking);
                 if (d && typeof d.forceAwakeUntil === 'number' && d.forceAwakeUntil > Date.now() && awakeUntilRef) {
                   awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, d.forceAwakeUntil);
@@ -274,6 +277,7 @@
     });
 
     const serverSpeakingRef = useRef(false);
+    const serverSpeakingTextRef = useRef('');
     const { isSpeaking, speakHd } = useStudioHdVoice();
     const audioActivityRef = useRef(null);
     const speechActivityRef = useRef(false);
@@ -291,7 +295,7 @@
     const executeRef = useRef(null);
     const captureRef = useRef(null);
     if (!captureRef.current && window.JarvisSpeakerCapture) captureRef.current = new window.JarvisSpeakerCapture();
-    const { micLevel, micActive, micDeviceLabel, voiceFeaturesRef, startMeter, streamRef } = useMicrophoneMeter(serverSpeakingRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef);
+    const { micLevel, micActive, micDeviceLabel, voiceFeaturesRef, startMeter, streamRef } = useMicrophoneMeter(serverSpeakingRef, serverSpeakingTextRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef);
     const configRef = useRef(config);
     configRef.current = config;
     const generationRef = useRef(0);
@@ -386,7 +390,7 @@
             })
             .catch(() => {});
         },
-        isMuted: () => isSpeakingRef.current || serverSpeakingRef.current,
+        isMuted: () => false,
         onPreview: text => {
           if (captureRef.current && (captureRef.current.enrolling || captureRef.current.protected)) return;
           const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
@@ -444,7 +448,6 @@
         restartTimer = setTimeout(() => {
           restartTimer = null;
           if (recRef.current !== rec || recRunningRef.current) return;
-          if (serverSpeakingRef.current || isSpeakingRef.current) { scheduleRestart(200); return; }
           try { begin(); } catch (_) { scheduleRestart(400); }
         }, delay);
       };
@@ -463,7 +466,6 @@
 
       rec.onspeechstart = () => {
         if (recRef.current !== rec) return;
-        if (isSpeakingRef.current || serverSpeakingRef.current) return;
         speechActivityRef.current = true;
         if (captureRef.current) captureRef.current.beginTurn();
         turnRef.current.audio(1);
@@ -476,15 +478,12 @@
       };
 
       rec.onresult = (event) => {
-        if (recRef.current !== rec || discardResultsRef.current || isSpeakingRef.current || serverSpeakingRef.current) return;
+        if (recRef.current !== rec || discardResultsRef.current) return;
         if (captureRef.current && captureRef.current.enrolling) {
           for (let i = event.resultIndex || 0; i < event.results.length; i++) captureRef.current.noteText(event.results[i][0].transcript, `${generation}:${i}`);
           turnRef.current.stop();
           return;
         }
-        if (captureRef.current) captureRef.current.beginTurn(2000);
-        reportEarHealth({ recognition: 'listening', error: '' });
-        networkFailures = 0;
         let interim = '';
         const finals = [];
         for (let i = 0; i < event.results.length; i++) {
@@ -492,6 +491,30 @@
           if (event.results[i].isFinal) finals.push({ id: `${generation}:${i}`, text: t });
           else interim += `${t} `;
         }
+        const combinedHeard = `${finals.map(f => f.text).join(' ')} ${interim}`.trim();
+        if (isSpeakingRef.current || serverSpeakingRef.current) {
+          const normHeard = combinedHeard.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+          const normSpk = String(serverSpeakingTextRef.current || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+          const hasBargeKeyword = /(자비스|사사리사|잠깐|멈춰|스톱|그만|조용|아니|근데|그리고|대신|유튜브|메모장|크롬|네이버|구글|계산기|탐색기|오늘|몇시|볼륨|소리)/.test(normHeard);
+          const isEcho = Boolean(normSpk && normHeard.length >= 3 && normSpk.includes(normHeard) && !hasBargeKeyword);
+          if (isEcho) return;
+          if (normHeard.length >= 2) {
+            // User is speaking while Jarvis is talking -> Instant Barge-In!
+            serverSpeakingRef.current = false;
+            isSpeakingRef.current = false;
+            awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, Date.now() + 45000);
+            fetch('/api/ear/barge-in', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: combinedHeard })
+            }).catch(() => {});
+          } else {
+            return;
+          }
+        }
+        if (captureRef.current) captureRef.current.beginTurn(2000);
+        reportEarHealth({ recognition: 'listening', error: '' });
+        networkFailures = 0;
         if (Date.now() < awakeUntilRef.current) {
           awakeUntilRef.current = Math.max(awakeUntilRef.current, Date.now() + 30000);
         }
@@ -537,7 +560,7 @@
       startSpeechRecognition();
       const watchdog = setInterval(() => {
         if (!streamRef.current && !/not-allowed|permission-denied/i.test(earHealth.error||'')) { startSpeechRecognition(); return; }
-        if (!recRunningRef.current && recRef.current && !serverSpeakingRef.current && !isSpeakingRef.current) {
+        if (!recRunningRef.current && recRef.current) {
           try { recRef.current.jarvisStart(); } catch (_) {}
         }
       }, 2000);
@@ -556,7 +579,8 @@
           if (d && d.ok && d.config) {
             setConfig(d.config);
             if (d.config.speechPauseMs && turnRef.current) {
-              turnRef.current.pauseMs = Math.max(1800, Math.min(6000, Number(d.config.speechPauseMs) || 2000));
+              turnRef.current.pauseMs = Math.max(850, Math.min(6000, Number(d.config.speechPauseMs) || 1100));
+              turnRef.current.shortPauseMs = Math.max(650, Math.min(1200, Math.round(turnRef.current.pauseMs * 0.65)));
             }
           }
         })

@@ -119,6 +119,34 @@ namespace JarvisSasariSa
         private static readonly System.Threading.SemaphoreSlim speechGate = new System.Threading.SemaphoreSlim(1, 1);
         private static string lastSpeechRequest = "";
         private static DateTime lastSpeechRequestAt = DateTime.MinValue;
+        private static SoundPlayer activeSoundPlayer = null;
+        private static System.Threading.CancellationTokenSource activeSpeechCts = null;
+        private static int lastSeenBargeInSeq = 0;
+
+        private static void StopAllVoicePlaybackImmediately(bool notifyServer = false)
+        {
+            try { if (activeSpeechCts != null) activeSpeechCts.Cancel(); } catch { }
+            try
+            {
+                if (activeSoundPlayer != null)
+                {
+                    activeSoundPlayer.Stop();
+                    activeSoundPlayer.Dispose();
+                    activeSoundPlayer = null;
+                }
+            }
+            catch { }
+            try { if (koreanVoicePlayer != null) koreanVoicePlayer.Stop(); } catch { }
+            isSpeaking = false;
+            if (notifyServer)
+            {
+                Task.Run(async () =>
+                {
+                    try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
+                    catch { }
+                });
+            }
+        }
 
         private static readonly Color CyanColor = Color.FromRgb(77, 217, 255);   // #4DD9FF (HUD.swift cyan)
         private static readonly Color AmberColor = Color.FromRgb(255, 184, 64);  // #FFB840 (HUD.swift amber)
@@ -1281,6 +1309,19 @@ namespace JarvisSasariSa
                         earWarningVisible = false;
                     }
 
+                    // 0. Check server-side Barge-In signal (interrupts TTS in <50ms when user speaks mid-sentence)
+                    string bargeStr = ExtractJsonNumber(json, "bargeInSeq");
+                    int parsedBargeSeq = 0;
+                    if (!string.IsNullOrEmpty(bargeStr) && int.TryParse(bargeStr, out parsedBargeSeq) && parsedBargeSeq > lastSeenBargeInSeq)
+                    {
+                        lastSeenBargeInSeq = parsedBargeSeq;
+                        if (isSpeaking)
+                        {
+                            WriteLog("Barge-In detected (seq=" + parsedBargeSeq + "): stopping active TTS playback immediately");
+                            StopAllVoicePlaybackImmediately(false);
+                        }
+                    }
+
                     // 1. Animate Orb core scale from live microphone RMS (`HUD.swift` line 52: 1 + min(v * 18, 0.6))
                     int mlIdx = json.IndexOf("\"micLevel\":");
                     if (mlIdx >= 0 && orbCoreScale != null)
@@ -1320,6 +1361,11 @@ namespace JarvisSasariSa
                         if (isMiniMode) ToggleMiniMode(false);
                         if (!isFinal)
                         {
+                            if (isSpeaking)
+                            {
+                                WriteLog("Interim user speech detected while speaking: stopping TTS immediately");
+                                StopAllVoicePlaybackImmediately(true);
+                            }
                             try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
                             SetHudAppearance(CyanColor);
                             string liveTitle = !string.IsNullOrEmpty(hudTitle) ? hudTitle : "● 경청 중 · 끝까지 편하게 말씀하세요";
@@ -1332,6 +1378,10 @@ namespace JarvisSasariSa
                         }
                         else
                         {
+                            if (json.Contains("\"intent\":\"hush\"") || json.Contains("\"intent\":\"bye\"") || json.Contains("\"intent\":\"processing\""))
+                            {
+                                StopAllVoicePlaybackImmediately(false);
+                            }
                             Color c = hudColor == "amber" ? AmberColor : hudColor == "lime" ? LimeColor : CyanColor;
                             SetHudAppearance(c);
                             txtStatus.Text = !string.IsNullOrEmpty(hudTitle) ? hudTitle : "✓ 실행 완료";
@@ -3488,11 +3538,11 @@ namespace JarvisSasariSa
                 Margin = new Thickness(0, 4, 0, 14)
             };
             voiceStack.Children.Add(txtSpeedDesc);
-            voiceStack.Children.Add(new TextBlock { Text = "Neural 음성은 인터넷 연결이 필요합니다. 사용 불가 시 Windows 음성으로 대체하고 아래에 표시합니다.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 12) });
+            voiceStack.Children.Add(new TextBlock { Text = "24kHz 스튜디오 Neural 자연 음성 전용입니다 (여성 Windows 기본 기계음 SAPI 폴백 영구 차단 · 대화 중 끼어들기 Barge-In 활성).", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 12) });
             WrapPanel voiceRow = new WrapPanel();
             voiceStack.Children.Add(voiceRow);
-            string[] voiceIds = { "ko-KR-HyunsuMultilingualNeural", "ko-KR-InJoonNeural", "ko-KR-SunHiNeural", "windows-ko" };
-            string[] voiceLabels = { "현수 · Neural", "인준 · Neural", "선히 · Neural", "Windows 한국어 · 오프라인" };
+            string[] voiceIds = { "ko-KR-HyunsuMultilingualNeural", "ko-KR-InJoonNeural", "ko-KR-SunHiNeural" };
+            string[] voiceLabels = { "현수 · 남성 스튜디오 Neural (기본)", "인준 · 남성 차분한 Neural", "선히 · 아나운서 Neural" };
             var voiceSyncCallbacks = new System.Collections.Generic.List<Action>();
             for (int v = 0; v < voiceIds.Length; v++)
             {
@@ -5298,12 +5348,7 @@ namespace JarvisSasariSa
         {
             if (isMiniMode) ToggleMiniMode(false);
             try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
-            try
-            {
-                koreanVoicePlayer.Stop();
-                isSpeaking = false;
-            }
-            catch { }
+            StopAllVoicePlaybackImmediately(true);
 
             StartInvisibleChromeEarWorker();
             SetHudAppearance(CyanColor);
@@ -5400,6 +5445,7 @@ namespace JarvisSasariSa
         {
             try
             {
+                StopAllVoicePlaybackImmediately(true);
                 SetHudAppearance(CyanColor);
                 txtStatus.Text = System.Text.RegularExpressions.Regex.IsMatch(sentence,"알아|설명|조사|검색|정리|비교") ? "○ 자료 검색·정리 중" : "○ 요청 처리 중";
                 txtMainBody.Text = sentence;
@@ -5502,16 +5548,28 @@ namespace JarvisSasariSa
                 Application.Current.Dispatcher.BeginInvoke(new Action(() => SpeakAsync(text))); return;
             }
             if (string.IsNullOrWhiteSpace(text)) return;
-            if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 0.8) return;
+            if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 5.0) return;
             lastSpeechRequest = text;
             lastSpeechRequestAt = DateTime.UtcNow;
+
+            // Interrupt any ongoing TTS immediately so new speech never waits behind a long playback queue
+            if (isSpeaking)
+            {
+                StopAllVoicePlaybackImmediately(false);
+            }
+
+            var myCts = new System.Threading.CancellationTokenSource();
+            activeSpeechCts = myCts;
+
             await speechGate.WaitAsync();
             try
             {
+                if (myCts.IsCancellationRequested) return;
                 isSpeaking = true;
                 try
                 {
-                    await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":true}", Encoding.UTF8, "application/json"));
+                    string speakPayload = "{\"speaking\":true,\"text\":\"" + EscapeJson(text) + "\"}";
+                    await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent(speakPayload, Encoding.UTF8, "application/json"));
                 }
                 catch { }
 
@@ -5520,77 +5578,73 @@ namespace JarvisSasariSa
                 try
                 {
                     string url = "http://127.0.0.1:7788/api/tts-mp3?format=wav&text=" + Uri.EscapeDataString(text);
-                    using (var timeout = new System.Threading.CancellationTokenSource(20000))
-                    using (var response = await http.GetAsync(url, timeout.Token))
+                    using (var timeout = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(myCts.Token))
                     {
-                        byte[] bytes = await response.Content.ReadAsByteArrayAsync();
-                        System.Collections.Generic.IEnumerable<string> values;
-                        string actualVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Voice", out values) ? values.FirstOrDefault() : "unknown";
-                        string actualSpeed = response.Headers.TryGetValues("X-Jarvis-Tts-Speed", out values) ? values.FirstOrDefault() : "unknown";
-                        bool fallbackVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Fallback", out values) && values.FirstOrDefault() == "1";
-                        WriteLog("TTS response voice=" + actualVoice + ", speed=" + actualSpeed + ", fallback=" + fallbackVoice + ", fetchMs=" + audioClock.ElapsedMilliseconds);
-                        SetSettingsFeedback(fallbackVoice ? "선택한 Neural 음성 사용 불가 · Windows 음성으로 대체합니다. 속도는 유지됩니다." : "재생 음성: " + actualVoice + " · 속도 " + actualSpeed + "×", fallbackVoice);
-                        if (response.IsSuccessStatusCode && bytes.Length > 44)
+                        timeout.CancelAfter(12000);
+                        using (var response = await http.GetAsync(url, timeout.Token))
                         {
-                            bool wav = bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E';
-                            if (wav)
+                            byte[] bytes = await response.Content.ReadAsByteArrayAsync();
+                            if (myCts.IsCancellationRequested) return;
+                            System.Collections.Generic.IEnumerable<string> values;
+                            string actualVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Voice", out values) ? values.FirstOrDefault() : "unknown";
+                            string actualSpeed = response.Headers.TryGetValues("X-Jarvis-Tts-Speed", out values) ? values.FirstOrDefault() : "unknown";
+                            bool fallbackVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Fallback", out values) && values.FirstOrDefault() == "1";
+                            WriteLog("TTS response voice=" + actualVoice + ", speed=" + actualSpeed + ", fallback=" + fallbackVoice + ", fetchMs=" + audioClock.ElapsedMilliseconds);
+                            SetSettingsFeedback("재생 음성: " + actualVoice + " · 속도 " + actualSpeed + "×", false);
+                            if (response.IsSuccessStatusCode && bytes.Length > 44)
                             {
-                                await Task.Run(() => {
+                                bool wav = bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E';
+                                if (wav)
+                                {
+                                    int byteRate = BitConverter.ToInt32(bytes, 28);
+                                    int durationMs = byteRate > 0 ? (int)((bytes.Length - 44) * 1000L / byteRate) + 80 : 2500;
+                                    durationMs = Math.Max(200, Math.Min(25000, durationMs));
                                     using (var stream = new MemoryStream(bytes))
-                                    using (var player = new SoundPlayer(stream)) { player.Load(); WriteLog("WAV playback started: readyMs=" + audioClock.ElapsedMilliseconds); player.PlaySync(); }
-                                });
-                                played = true;
-                                WriteLog("WAV playback completed: " + bytes.Length + " bytes");
-                            }
-                            else if (response.Content.Headers.ContentType != null && response.Content.Headers.ContentType.MediaType == "audio/mpeg")
-                            {
-                                played = await PlayMp3OnUiThreadAsync(bytes);
+                                    using (var player = new SoundPlayer(stream))
+                                    {
+                                        activeSoundPlayer = player;
+                                        player.Load();
+                                        if (!myCts.IsCancellationRequested)
+                                        {
+                                            WriteLog("WAV playback started (interruptible): readyMs=" + audioClock.ElapsedMilliseconds + ", durationMs=" + durationMs);
+                                            player.Play();
+                                            try { await Task.Delay(durationMs, myCts.Token); }
+                                            catch (TaskCanceledException) { try { player.Stop(); } catch { } }
+                                        }
+                                        if (activeSoundPlayer == player) activeSoundPlayer = null;
+                                    }
+                                    played = true;
+                                    WriteLog("WAV playback completed: " + bytes.Length + " bytes");
+                                }
+                                else if (response.Content.Headers.ContentType != null && response.Content.Headers.ContentType.MediaType == "audio/mpeg")
+                                {
+                                    played = await PlayMp3OnUiThreadAsync(bytes);
+                                }
                             }
                         }
                     }
                 }
+                catch (OperationCanceledException) { played = true; }
                 catch (Exception ex) { WriteLog("Server audio playback failed: " + ex.GetType().Name); }
 
-                if (!played)
+                if (!played && !myCts.IsCancellationRequested)
                 {
-                    try
-                    {
-                        string wavUrl = "http://127.0.0.1:7788/api/tts-mp3?format=wav&text=" + Uri.EscapeDataString(text);
-                        using (var timeout2 = new System.Threading.CancellationTokenSource(10000))
-                        using (var response2 = await http.GetAsync(wavUrl, timeout2.Token))
-                        {
-                            byte[] wavBytes = await response2.Content.ReadAsByteArrayAsync();
-                            if (response2.IsSuccessStatusCode && wavBytes.Length > 44 && wavBytes[0] == 'R' && wavBytes[1] == 'I' && wavBytes[2] == 'F' && wavBytes[3] == 'F')
-                            {
-                                await Task.Run(() => {
-                                    using (var stream = new MemoryStream(wavBytes))
-                                    using (var player = new SoundPlayer(stream)) { player.Load(); player.PlaySync(); }
-                                });
-                                played = true;
-                                WriteLog("WAV fallback playback completed: " + wavBytes.Length + " bytes");
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
-                if (!played)
-                {
-                    WriteLog("Speech output failed after MP3 and WAV fallback");
-                    if (txtStatus != null) txtStatus.Text = "⚠ 음성 출력 실패 · 텍스트 답변을 확인해 주세요";
+                    WriteLog("Speech output skipped (Studio Neural voice temporarily busy)");
                 }
             }
             catch (Exception ex)
             {
-                txtStatus.Text = "⚠ 음성 출력 실패 · Windows 소리 장치를 확인해 주세요";
                 WriteLog("All speech playback failed: " + ex.GetType().Name);
             }
             finally
             {
-                isSpeaking = false;
+                if (activeSpeechCts == myCts) isSpeaking = false;
             }
-            try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
-            catch { }
+            if (!myCts.IsCancellationRequested)
+            {
+                try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
+                catch { }
+            }
             speechGate.Release();
         }
 

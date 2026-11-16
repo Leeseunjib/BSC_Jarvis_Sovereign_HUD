@@ -751,10 +751,11 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
   const sysPrompt = `당신은 ${user}(이건우 대표님)을 보좌하는 BeausCreators(C:\\BeausCreators 본사 26인 에이전트, C:\\BeautifulWorld 출판 자동화, C:\\Warehouse 옵시디언 뉴런 79노드 창고)의 상용 정본 AI 음성 비서 ${name}(C:\\자비스)입니다. 대괄호([구체적인 목표] 등)나 빈칸 템플릿, 가상 프로젝트명을 절대 쓰지 말고 실제 BeausCreators 3대 생태계와 상용 자비스 고도화 현황을 바탕으로 1~2문장 이내로 간결·정확·공손하게 한국어 구어체로 답변하세요.`;
 
   const allowFallback = process.env.JARVIS_DISABLE_EXTERNAL_HUB !== '1';
-  const parallelOllamaPromise = allowFallback ? askLocalOllama(prompt, sysPrompt, localOllamaModel, 10000) : Promise.resolve(null);
+  const parallelCloudPromise = allowFallback ? askFastCloudGeminiFallback(prompt, sysPrompt, cfg, 4800) : Promise.resolve(null);
+  const parallelOllamaPromise = allowFallback ? askLocalOllama(prompt, sysPrompt, localOllamaModel, 8500) : Promise.resolve(null);
 
   if (['antigravity-cli', 'gemini-cli', 'geminicli', 'gemini', 'ollama'].includes(provider)) {
-    const raceMs = allowFallback ? 3200 : 9500;
+    const raceMs = allowFallback ? 1800 : 9500;
     const primaryRes = await Promise.race([
       askVoiceBrain(prompt, cfg),
       new Promise(resolve => setTimeout(() => resolve({ provider: 'unavailable', error: 'voice-timeout-race' }), raceMs))
@@ -767,16 +768,18 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
     }
   }
 
-  // Tier 2 Fallback: Parallel Local On-Device Ollama (already warming in background!)
-  const ollamaReply = await parallelOllamaPromise;
-  if (ollamaReply) {
-    return { text: ollamaReply, provider: 'ollama', model: localOllamaModel, requestedModel: selectedModel, modelVerified: true, fallback: true };
-  }
-
-  // Tier 3 Fallback: Fast Cloud Gemini/Gemma API via .env key
-  const fastCloud = await askFastCloudGeminiFallback(prompt, sysPrompt, cfg, 5000);
-  if (fastCloud && fastCloud.text) {
-    return fastCloud;
+  // Tier 2 Fallback: Race Fast Cloud Gemini/Gemma API vs Local On-Device Ollama (both already warming in parallel!)
+  const firstFast = await Promise.race([
+    parallelCloudPromise.then(r => (r && r.text ? r : new Promise(() => {}))),
+    parallelOllamaPromise.then(txt => (txt ? { text: txt, provider: 'ollama', model: localOllamaModel, requestedModel: selectedModel, modelVerified: true, fallback: true } : new Promise(() => {}))),
+    Promise.all([parallelCloudPromise, parallelOllamaPromise]).then(([cRes, oTxt]) => {
+      if (cRes && cRes.text) return cRes;
+      if (oTxt) return { text: oTxt, provider: 'ollama', model: localOllamaModel, requestedModel: selectedModel, modelVerified: true, fallback: true };
+      return null;
+    })
+  ]);
+  if (firstFast && firstFast.text) {
+    return firstFast;
   }
 
   // Tier 4 Fallback: Unified LLM Hub if available
@@ -1079,6 +1082,21 @@ class ButlerEngine {
       s = aliases[sq];
     }
 
+    // Clean trailing Hangul jamo typos (e.g. "알겠어. 조용히 해ㅣ." -> "알겠어. 조용히 해")
+    s = s.replace(/[ㄱ-ㅎㅏ-ㅣ]+(?=[.?!,\s]*$)/g, '').trim();
+
+    // Strip natural barge-in / conversational transition prefixes when followed by an instruction
+    // ("잠깐만 메모장 켜 줘", "아니 그게 아니라 유튜브 틀어 줘", "그리고 오늘 할 일 정리해 줘", "대신 네이버 열어 줘")
+    const bargePrefixMatch = s.match(/^(?:(?:잠깐만|잠깐|스톱|멈춰|그만|알겠어|알았어|됐어|오케이)[,.?!\s]+)?(?:아니\s*그게\s*아니라|아니\s*그거\s*말고|그거\s*말고|아니\s*말고|대신에|대신|그리고\s*추가로|추가로|그리고|이어서|그러면|그럼|아\s*맞다|참|거기서)\s+(.+)$/i);
+    if (bargePrefixMatch && bargePrefixMatch[1].trim().length >= 2) {
+      s = bargePrefixMatch[1].trim();
+    } else {
+      const leadStopPlusCmd = s.match(/^(?:잠깐만|잠깐|있잖아|저기요?)[,.?!\s]+(.+)$/i);
+      if (leadStopPlusCmd && leadStopPlusCmd[1].trim().length >= 2) {
+        s = leadStopPlusCmd[1].trim();
+      }
+    }
+
     // Strip compound browser prefixes or suffixes ("웹브라우저 켜서 네이버 열어줘", "유튜브 열어 줘 웹 브라우저", "웹 브라우저로 유튜브 켜 줘")
     const compoundBrowserMatch = s.match(/^(?:웹\s*브라우저|브라우저|크롬\s*브라우저|구글\s*크롬|크롬|엣지|인터넷\s*창|인터넷)(?:을|를|로|으로|에서)?\s*(?:(?:켜서|열어서|실행해서|띄워서|켜고|열고|에서)\s+)?(.+)$/i);
     if (compoundBrowserMatch && compoundBrowserMatch[1].trim() && !/^(?:열어|켜|실행해|틀어|보여|띄워)(?:\s*(?:줘|봐|주세요|줄래|달라고|주라))?$/i.test(compoundBrowserMatch[1].trim())) {
@@ -1115,10 +1133,14 @@ class ButlerEngine {
       return { intent: 'whatDid' };
     }
 
-    if (/^(멈춰|스톱|조용|조용히해|시끄러|잠깐|하지마|아니하지마|stop|quiet|hush)$/.test(sq2) || /자비.*없.*조용|아무것도하지말고.*대답하지말|스스로말하거나그러지마/.test(sq2)) {
+    if (
+      /^(멈춰|스톱|조용|조용히해|시끄러|잠깐|잠깐만|하지마|아니하지마|그만말해|말멈춰|읽지마|그만읽어|stop|quiet|hush)$/.test(sq2) ||
+      /(?:조용히해|조용히좀해|말멈춰|그만말해|그만읽어|음성멈춰|음성꺼|목소리꺼|시끄러워|닥쳐)/.test(sq2) ||
+      /자비.*없.*조용|아무것도하지말고.*대답하지말|스스로말하거나그러지마/.test(sq2)
+    ) {
       return { intent: 'hush' };
     }
-    if (/^(됐어|그만|고마워|끝|잘자|쉬어|수고했어|thanks|bye)$/.test(sq2)) {
+    if (/^(됐어|됐어그만|알겠어그만|그만|고마워|끝|잘자|쉬어|수고했어|thanks|bye)$/.test(sq2)) {
       return { intent: 'bye' };
     }
     if (/^(자비스|헤이자비스|네자비스|예자비스|어자비스|야자비스|자비스야|자비스님|할말있어|내말잘들어|궁금한게있는데|물어볼게있는데|있잖아|여보세요|네|예)$/.test(sq2)) {

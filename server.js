@@ -93,7 +93,7 @@ async function ensureEdgeTtsClockSync() {
 }
 
 function humanizeKoreanSpeechText(rawText) {
-  return String(rawText || '')
+  let cleaned = String(rawText || '')
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
@@ -109,8 +109,13 @@ function humanizeKoreanSpeechText(rawText) {
     .replace(/[·•/]/g, ', ')
     .replace(/[*#_~>|『』「」《》〈〉【】\[\]()]/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 1500);
+    .trim();
+  if (cleaned.length > 280) {
+    const sub = cleaned.slice(0, 260);
+    const lastEnd = Math.max(sub.lastIndexOf('다.'), sub.lastIndexOf('요.'), sub.lastIndexOf('. '), sub.lastIndexOf('! '), sub.lastIndexOf('? '));
+    cleaned = (lastEnd > 80 ? sub.slice(0, lastEnd + 2) : sub) + ' 상세 내용은 화면에서 확인해 주세요.';
+  }
+  return cleaned;
 }
 
 function stripLeadingId3(buf) {
@@ -196,6 +201,7 @@ async function synthesizeGoogleNeuralKoreanMp3(cleanText = '', speed = 1.2) {
 }
 
 const ttsAudioCache = new Map();
+const ttsWavCache = new Map();
 
 async function synthesizeStudioNeuralMp3Buffer(rawText, voice, userSpeed) {
   const clean = humanizeKoreanSpeechText(rawText);
@@ -205,13 +211,18 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice, userSpeed) {
     return ttsAudioCache.get(cacheKey);
   }
 
-  // Tier 1: Microsoft Edge Studio Neural MP3 (Single unbroken 24kHz 96kbps studio MP3 stream)
+  // Tier 1: Microsoft Edge Studio Neural MP3 (24kHz 96kbps studio MP3 stream with automatic retry & male neural backup)
   if (MsEdgeTTS) {
     await ensureEdgeTtsClockSync();
     const ratePct = `${userSpeed >= 1 ? '+' : ''}${Math.round((userSpeed - 1) * 100)}%`;
-    const candidates = [voice]; // Never silently substitute a different speaker.
-    for (const v of candidates) {
+    const candidates = [voice, voice, 'ko-KR-HyunsuMultilingualNeural', 'ko-KR-InJoonNeural'];
+    for (let idx = 0; idx < candidates.length; idx++) {
+      const v = candidates[idx];
       if (!v) continue;
+      if (idx === 1) {
+        edgeClockSynced = false;
+        await ensureEdgeTtsClockSync();
+      }
       const tts = new MsEdgeTTS();
       try {
         const fmt = OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3 || OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3;
@@ -219,7 +230,7 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice, userSpeed) {
         const { audioStream } = tts.toStream(clean, { rate: ratePct, pitch: '+0Hz' });
         const parts = [];
         await new Promise((resolve, reject) => {
-          const t = setTimeout(() => reject(new Error('timeout')), 8000);
+          const t = setTimeout(() => reject(new Error('timeout')), 6500);
           audioStream.on('data', d => parts.push(d));
           audioStream.on('end', () => { clearTimeout(t); resolve(); });
           audioStream.on('error', err => { clearTimeout(t); reject(err); });
@@ -227,7 +238,7 @@ async function synthesizeStudioNeuralMp3Buffer(rawText, voice, userSpeed) {
         try { tts.close(); } catch (_) {}
         const buf = Buffer.concat(parts);
         if (buf.length > 256) {
-          if (ttsAudioCache.size > 120) ttsAudioCache.delete(ttsAudioCache.keys().next().value);
+          if (ttsAudioCache.size > 160) ttsAudioCache.delete(ttsAudioCache.keys().next().value);
           ttsAudioCache.set(cacheKey, buf);
           return buf;
         }
@@ -801,8 +812,26 @@ const server = http.createServer(async (req, res) => {
     const commandStartedAt = Date.now();
     const body = await readBody(req, 2700000);
     const sentence = String(body.sentence || body.text || '').trim().slice(0, 2000);
+    const normSentence = sentence.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+    const normSpeaking = String(global.__jarvisSpeakingText || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+    const hasBargeKeyword = /(자비스|사사리사|잠깐|멈춰|스톱|그만|조용|아니|근데|그리고|대신|유튜브|메모장|크롬|네이버|구글|계산기|탐색기|오늘|몇시|볼륨|소리)/.test(normSentence);
+    const isSelfEcho = Boolean(global.__jarvisIsSpeaking && normSpeaking && normSentence.length >= 3 && normSpeaking.includes(normSentence) && !hasBargeKeyword);
+
     if (body.source === 'voice') {
-      if (global.__jarvisIsSpeaking) return sendJson(res, 200, { ok: true, ignored: true, reason: 'assistant-speaking' });
+      if (isSelfEcho) return sendJson(res, 200, { ok: true, ignored: true, reason: 'assistant-echo' });
+      if (global.__jarvisIsSpeaking) {
+        // User barged in while Jarvis was speaking -> immediately stop TTS and extend conversation session!
+        global.__jarvisIsSpeaking = false;
+        global.__jarvisSpeakingText = '';
+        global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
+        global.__jarvisForceAwakeUntil = Date.now() + 45000;
+        try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+        recordEarEvent({ event: 'barge-in-command', ts: Date.now(), sentence });
+      }
+      const isForceAwake = Boolean(global.__jarvisForceAwakeUntil && Date.now() < global.__jarvisForceAwakeUntil);
+      if (isForceAwake) {
+        try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+      }
       if (!voiceSessions.accept(body.voiceSession, sentence, { commit: false, ownerVerified: speakerGate.enabled })) {
         return sendJson(res, 200, { ok: true, ignored: true, reason: 'wake-required' });
       }
@@ -812,7 +841,12 @@ const server = http.createServer(async (req, res) => {
         if (!speakerGate.enrolling) global.__jarvisLatestEarItem = { text: speakerMessage(decision.reason), isFinal: true, intent: 'speakerRejected', hudTitle: '음성 실행 보류', hudColor: 'amber', ts: Date.now() };
         return sendJson(res, 200, { ok: true, ignored: true, reason: decision.reason });
       }
-      if (global.__jarvisIsSpeaking || !voiceSessions.accept(body.voiceSession, sentence, { ownerVerified: decision.verified })) return sendJson(res, 200, { ok: true, ignored: true, reason: 'voice-session-expired' });
+      if (!voiceSessions.accept(body.voiceSession, sentence, { ownerVerified: decision.verified })) return sendJson(res, 200, { ok: true, ignored: true, reason: 'voice-session-expired' });
+    } else if (global.__jarvisIsSpeaking) {
+      // Manual / HUD command while speaking -> stop TTS immediately!
+      global.__jarvisIsSpeaking = false;
+      global.__jarvisSpeakingText = '';
+      global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
     }
     const executeOs = body.executeOs !== false;
     const executionStartedAt = Date.now();
@@ -839,8 +873,14 @@ const server = http.createServer(async (req, res) => {
     if (body.source === 'voice' && result && result.intent === 'awake') {
       voiceSessions.extend(body.voiceSession, Date.now() + 45000);
     }
-    if (body.source === 'voice' && result && (result.intent === 'hush' || result.intent === 'bye')) {
-      global.__jarvisForceAwakeUntil = 0;
+    if (result && (result.intent === 'hush' || result.intent === 'bye')) {
+      global.__jarvisIsSpeaking = false;
+      global.__jarvisSpeakingText = '';
+      global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
+      if (body.source === 'voice') global.__jarvisForceAwakeUntil = 0;
+    } else if (body.source === 'voice') {
+      // Extend ping-pong follow-up window (35s) on this voiceSession so the user can keep conversing naturally!
+      voiceSessions.extend(body.voiceSession, Date.now() + 35000);
     }
     if (body.source === 'voice' && result && result.intent === 'dictation') {
       voiceSessions.extend(body.voiceSession, Date.now() + 600000);
@@ -950,7 +990,8 @@ const server = http.createServer(async (req, res) => {
     global.__jarvisLastVoiceFeatures = { pitchHz, energy, zcr, ts: Date.now() };
     return sendJson(res, 200, {
       ok: true, isSpeaking: Boolean(global.__jarvisIsSpeaking), mediaActive: butler.hasMediaContext(),
-      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0, speaker: speakerGate.status()
+      forceAwakeUntil: global.__jarvisForceAwakeUntil || 0, bargeInSeq: global.__jarvisBargeInSeq || 0,
+      speakingText: global.__jarvisSpeakingText || '', speaker: speakerGate.status()
     });
   }
   if (req.method === 'GET' && pathname === '/api/speaker/state') return sendJson(res, 200, { ...speakerGate.status(), captureReady: !!global.__jarvisEarHealth?.speakerCapture, captureSamples: global.__jarvisSpeakerSamples || 0 });
@@ -1026,16 +1067,32 @@ const server = http.createServer(async (req, res) => {
     }
     return sendJson(res, 200, { ok: true, transcript });
   }
+  if (req.method === 'POST' && pathname === '/api/ear/barge-in') {
+    const body = await readBody(req);
+    global.__jarvisIsSpeaking = false;
+    global.__jarvisSpeakingText = '';
+    global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
+    clearTimeout(global.__jarvisSpeakingLease);
+    global.__jarvisForceAwakeUntil = Math.max(global.__jarvisForceAwakeUntil || 0, Date.now() + 45000);
+    try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+    recordEarEvent({ event: 'barge-in', ts: Date.now(), text: String((body && body.text) || '').slice(0, 200), bargeInSeq: global.__jarvisBargeInSeq });
+    return sendJson(res, 200, { ok: true, bargeInSeq: global.__jarvisBargeInSeq, forceAwakeUntil: global.__jarvisForceAwakeUntil });
+  }
   if (req.method === 'POST' && pathname === '/api/ear/speaking') {
     const body = await readBody(req);
     global.__jarvisIsSpeaking = Boolean(body && body.speaking);
+    if (global.__jarvisIsSpeaking && body && body.text) {
+      global.__jarvisSpeakingText = String(body.text).slice(0, 1000);
+    } else if (!global.__jarvisIsSpeaking) {
+      global.__jarvisSpeakingText = '';
+    }
     recordEarEvent({ event: global.__jarvisIsSpeaking ? 'tts-start' : 'tts-end', ts: Date.now() });
     clearTimeout(global.__jarvisSpeakingLease);
     if (global.__jarvisIsSpeaking) {
-      global.__jarvisSpeakingLease = setTimeout(() => { global.__jarvisIsSpeaking = false; }, 45000);
+      global.__jarvisSpeakingLease = setTimeout(() => { global.__jarvisIsSpeaking = false; global.__jarvisSpeakingText = ''; }, 30000);
       global.__jarvisSpeakingLease.unref();
     }
-    return sendJson(res, 200, { ok: true });
+    return sendJson(res, 200, { ok: true, bargeInSeq: global.__jarvisBargeInSeq || 0 });
   }
   if (req.method === 'POST' && pathname === '/api/ear/push') {
     const body = await readBody(req);
@@ -1043,24 +1100,37 @@ const server = http.createServer(async (req, res) => {
     if (body && typeof body.micLevel === 'number') {
       global.__jarvisMicLevel = Math.max(0, Math.min(1, Number(body.micLevel) || 0));
     }
-    if (body && body.text && !global.__jarvisIsSpeaking) {
+    if (body && body.text) {
       const cleanText = String(body.text).trim();
-      const item = {
-        text: cleanText,
-        isFinal: Boolean(body.isFinal),
-        ts: Date.now()
-      };
-      if (body.status === 'recognition-error') Object.assign(item, { isFinal: true, intent: 'speechError', hudTitle: '음성 확정 실패 · 다시 말씀하거나 입력해 주세요', hudColor: 'amber' });
-      if (body.status === 'processing') Object.assign(item, { isFinal: true, intent: 'processing', hudTitle: '○ 명령 처리 중', hudColor: 'cyan' });
-      global.__jarvisLatestEarItem = item;
-      global.__jarvisEarQueue.push(item);
-      if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
+      const normT = cleanText.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+      const normSpk = String(global.__jarvisSpeakingText || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+      const hasBarge = /(자비스|사사리사|잠깐|멈춰|스톱|그만|조용|아니|근데|그리고|대신)/.test(normT);
+      const isEcho = Boolean(global.__jarvisIsSpeaking && normSpk && normT.length >= 3 && normSpk.includes(normT) && !hasBarge);
+      if (!isEcho) {
+        if (global.__jarvisIsSpeaking) {
+          global.__jarvisIsSpeaking = false;
+          global.__jarvisSpeakingText = '';
+          global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
+          global.__jarvisForceAwakeUntil = Math.max(global.__jarvisForceAwakeUntil || 0, Date.now() + 45000);
+          try { voiceSessions.wakeAll(global.__jarvisForceAwakeUntil); } catch (_) {}
+        }
+        const item = {
+          text: cleanText,
+          isFinal: Boolean(body.isFinal),
+          ts: Date.now()
+        };
+        if (body.status === 'recognition-error') Object.assign(item, { isFinal: true, intent: 'speechError', hudTitle: '음성 확정 실패 · 다시 말씀하거나 입력해 주세요', hudColor: 'amber' });
+        if (body.status === 'processing') Object.assign(item, { isFinal: true, intent: 'processing', hudTitle: '○ 명령 처리 중', hudColor: 'cyan' });
+        global.__jarvisLatestEarItem = item;
+        global.__jarvisEarQueue.push(item);
+        if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
+      }
     }
-    return sendJson(res, 200, { ok: true, isSpeaking: Boolean(global.__jarvisIsSpeaking) });
+    return sendJson(res, 200, { ok: true, isSpeaking: Boolean(global.__jarvisIsSpeaking), bargeInSeq: global.__jarvisBargeInSeq || 0 });
   }
   if (req.method === 'GET' && pathname === '/api/ear/poll') {
     const items = global.__jarvisEarQueue.splice(0, global.__jarvisEarQueue.length);
-    return sendJson(res, 200, { ok: true, items, micLevel: global.__jarvisMicLevel || 0 });
+    return sendJson(res, 200, { ok: true, items, micLevel: global.__jarvisMicLevel || 0, bargeInSeq: global.__jarvisBargeInSeq || 0 });
   }
   if (req.method === 'GET' && pathname === '/api/ear/latest') {
     return sendJson(res, 200, {
@@ -1069,7 +1139,8 @@ const server = http.createServer(async (req, res) => {
         ? global.__jarvisTimerDisplay : global.__jarvisLatestEarItem || null),
       earHealth: global.__jarvisEarHealth || null,
       micLevel: global.__jarvisMicLevel || 0,
-      isSpeaking: Boolean(global.__jarvisIsSpeaking)
+      isSpeaking: Boolean(global.__jarvisIsSpeaking),
+      bargeInSeq: global.__jarvisBargeInSeq || 0
     });
   }
   if (req.method === 'POST' && pathname === '/api/ear/launch-chrome') {
@@ -1286,16 +1357,28 @@ const server = http.createServer(async (req, res) => {
     try { options = speechOptions(butler.getConfig(), body); }
     catch (error) { return sendJson(res, 400, { ok: false, error: error.message }); }
     const { voice, speed } = options;
+    global.__jarvisSpeakingText = text;
     let bytes = null, provider = 'edge-neural', actualVoice = voice, contentType = 'audio/mpeg';
     let error = null;
+    const wavKey = `${voice}|${speed}|${text}`;
     if (voice !== 'windows-ko') {
       try {
-        bytes = await synthesizeStudioNeuralMp3Buffer(text, voice, speed);
-        if (bytes.length <= 256) throw new Error('선택한 Neural 음성을 생성하지 못했습니다.');
-        if (body.format === 'wav') { bytes = await mp3ToWav(bytes); contentType = 'audio/wav'; }
+        if (body.format === 'wav' && ttsWavCache.has(wavKey)) {
+          bytes = ttsWavCache.get(wavKey);
+          contentType = 'audio/wav';
+        } else {
+          bytes = await synthesizeStudioNeuralMp3Buffer(text, voice, speed);
+          if (bytes.length <= 256) throw new Error('선택한 Neural 음성을 생성하지 못했습니다.');
+          if (body.format === 'wav') {
+            bytes = await mp3ToWav(bytes);
+            contentType = 'audio/wav';
+            if (ttsWavCache.size > 120) ttsWavCache.delete(ttsWavCache.keys().next().value);
+            ttsWavCache.set(wavKey, bytes);
+          }
+        }
       } catch (err) { error = err.message; bytes = null; }
     }
-    if (!bytes || bytes.length <= 256) {
+    if ((!bytes || bytes.length <= 256) && (voice === 'windows-ko' || process.env.JARVIS_TEST_SAPI === '1' || process.env.JARVIS_DISABLE_NEURAL_TTS === '1')) {
       bytes = await synthesizeWindowsNativeWav(text, speed);
       provider = 'windows-sapi'; actualVoice = 'windows-ko'; contentType = 'audio/wav';
     }
