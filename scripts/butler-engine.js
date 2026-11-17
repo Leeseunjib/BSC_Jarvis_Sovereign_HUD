@@ -32,7 +32,7 @@ const {
 const { runRea, reaToResearchReport, runLaya, startLayaService, layaToResearchReport } = require('./rea-laya-bridge');
 const { toResearchReport: learningToResearchReport } = require('./recursive-learning');
 const { runJarvisAgentTurn, executeAgentTool } = require('./jarvis-agent-core');
-const { buildExecutiveNewsletter, fetchStockMarketIntelligence } = require('./jarvis-briefing-hub');
+const { buildExecutiveNewsletter, fetchStockMarketIntelligence, fetchLiveWeatherBriefing } = require('./jarvis-briefing-hub');
 
 function runPowerShell(script) {
   const wrapped = `$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; try {\n${script}\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
@@ -743,7 +743,8 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
     return `현재 장기 기억 장부에 기록된 내용은 다음과 같습니다. ${lines || '아직 추가된 메모가 없습니다.'}`;
   }
   if (/날씨/.test(sq)) {
-    return `${user}, 날씨는 네이버에서 검색해 확인해 주세요.`;
+    const wt = await fetchLiveWeatherBriefing({ query: prompt });
+    return wt.spoken;
   }
 
   // Math expression check (e.g. "125 곱하기 4는 뭐야")
@@ -1272,7 +1273,7 @@ class ButlerEngine {
     }
 
     // 10-C) REA 4-Stage Clean-Room Reverse Engineering Analysis
-    if (/(?:\brea\b|알이에이|역공학|클린룸\s*분석)/i.test(s) && !/안티그래비티.*플랜창/i.test(sq2)) {
+    if (/(?:\brea\b|알이에이|역공학|클린룸\s*분석)/i.test(s) && /(?:분석|실행|돌려|점검|스캔|역공학)/i.test(s) && !/안티그래비티.*플랜창/i.test(sq2)) {
       return { intent: 'reaAnalyze', target: s };
     }
 
@@ -1412,6 +1413,11 @@ class ButlerEngine {
     const typeMatch = s.match(/^(.+?)\s*(?:이?라고)\s*(?:써|쳐|입력해|타이핑해|적어)(?:\s*(?:줘|봐|주세요))?$/);
     if (typeMatch) {
       return { intent: 'type', text: typeMatch[1].trim() };
+    }
+
+    // 9-D0) Real-Time Free Weather Briefing ("오늘 날씨 어때", "서울 날씨 알려줘", "내일 비 와?")
+    if (/(?:날씨|기온|체감\s*온도|비\s*와|눈\s*와|우산\s*챙겨|강수\s*확률)/.test(s) && !/메모장/.test(s)) {
+      return { intent: 'weather', query: s };
     }
 
     // 9-D) Executive Newsletter / Live News Briefing ("오늘 뉴스 알려줘", "뉴스레터 보여줘", "오늘 소식 브리핑")
@@ -1904,12 +1910,48 @@ class ButlerEngine {
       }
 
       case 'research': {
+        const explicitWebSearch = /(?:검색해서\s*보여|찾아서\s*보여|검색해|웹검색해|구글링해|찾아봐|조사해서\s*보여|조사해)/.test(rawSentence);
+        if (explicitWebSearch || process.env.JARVIS_DISABLE_EXTERNAL_HUB === '1') {
+          const report = await require('./web-research').research(parsed.query);
+          this.lastResearchReport = report;
+          return { intent: 'research', research: report, researchId: report.id, hudColor: report.status === 'ready' ? 'cyan' : 'amber',
+            hudTitle: report.status === 'ready' ? '🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)' : '검색 결과 확인 필요',
+            hudSubtitle: report.query, heard: rawSentence,
+            spoken: report.status === 'ready' ? `${report.query}에 관한 자료 ${report.sources.length}개를 찾아 전용 검색 결과 창에 띄웠습니다. 워드나 피디에프, 피피티로 저장하시려면 말씀해 주세요.` : '검색 자료를 확보하지 못했습니다. 결과 창에서 검색어와 상태를 확인해 주세요.' };
+        }
+        // Otherwise route general conversational questions & comprehensive thinking to JARVIS v3.0 Agent Core!
+        parsed.prompt = rawSentence;
+        const agentQ = await runJarvisAgentTurn(rawSentence, cfg, executeOsActions, this.onAsyncAgentProgress || null);
+        if (agentQ && agentQ.ok) {
+          if (agentQ.research) this.lastResearchReport = agentQ.research;
+          const usedTools = Array.isArray(agentQ.executedTools) && agentQ.executedTools.length > 0;
+          return {
+            intent: agentQ.research ? 'research' : 'agentCore',
+            ...(agentQ.research ? { research: agentQ.research, researchId: agentQ.researchId } : {}),
+            hudColor: agentQ.isClarification ? 'amber' : (usedTools ? 'lime' : 'cyan'),
+            hudTitle: agentQ.isClarification
+              ? '❓ 자비스 확인 질문 (이어 말씀해 주세요)'
+              : usedTools
+              ? `⚡ 에이전트 실행 완료 (${agentQ.executedTools.map(t => t.split('(')[0]).join(' ➔ ')})`
+              : `🗣 ${cfg.assistantName || '자비스'} 종합 답변`,
+            hudSubtitle: agentQ.text,
+            heard: rawSentence,
+            spoken: agentQ.text,
+            llm: {
+              provider: agentQ.provider,
+              model: agentQ.model,
+              modelVerified: true,
+              fallback: Boolean(agentQ.fallback),
+              elapsedMs: agentQ.elapsedMs
+            }
+          };
+        }
         const report = await require('./web-research').research(parsed.query);
         this.lastResearchReport = report;
         return { intent: 'research', research: report, researchId: report.id, hudColor: report.status === 'ready' ? 'cyan' : 'amber',
-          hudTitle: report.status === 'ready' ? '🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)' : '검색 결과 확인 필요',
+          hudTitle: report.status === 'ready' ? '🔍 검색 결과 창 열기 완료' : '검색 결과 확인 필요',
           hudSubtitle: report.query, heard: rawSentence,
-          spoken: report.status === 'ready' ? `${report.query}에 관한 자료 ${report.sources.length}개를 찾아 전용 검색 결과 창에 띄웠습니다. 워드나 피디에프, 피피티로 저장하시려면 말씀해 주세요.` : '검색 자료를 확보하지 못했습니다. 결과 창에서 검색어와 상태를 확인해 주세요.' };
+          spoken: report.status === 'ready' ? `${report.query} 관련 자료를 검색 결과 창에 띄웠습니다.` : '검색 자료를 확보하지 못했습니다.' };
       }
 
       case 'ecosystemSearch': {
@@ -2469,6 +2511,19 @@ class ButlerEngine {
           heard: rawSentence,
           spoken: parsed.intent === 'bye' ? '네, 필요하실 때 언제든 불러 주세요.' : ''
         };
+
+      case 'weather': {
+        const wt = await fetchLiveWeatherBriefing({ query: parsed.query });
+        return {
+          intent: 'weather',
+          weather: wt,
+          hudColor: 'cyan',
+          hudTitle: `🌤 실시간 날씨 브리핑 (${wt.city || '서울'})`,
+          hudSubtitle: wt.badgeText || wt.spoken,
+          heard: rawSentence,
+          spoken: wt.spoken
+        };
+      }
 
       case 'newsletter': {
         const nl = await buildExecutiveNewsletter({ topic: parsed.topic, cfg });

@@ -495,11 +495,16 @@
         if (isSpeakingRef.current || serverSpeakingRef.current) {
           const normHeard = combinedHeard.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
           const normSpk = String(serverSpeakingTextRef.current || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
-          const hasBargeKeyword = /(자비스|사사리사|잠깐|멈춰|스톱|그만|조용|아니|근데|그리고|대신|유튜브|메모장|크롬|네이버|구글|계산기|탐색기|오늘|몇시|볼륨|소리)/.test(normHeard);
-          const isEcho = Boolean(normSpk && normHeard.length >= 3 && normSpk.includes(normHeard) && !hasBargeKeyword);
-          if (isEcho) return;
-          if (normHeard.length >= 2) {
-            // User is speaking while Jarvis is talking -> Instant Barge-In!
+          const normLastCmd = String((lastExecutedRef.current && lastExecutedRef.current.text) || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+          const hasPureStopWord = /^(?:잠깐|잠시만|멈춰|스톱|그만|조용히?해?)$/.test(normHeard);
+          const hasExplicitInterrupt = /(자비스|사사리사|잠깐|잠시만|멈춰|스톱|그만|조용|아니야|아니|다시)/.test(normHeard);
+          const isSpeakerEcho = Boolean(
+            (normSpk && normHeard.length >= 2 && (normSpk.includes(normHeard) || normHeard.includes(normSpk.slice(0, 12)))) ||
+            (normLastCmd && normHeard.length >= 2 && normLastCmd.includes(normHeard) && (Date.now() - (lastExecutedRef.current.ts || 0) < 6000))
+          );
+          if (isSpeakerEcho && !hasPureStopWord) return;
+          if (hasExplicitInterrupt || normHeard.length >= 5) {
+            // Genuine user interruption while Jarvis is talking -> Instant Barge-In!
             serverSpeakingRef.current = false;
             isSpeakingRef.current = false;
             awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, Date.now() + 45000);
@@ -579,8 +584,8 @@
           if (d && d.ok && d.config) {
             setConfig(d.config);
             if (d.config.speechPauseMs && turnRef.current) {
-              turnRef.current.pauseMs = Math.max(580, Math.min(6000, Number(d.config.speechPauseMs) || 750));
-              turnRef.current.shortPauseMs = Math.max(420, Math.min(1200, Math.round(turnRef.current.pauseMs * 0.65)));
+              turnRef.current.pauseMs = Math.max(1100, Math.min(6000, Number(d.config.speechPauseMs) || 1400));
+              turnRef.current.shortPauseMs = Math.max(850, Math.min(1500, Math.round(turnRef.current.pauseMs * 0.72)));
             }
           }
         })

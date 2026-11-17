@@ -55,6 +55,7 @@ const {
 } = require('./scripts/jarvis-harness2-engine');
 const { handleMcpJsonRpcRequest, MCP_SERVER_INFO, MCP_TOOLS } = require('./scripts/jarvis-mcp-server');
 const { updateLastExternalWindow, getLastExternalWindow } = require('./scripts/computer-use-hands');
+const { fetchLiveWeatherBriefing } = require('./scripts/jarvis-briefing-hub');
 
 let MsEdgeTTS = null;
 let OUTPUT_FORMAT = null;
@@ -672,6 +673,10 @@ const server = http.createServer(async (req, res) => {
     const updated = updateLastExternalWindow(body || {});
     return sendJson(res, 200, { ok: true, foregroundWindow: updated });
   }
+  if (req.method === 'GET' && pathname === '/api/weather/current') {
+    const wt = await fetchLiveWeatherBriefing({ query: urlObj.searchParams.get('city') || '' });
+    return sendJson(res, 200, wt);
+  }
   if (req.method === 'GET' && pathname === '/api/computer/foreground') {
     return sendJson(res, 200, { ok: true, foregroundWindow: getLastExternalWindow() });
   }
@@ -822,11 +827,21 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && pathname === '/api/butler/command') {
     const commandStartedAt = Date.now();
     const body = await readBody(req, 2700000);
-    const sentence = String(body.sentence || body.text || '').trim().slice(0, 2000);
+    let sentence = String(body.sentence || body.text || '').trim().slice(0, 2000);
+    if (body.source === 'voice' && sentence.length >= 2) {
+      if (global.__jarvisInFlightVoiceCmd && !global.__jarvisInFlightVoiceCmd.superseded) {
+        const prev = String(global.__jarvisInFlightVoiceCmd.sentence || '').trim();
+        global.__jarvisInFlightVoiceCmd.superseded = true;
+        if (prev && !sentence.includes(prev)) {
+          sentence = (prev + ' ' + sentence).trim().slice(0, 2000);
+        }
+      }
+    }
     const normSentence = sentence.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
     const normSpeaking = String(global.__jarvisSpeakingText || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
     const hasBargeKeyword = /(자비스|사사리사|잠깐|멈춰|스톱|그만|조용|아니|근데|그리고|대신|유튜브|메모장|크롬|네이버|구글|계산기|탐색기|오늘|몇시|볼륨|소리)/.test(normSentence);
-    const isSelfEcho = Boolean(global.__jarvisIsSpeaking && normSpeaking && normSentence.length >= 3 && normSpeaking.includes(normSentence) && !hasBargeKeyword);
+    const hasPureStopCmd = /^(?:잠깐|잠시만|멈춰|스톱|그만|조용히?해?)$/.test(normSentence);
+    const isSelfEcho = Boolean(global.__jarvisIsSpeaking && normSpeaking && normSentence.length >= 2 && normSpeaking.includes(normSentence) && !hasPureStopCmd);
 
     if (body.source === 'voice') {
       if (isSelfEcho) return sendJson(res, 200, { ok: true, ignored: true, reason: 'assistant-echo' });
@@ -862,6 +877,13 @@ const server = http.createServer(async (req, res) => {
     const executeOs = body.executeOs !== false;
     const executionStartedAt = Date.now();
     global.__jarvisLatestEarItem = { text: sentence, isFinal: true, intent: 'processing', hudTitle: '○ 명령 처리 중', hudColor: 'cyan', ts: Date.now() };
+    const myCmdSeq = (global.__jarvisActiveCmdSeq = (global.__jarvisActiveCmdSeq || 0) + 1);
+    const myCmdTrack = body.source === 'voice' ? { seq: myCmdSeq, sentence, startedAt: Date.now(), superseded: false } : null;
+    if (myCmdTrack) {
+      global.__jarvisInFlightVoiceCmd = myCmdTrack;
+    }
+    global.__jarvisLastUserSentence = sentence;
+    global.__jarvisLastUserSentenceAt = Date.now();
     let result;
     try {
       result = await butler.execute(sentence, executeOs);
@@ -873,6 +895,14 @@ const server = http.createServer(async (req, res) => {
       if (global.__jarvisEarQueue.length > 20) global.__jarvisEarQueue.shift();
       return sendJson(res, 500, { ok: false, error: '명령 실행 실패', detail: err.message,
         result: { intent: 'error', hudColor: 'amber', hudTitle: '⚠ 명령 실행 실패', hudSubtitle: err.message, spoken: '명령을 실행하지 못했습니다.' } });
+    }
+    if (myCmdTrack && myCmdTrack.superseded) {
+      if (global.__jarvisInFlightVoiceCmd === myCmdTrack) global.__jarvisInFlightVoiceCmd = null;
+      recordEarEvent({ event: 'command-superseded-merged', ts: Date.now(), sentence });
+      return sendJson(res, 200, { ok: true, ignored: true, superseded: true, reason: 'merged-into-next-utterance' });
+    }
+    if (myCmdTrack && global.__jarvisInFlightVoiceCmd === myCmdTrack) {
+      global.__jarvisInFlightVoiceCmd = null;
     }
     if (result && result.research) {
       researchReports.set(result.research.id, result.research);
@@ -1080,6 +1110,10 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'POST' && pathname === '/api/ear/barge-in') {
     const body = await readBody(req);
+    if (global.__jarvisInFlightVoiceCmd && !global.__jarvisInFlightVoiceCmd.superseded) {
+      global.__jarvisInFlightVoiceCmd.superseded = true;
+      global.__jarvisSupersededVoiceDraft = { text: global.__jarvisInFlightVoiceCmd.sentence, ts: Date.now() };
+    }
     global.__jarvisIsSpeaking = false;
     global.__jarvisSpeakingText = '';
     global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
@@ -1094,6 +1128,8 @@ const server = http.createServer(async (req, res) => {
     global.__jarvisIsSpeaking = Boolean(body && body.speaking);
     if (global.__jarvisIsSpeaking && body && body.text) {
       global.__jarvisSpeakingText = String(body.text).slice(0, 1000);
+      global.__jarvisLastSpokenText = global.__jarvisSpeakingText;
+      global.__jarvisSpeakingStartedAt = Date.now();
     } else if (!global.__jarvisIsSpeaking) {
       global.__jarvisSpeakingText = '';
     }
@@ -1114,11 +1150,15 @@ const server = http.createServer(async (req, res) => {
     if (body && body.text) {
       const cleanText = String(body.text).trim();
       const normT = cleanText.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
-      const normSpk = String(global.__jarvisSpeakingText || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
-      const hasBarge = /(자비스|사사리사|잠깐|멈춰|스톱|그만|조용|아니|근데|그리고|대신)/.test(normT);
-      const isEcho = Boolean(global.__jarvisIsSpeaking && normSpk && normT.length >= 3 && normSpk.includes(normT) && !hasBarge);
-      if (!isEcho) {
-        if (global.__jarvisIsSpeaking) {
+      const normSpk = String(global.__jarvisSpeakingText || global.__jarvisLastSpokenText || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+      const normLastUser = String(global.__jarvisLastUserSentence || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+      const hasBarge = /(자비스|사사리사|잠깐|잠시만|멈춰|스톱|그만|조용|아니야|아니|다시)/.test(normT);
+      const hasPureStop = /^(?:잠깐|잠시만|멈춰|스톱|그만|조용히?해?)$/.test(normT);
+      const isEcho = Boolean(global.__jarvisIsSpeaking && normSpk && normT.length >= 2 && (normSpk.includes(normT) || normT.includes(normSpk.slice(0, 12))) && !hasPureStop);
+      const isUserResidual = Boolean(!body.status && normLastUser && normT.length >= 2 && normLastUser.includes(normT) && (Date.now() - (global.__jarvisLastUserSentenceAt || 0) < 4500));
+      if (!isEcho && !isUserResidual) {
+        const speakingElapsed = Date.now() - (global.__jarvisSpeakingStartedAt || 0);
+        if (global.__jarvisIsSpeaking && !body.status && (hasBarge || (normT.length >= 5 && speakingElapsed > 700))) {
           global.__jarvisIsSpeaking = false;
           global.__jarvisSpeakingText = '';
           global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;

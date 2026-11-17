@@ -679,8 +679,8 @@ class BscCollaborationBridge {
       };
     }
 
-    // G) BeausCreators / CHLGD 원리 및 현황 브리핑 질의
-    if (/beauscreators|뷰스크리에이터|에이전트현황|에이전트시스템|chlgd원리|회사시스템/.test(sq)) {
+    // G) BeausCreators / CHLGD 원리 및 현황 브리핑 질의 (명시적 현황 브리핑 요청 시에만)
+    if (/^(?:자비스\s*)?(?:뷰스크리에이터스?\s*현황|에이전트\s*현황\s*브리핑|회사\s*시스템\s*현황|chlgd\s*상태)(?:해\s*줘|알려\s*줘|보여\s*줘)?$/.test(s)) {
       const eco = this.getEcosystemStatus();
       const activeNames = eco.activeAgents.length > 0
         ? eco.activeAgents.map(a => a.name).join(', ')
@@ -714,8 +714,8 @@ class BscCollaborationBridge {
       };
     }
 
-    // I) Plan / 기획 / 설계 / 문서 뷰어 HUD 창 열기 또는 새 Plan 작성 오더
-    if (/플랜|plan|계획세워|계획짜|기획안|설계서|문서창|문서보여|프리뷰창|안티그래비티분석|rea분석|아키텍처보여/.test(sq)) {
+    // I) Plan / 기획 / 설계 / 문서 뷰어 HUD 창 열기 오더 (명시적 창 열기/작성 지시 시에만)
+    if (/(?:플랜\s*창|문서\s*창|프리뷰\s*창|규칙\s*창|안티그래비티\s*분석\s*창|rea\s*분석\s*창).*(?:열어|보여|띄워|켜)/.test(s)) {
       if (/안티그래비티|rea분석/.test(sq)) {
         const st = triggerHudPlanWindowOpen('rea');
         return {

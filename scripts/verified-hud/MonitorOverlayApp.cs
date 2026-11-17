@@ -126,7 +126,12 @@ namespace JarvisSasariSa
         private static SoundPlayer activeSoundPlayer = null;
         private static System.Threading.CancellationTokenSource activeSpeechCts = null;
         private static int lastSeenBargeInSeq = 0;
+        private static int currentSpeechSeq = 0;
+        private static DateTime currentSpeechStartedAt = DateTime.MinValue;
         private static TextBlock txtActiveWindowBadge = null;
+        private static TextBlock txtClockWeatherBadge = null;
+        private static string cachedLiveWeatherText = "날씨 수신 중…";
+        private static DateTime lastWeatherFetchAt = DateTime.MinValue;
         private static readonly Border[] voiceEqBars = new Border[5];
         private static long lastReportedForegroundHwnd = 0;
         private static int fgCheckCounter = 0;
@@ -863,6 +868,7 @@ namespace JarvisSasariSa
                 BorderBrush = new SolidColorBrush(Color.FromRgb(48, 65, 90)),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(7, 2, 7, 2),
+                Margin = new Thickness(0, 0, 6, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "대표님이 마지막으로 클릭하신 외부 작업 창 (메모장·브라우저 등 자동 인식)"
             };
@@ -875,6 +881,64 @@ namespace JarvisSasariSa
             };
             targetBadgeBorder.Child = txtActiveWindowBadge;
             statusHeaderRow.Children.Add(targetBadgeBorder);
+
+            Border clockWeatherBadgeBorder = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(185, 16, 32, 48)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(110, 56, 189, 248)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 2, 8, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = Cursors.Hand,
+                ToolTip = "실시간 시계 & 무료 기상청/Open-Meteo 날씨 (클릭 시 오늘 날씨 음성 브리핑)"
+            };
+            txtClockWeatherBadge = new TextBlock
+            {
+                Text = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR")) + "  ·  " + cachedLiveWeatherText,
+                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(186, 230, 253))
+            };
+            clockWeatherBadgeBorder.Child = txtClockWeatherBadge;
+            clockWeatherBadgeBorder.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            clockWeatherBadgeBorder.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                SendCommandToButler("오늘 날씨 브리핑해줘");
+            };
+            statusHeaderRow.Children.Add(clockWeatherBadgeBorder);
+
+            DispatcherTimer clockWeatherTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            clockWeatherTimer.Tick += async (s, e) =>
+            {
+                try
+                {
+                    if (txtClockWeatherBadge != null)
+                    {
+                        string nowStr = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR"));
+                        txtClockWeatherBadge.Text = nowStr + "  ·  " + cachedLiveWeatherText;
+                    }
+                    if ((DateTime.UtcNow - lastWeatherFetchAt).TotalMinutes >= 10.0)
+                    {
+                        lastWeatherFetchAt = DateTime.UtcNow;
+                        string wJson = await http.GetStringAsync("http://127.0.0.1:7788/api/weather/current");
+                        string badge = ExtractJsonField(wJson, "badgeText");
+                        if (!string.IsNullOrEmpty(badge))
+                        {
+                            cachedLiveWeatherText = badge;
+                            if (txtClockWeatherBadge != null)
+                            {
+                                string nowStr = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR"));
+                                txtClockWeatherBadge.Text = nowStr + "  ·  " + cachedLiveWeatherText;
+                            }
+                        }
+                    }
+                }
+                catch { }
+            };
+            clockWeatherTimer.Start();
 
             textCol.Children.Add(statusHeaderRow);
 
@@ -1505,7 +1569,7 @@ namespace JarvisSasariSa
                         if (isMiniMode) ToggleMiniMode(false);
                         if (!isFinal)
                         {
-                            if (isSpeaking)
+                            if (isSpeaking && heard.Trim().Length >= 4 && (DateTime.UtcNow - currentSpeechStartedAt).TotalMilliseconds > 700)
                             {
                                 WriteLog("Interim user speech detected while speaking: stopping TTS immediately");
                                 StopAllVoicePlaybackImmediately(true);
@@ -5811,15 +5875,14 @@ namespace JarvisSasariSa
                 Application.Current.Dispatcher.BeginInvoke(new Action(() => SpeakAsync(text))); return;
             }
             if (string.IsNullOrWhiteSpace(text)) return;
-            if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 5.0) return;
+            if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 4.0) return;
             lastSpeechRequest = text;
             lastSpeechRequestAt = DateTime.UtcNow;
 
-            // Interrupt any ongoing TTS immediately so new speech never waits behind a long playback queue
-            if (isSpeaking)
-            {
-                StopAllVoicePlaybackImmediately(false);
-            }
+            int mySeq = System.Threading.Interlocked.Increment(ref currentSpeechSeq);
+
+            // Always cancel any ongoing or downloading TTS immediately so two answers NEVER overlap
+            StopAllVoicePlaybackImmediately(false);
 
             var myCts = new System.Threading.CancellationTokenSource();
             activeSpeechCts = myCts;
@@ -5827,8 +5890,9 @@ namespace JarvisSasariSa
             await speechGate.WaitAsync();
             try
             {
-                if (myCts.IsCancellationRequested) return;
+                if (myCts.IsCancellationRequested || mySeq != currentSpeechSeq) return;
                 isSpeaking = true;
+                currentSpeechStartedAt = DateTime.UtcNow;
                 try
                 {
                     string speakPayload = "{\"speaking\":true,\"text\":\"" + EscapeJson(text) + "\"}";
@@ -5840,13 +5904,11 @@ namespace JarvisSasariSa
                 var audioClock = System.Diagnostics.Stopwatch.StartNew();
                 try
                 {
-                    // Sub-1s Clause-Streaming TTS: synthesize Clause 1 & Clause 2 in parallel so audio starts in ~320ms!
-                    string[] clauses = SplitFirstSpeechClause(text);
-                    Task<byte[]>[] fetchTasks = clauses.Select(c => FetchTtsWavClauseAsync(c, myCts.Token)).ToArray();
-                    for (int ci = 0; ci < fetchTasks.Length; ci++)
+                    // Fetch and play as ONE single atomic WAV stream so clauses never collide or overwrite server echo state
+                    byte[] wavBytes = await FetchTtsWavClauseAsync(text, myCts.Token);
+                    if (!myCts.IsCancellationRequested && mySeq == currentSpeechSeq && wavBytes != null && wavBytes.Length > 44)
                     {
-                        byte[] wavBytes = await fetchTasks[ci];
-                        if (myCts.IsCancellationRequested) break;
+                        currentSpeechStartedAt = DateTime.UtcNow;
                         if (await PlayWavBytesInterruptibleAsync(wavBytes, myCts.Token, audioClock))
                         {
                             played = true;
@@ -5867,9 +5929,9 @@ namespace JarvisSasariSa
             }
             finally
             {
-                if (activeSpeechCts == myCts) isSpeaking = false;
+                if (activeSpeechCts == myCts && mySeq == currentSpeechSeq) isSpeaking = false;
             }
-            if (!myCts.IsCancellationRequested)
+            if (!myCts.IsCancellationRequested && mySeq == currentSpeechSeq)
             {
                 try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
                 catch { }

@@ -350,9 +350,108 @@ async function fetchStockMarketIntelligence({ query = '' } = {}) {
   };
 }
 
+const CITY_COORDS = {
+  '서울': { name: '서울', lat: 37.5665, lon: 126.9780 },
+  '강남': { name: '서울 강남', lat: 37.4979, lon: 127.0276 },
+  '판교': { name: '성남 판교', lat: 37.3947, lon: 127.1112 },
+  '성남': { name: '성남', lat: 37.4200, lon: 127.1267 },
+  '인천': { name: '인천', lat: 37.4563, lon: 126.7052 },
+  '수원': { name: '수원', lat: 37.2636, lon: 127.0286 },
+  '대전': { name: '대전', lat: 36.3504, lon: 127.3845 },
+  '대구': { name: '대구', lat: 35.8714, lon: 128.6014 },
+  '부산': { name: '부산', lat: 35.1796, lon: 129.0756 },
+  '광주': { name: '광주', lat: 35.1595, lon: 126.8526 },
+  '제주': { name: '제주', lat: 33.4996, lon: 126.5312 }
+};
+
+function describeWmoCode(code) {
+  const c = Number(code) || 0;
+  if (c === 0) return { icon: '☀', text: '맑음' };
+  if (c === 1 || c === 2) return { icon: '⛅', text: '구름 조금' };
+  if (c === 3) return { icon: '☁', text: '흐림' };
+  if (c === 45 || c === 48) return { icon: '🌫', text: '안개' };
+  if (c >= 51 && c <= 67) return { icon: '🌧', text: '비' };
+  if (c >= 71 && c <= 77) return { icon: '❄', text: '눈' };
+  if (c >= 80 && c <= 82) return { icon: '🌦', text: '소나기' };
+  if (c >= 95) return { icon: '⛈', text: '뇌우' };
+  return { icon: '🌤', text: '대체로 맑음' };
+}
+
+const weatherCache = new Map();
+
+/**
+ * 100% Free ($0, No API Key Required) Live Weather Engine via Open-Meteo KMA/ECMWF Forecast
+ */
+async function fetchLiveWeatherBriefing({ query = '', forceRefresh = false } = {}) {
+  const q = String(query || '').trim();
+  const matchedCity = Object.entries(CITY_COORDS).find(([k]) => q.includes(k));
+  const loc = matchedCity ? matchedCity[1] : CITY_COORDS['서울'];
+  const cacheKey = loc.name;
+  const cached = weatherCache.get(cacheKey);
+  if (!forceRefresh && cached && Date.now() - cached.ts < 10 * 60 * 1000) {
+    return cached.data;
+  }
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul&forecast_days=3`;
+  const raw = await fetchUrlText(url, 4500);
+  if (!raw) {
+    if (cached) return cached.data;
+    return {
+      ok: false,
+      city: loc.name,
+      badgeText: `${loc.name} 날씨 연결 대기`,
+      spoken: `현재 ${loc.name} 날씨 서버 응답을 확인하고 있습니다.`
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const cur = parsed.current || {};
+    const daily = parsed.daily || {};
+    const tempC = Number(cur.temperature_2m ?? 0).toFixed(1);
+    const feelsLikeC = Number(cur.apparent_temperature ?? tempC).toFixed(1);
+    const humidity = Math.round(Number(cur.relative_humidity_2m ?? 0));
+    const windKmh = Number(cur.wind_speed_10m ?? 0).toFixed(1);
+    const wmo = describeWmoCode(cur.weather_code);
+    const maxC = Array.isArray(daily.temperature_2m_max) ? Number(daily.temperature_2m_max[0]).toFixed(1) : tempC;
+    const minC = Array.isArray(daily.temperature_2m_min) ? Number(daily.temperature_2m_min[0]).toFixed(1) : tempC;
+    const rainProb = Array.isArray(daily.precipitation_probability_max) ? Number(daily.precipitation_probability_max[0] || 0) : 0;
+
+    const badgeText = `${wmo.icon} ${loc.name} ${tempC}°C (${wmo.text}·습도 ${humidity}%)`;
+    const spoken = `현재 ${loc.name} 날씨는 ${wmo.text}, 기온은 섭씨 ${tempC}도이며 체감온도는 ${feelsLikeC}도입니다. 오늘 최고 기온은 ${maxC}도, 최저 기온은 ${minC}도, 강수 확률은 ${rainProb} 퍼센트입니다.`;
+
+    const result = {
+      ok: true,
+      cost: '$0 (Open-Meteo 무료 기상 API)',
+      city: loc.name,
+      tempC: Number(tempC),
+      feelsLikeC: Number(feelsLikeC),
+      humidity,
+      windKmh: Number(windKmh),
+      icon: wmo.icon,
+      condition: wmo.text,
+      maxC: Number(maxC),
+      minC: Number(minC),
+      rainProb,
+      badgeText,
+      spoken
+    };
+    weatherCache.set(cacheKey, { ts: Date.now(), data: result });
+    return result;
+  } catch (_) {
+    return {
+      ok: false,
+      city: loc.name,
+      badgeText: `${loc.name} 날씨 확인 중`,
+      spoken: `${loc.name} 날씨 데이터를 파싱하지 못했습니다.`
+    };
+  }
+}
+
 module.exports = {
   fetchLiveKoreanNews,
   fetchCalendarAndMailSummary,
   buildExecutiveNewsletter,
-  fetchStockMarketIntelligence
+  fetchStockMarketIntelligence,
+  fetchLiveWeatherBriefing
 };
