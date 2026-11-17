@@ -579,8 +579,8 @@
           if (d && d.ok && d.config) {
             setConfig(d.config);
             if (d.config.speechPauseMs && turnRef.current) {
-              turnRef.current.pauseMs = Math.max(850, Math.min(6000, Number(d.config.speechPauseMs) || 1100));
-              turnRef.current.shortPauseMs = Math.max(650, Math.min(1200, Math.round(turnRef.current.pauseMs * 0.65)));
+              turnRef.current.pauseMs = Math.max(580, Math.min(6000, Number(d.config.speechPauseMs) || 750));
+              turnRef.current.shortPauseMs = Math.max(420, Math.min(1200, Math.round(turnRef.current.pauseMs * 0.65)));
             }
           }
         })

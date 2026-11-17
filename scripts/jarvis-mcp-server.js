@@ -29,6 +29,7 @@ const { sharedBscBridge } = require('./bsc-collaboration-bridge');
 const { createDocument, normalizeDocSpec } = require('./office-doc-engine');
 const { runRea, runLaya } = require('./rea-laya-bridge');
 const { getWarehouseNeuronGraph, searchWarehouseNeurons, neuronToResearchReport } = require('./ecosystem-index');
+const { artcraftExecute } = require('./jarvis-ide-cli-mcp-tools');
 
 const MCP_SERVER_INFO = {
   name: 'jarvis-sovereign-butler',
@@ -174,6 +175,23 @@ const MCP_TOOLS = [
         rebuild: { type: 'boolean', description: '옵시디언 뉴런 볼트(3.Obsidian_Vault) 재구축 여부' },
         openPlanHud: { type: 'boolean', description: '자비스 바탕화면 Plan HUD 창에 뉴런 시냅스 맵을 즉시 표시할지 여부' }
       }
+    }
+  },
+  {
+    name: 'jarvis_artcraft_execute',
+    description: 'ArtCraft 크리에이티브 스위트 16종(통합런처, PhotoCraft, VectorCraft, FilmCraft, EffectCraft, DesignCraft, FigCraft, LightCraft, PdfCraft, WordCraft, DeckCraft, GridCraft, SoundCraft, CADCraft, SubCraft 3D Painter, Craft-Anything)의 목록 조회(list), GUI 실행(launch), Headless CLI(cli), 내장 Stdio MCP 도구 호출(mcp)을 통합 수행합니다.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        appName: { type: 'string', description: '앱 ID (예: list, photocraft, vectorcraft, filmcraft, effectcraft, designcraft, figcraft, lightcraft, pdfcraft, wordcraft, deckcraft, gridcraft, soundcraft, cadcraft, subcraft, craft-anything)' },
+        mode: { type: 'string', description: 'list | launch | cli | mcp' },
+        cliArgs: { type: 'array', items: { type: 'string' }, description: 'CLI 인자 배열' },
+        mcpTool: { type: 'string', description: 'MCP 도구명 (tools/list, execute, new_document 등)' },
+        mcpArgs: { type: 'object', description: 'MCP 인자 객체' },
+        openFile: { type: 'string', description: 'GUI 실행 시 열 파일 경로' },
+        controlPort: { type: 'number', description: 'GUI 실시간 제어 포트 (선택)' }
+      },
+      required: ['appName', 'mode']
     }
   }
 ];
@@ -502,6 +520,22 @@ async function handleMcpJsonRpcRequest(rpcReq, butlerInstance = null) {
               {
                 type: 'text',
                 text: JSON.stringify({ ok: true, ...neuronRes, report }, null, 2)
+              }
+            ]
+          }
+        };
+      }
+
+      if (toolName === 'jarvis_artcraft_execute') {
+        const acRes = await artcraftExecute(args);
+        return {
+          jsonrpc: '2.0',
+          id,
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(acRes, null, 2)
               }
             ]
           }

@@ -31,6 +31,8 @@ const {
 } = require('./ecosystem-index');
 const { runRea, reaToResearchReport, runLaya, startLayaService, layaToResearchReport } = require('./rea-laya-bridge');
 const { toResearchReport: learningToResearchReport } = require('./recursive-learning');
+const { runJarvisAgentTurn, executeAgentTool } = require('./jarvis-agent-core');
+const { buildExecutiveNewsletter, fetchStockMarketIntelligence } = require('./jarvis-briefing-hub');
 
 function runPowerShell(script) {
   const wrapped = `$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; try {\n${script}\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
@@ -305,7 +307,24 @@ const WindowsHands = {
     '옵시디언': 'obsidian',
     '디스코드': 'discord',
     '올라마': 'ollama',
-    '블렌더': 'blender',
+    '블렌더': 'C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe',
+    '아트크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\artcraft-launcher.exe',
+    '아트크래프트런처': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\artcraft-launcher.exe',
+    '포토크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\photocraft\\photocraft.exe',
+    '벡터크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\vectorcraft\\vectorcraft.exe',
+    '필름크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\filmcraft\\filmcraft.exe',
+    '이펙트크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\effectcraft\\effectcraft.exe',
+    '디자인크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\designcraft\\designcraft.exe',
+    '피그크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\figcraft\\figcraft.exe',
+    '라이트크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\lightcraft\\lightcraft.exe',
+    '피디에프크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\pdfcraft\\pdfcraft.exe',
+    '워드크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\wordcraft\\wordcraft.exe',
+    '덱크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\deckcraft\\deckcraft.exe',
+    '그리드크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\gridcraft\\gridcraft.exe',
+    '사운드크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\soundcraft\\soundcraft.exe',
+    '캐드크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\artcraft-launcher-portable\\artcraft-launcher-0.5.1-windows-x64-portable\\ArtCraftLauncherData\\data\\apps\\cadcraft\\cadcraft.exe',
+    '서브크래프트': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\SubCraft-0.2.0-windows-x64\\SubCraft-0.2.0-windows-x64\\SubCraft.exe',
+    '크래프트애니씽': 'C:\\BeausCreators\\05.BSC_Skill_Warehouse\\1.Imported_Skills\\2026-10-19_TechPack\\artcraft-suite\\craft-anything-0.6.0-windows-x64-portable\\craft-anything.exe',
     '뷰스크리에이터스': 'C:\\BeausCreators',
     '본사폴더': 'C:\\BeausCreators\\01.BSC_HQ',
     '스킬창고': 'C:\\Warehouse',
@@ -726,9 +745,6 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
   if (/날씨/.test(sq)) {
     return `${user}, 날씨는 네이버에서 검색해 확인해 주세요.`;
   }
-  if (/뉴스|속보/.test(sq)) {
-    return `${user}, 최신 뉴스는 뉴스 사이트에서 확인해 주세요.`;
-  }
 
   // Math expression check (e.g. "125 곱하기 4는 뭐야")
   const mathMatch = prompt.match(/(\d+)\s*(더하기|빼기|곱하기|나누기|\+|\-|\*|\/)\s*(\d+)/);
@@ -798,25 +814,10 @@ async function generateSmartButlerReply(prompt, cfg, sys, memoryText) {
     } catch (_) {}
   }
 
-  // Tier 5 Fallback: Deterministic 3-Ecosystem Local Knowledge Lookup
-  try {
-    const found = searchEcosystems(prompt, { limit: 2 });
-    if (found && Array.isArray(found.hits) && found.hits.length > 0) {
-      const top = found.hits[0];
-      return {
-        text: `네, ${user}. 우리 3대 생태계(${top.ecosystem})에서 「${top.title}」 문서를 확인했습니다. 상세 내용을 창으로 보시려면 「우리 시스템에서 ${prompt} 찾아줘」라고 말씀해 주세요.`,
-        provider: 'bsc-local-core',
-        model: 'bsc-3ecosystem-index',
-        modelVerified: true,
-        fallback: true
-      };
-    }
-  } catch (_) {}
-
   return {
-    text: `네, ${user}. 말씀하신 「${prompt}」 내용을 확인했습니다. 관련 자료 검색이 필요하시면 「${prompt} 검색해줘」라고 말씀해 주세요.`,
-    provider: 'bsc-local-core',
-    model: 'bsc-executive-core',
+    text: `네, ${user}. 어떤 작업이나 도구를 실행할지 한 번만 더 구체적으로 말씀해 주시면 즉시 처리하겠습니다.`,
+    provider: 'jarvis-v3-core',
+    model: 'jarvis-executive-core',
     modelVerified: true,
     fallback: true
   };
@@ -1413,6 +1414,27 @@ class ButlerEngine {
       return { intent: 'type', text: typeMatch[1].trim() };
     }
 
+    // 9-D) Executive Newsletter / Live News Briefing ("오늘 뉴스 알려줘", "뉴스레터 보여줘", "오늘 소식 브리핑")
+    if (/(?:뉴스레터|오늘의?\s*뉴스|최신\s*뉴스|주요\s*뉴스|아침\s*뉴스|오늘\s*소식|헤드라인|속보)/.test(s) && !/메모장/.test(s)) {
+      return { intent: 'newsletter', topic: s };
+    }
+
+    // 9-E) Real-Time Stock & Market Intelligence ("삼성전자 주가", "엔비디아 주식", "오늘 증시 시황", "코스피 나스닥")
+    if (/(?:주가|주식\s*시황|증시|코스피|코스닥|나스닥|에스앤피|s&p\s*500|다우존스|원달러\s*환율|(?:삼성전자|하이닉스|엔비디아|테슬라|애플|마이크로소프트|팔란티어).*(?:시세|가격|얼마|전망|주식))/i.test(s) && !/메모장/.test(s)) {
+      return { intent: 'stockIntel', query: s };
+    }
+
+    // 9-F) Agentic Computer-Use / Notepad / Active Window / Blender 3D / NotebookLM / IDE / CLI Tasks -> Route directly to JARVIS v3.0 ReAct Core!
+    if (
+      /(?:메모장|노트패드|클릭한\s*창|활성\s*창|열려\s*있는\s*창|켜진\s*메모장|켜져\s*있는\s*메모장).*(?:써|작성|적어|기입|메모|입력|붙여|읽어|정리|요약|추가)/.test(s) ||
+      /(?:중용\s*\d+\s*장|원문).*(?:써|작성|적어|메모)/.test(s) ||
+      /(?:블렌더|blender|3d\s*모델링|인테리어\s*모델링|건물\s*모델링)/i.test(s) ||
+      /(?:노트북\s*엘엠|노트북\s*lm|notebooklm)/i.test(s) ||
+      /(?:파이썬|노드|스크립트|코드)\s*파일.*(?:만들|생성|작성|실행|수정)/.test(s)
+    ) {
+      return { intent: 'agentCore', prompt: s };
+    }
+
     if (require('./web-research').isResearchQuestion(s) && !/\d\s*(?:더하기|빼기|곱하기|나누기|[+*/-])\s*\d/.test(s)) return { intent: 'research', query: s };
     return { intent: 'brain', prompt: s };
   }
@@ -1495,6 +1517,24 @@ class ButlerEngine {
       case 'confirmSend': {
         const pending = this.pendingSend;
         this.pendingSend = null;
+        if (pending.kind === 'agentPermission') {
+          if (!parsed.decision) {
+            return { intent: 'confirmSend', hudColor: 'amber', hudTitle: '✕ 제어 작업 취소', hudSubtitle: `${pending.summary} 작업을 취소했습니다.`, heard: rawSentence, spoken: '네, 대표님. 요청하신 제어 작업을 취소했습니다.' };
+          }
+          const ctxArt = {};
+          const out = executeOsActions
+            ? await executeAgentTool(pending.toolName, pending.toolArgs || {}, cfg, ctxArt)
+            : { ok: true, dryRun: true };
+          return {
+            intent: 'confirmSend',
+            ...(ctxArt.research ? { research: ctxArt.research, researchId: ctxArt.researchId } : {}),
+            hudColor: out && out.ok ? 'lime' : 'amber',
+            hudTitle: out && out.ok ? `✓ 승인 작업 완료: ${pending.summary}` : '⚠ 승인 작업 확인 필요',
+            hudSubtitle: out && out.ok ? `${pending.toolName} 실행 완료` : ((out && out.error) || ''),
+            heard: rawSentence,
+            spoken: out && out.ok ? `네, 대표님. 승인해 주신 ${pending.summary} 작업을 완료했습니다.` : '승인된 작업 실행 중 오류가 발생했습니다.'
+          };
+        }
         if (pending.kind === 'coding') {
           if (!parsed.decision) return { intent: 'confirmSend', hudColor: 'amber', hudTitle: '코딩 작업 취소', heard: rawSentence, spoken: '코딩 작업을 시작하지 않았습니다.' };
           if (!executeOsActions) return { intent: 'confirmSend', hudColor: 'lime', hudTitle: '코딩 작업 확인됨 (시험)', heard: rawSentence, spoken: '시험 모드에서는 코딩 작업을 실행하지 않습니다.' };
@@ -2430,23 +2470,139 @@ class ButlerEngine {
           spoken: parsed.intent === 'bye' ? '네, 필요하실 때 언제든 불러 주세요.' : ''
         };
 
+      case 'newsletter': {
+        const nl = await buildExecutiveNewsletter({ topic: parsed.topic, cfg });
+        this.lastResearchReport = nl.report;
+        return {
+          intent: 'research',
+          research: nl.report,
+          researchId: nl.report.id,
+          hudColor: 'cyan',
+          hudTitle: '📰 대표님 모닝 뉴스레터 & 일정 브리핑',
+          hudSubtitle: nl.report.summary,
+          heard: rawSentence,
+          spoken: nl.spoken
+        };
+      }
+
+      case 'stockIntel': {
+        const st = await fetchStockMarketIntelligence({ query: parsed.query });
+        this.lastResearchReport = st.report;
+        return {
+          intent: 'research',
+          research: st.report,
+          researchId: st.report.id,
+          hudColor: 'lime',
+          hudTitle: `📈 실시간 증시 & 종목 인텔리전스`,
+          hudSubtitle: st.report.summary,
+          heard: rawSentence,
+          spoken: st.spoken
+        };
+      }
+
+      case 'agentCore':
       default: {
+        const promptText = parsed.prompt || rawSentence;
+        // For deterministic test mode (JARVIS_DISABLE_EXTERNAL_HUB=1), keep existing test contract
+        if (parsed.intent !== 'agentCore' && process.env.JARVIS_DISABLE_EXTERNAL_HUB === '1') {
+          const sys = this.getSystemTelemetry();
+          let memText = '';
+          try { memText = fs.readFileSync(FILES.memory, 'utf8'); } catch (_) {}
+          const reply = await generateSmartButlerReply(promptText, cfg, sys, memText);
+          const replyText = typeof reply === 'string' ? reply : reply.text;
+          const unavailable = typeof reply === 'object' && reply.provider === 'unavailable';
+          return {
+            intent: 'brain',
+            hudColor: unavailable ? 'amber' : 'cyan',
+            hudTitle: unavailable ? '⚠ 대화 AI 연결 확인' : `🗣 ${cfg.assistantName || '자비스'} 답변`,
+            hudSubtitle: replyText,
+            heard: rawSentence,
+            spoken: replyText,
+            ...(typeof reply === 'object' ? { llm: { provider: reply.provider, model: reply.model, requestedModel: reply.requestedModel, modelVerified: reply.modelVerified, fallback: reply.fallback, elapsedMs: reply.elapsedMs }, ...(unavailable ? { error: 'ai-unavailable' } : {}) } : {})
+          };
+        }
+
+        // First check ultra-fast 0ms conversational / status patterns if not explicitly agentCore
+        if (parsed.intent !== 'agentCore') {
+          const sqQuick = squash(promptText);
+          if (/^(알겠어|알았어|알겠습니다|오케이|그래|좋아|오키|확인|확인했어|내말들려|들려|안녕|반가워|넌누구|누구야|내가누구)/.test(sqQuick) || /(\d+)\s*(더하기|빼기|곱하기|나누기|\+|\-|\*|\/)\s*(\d+)/.test(promptText)) {
+            const sys = this.getSystemTelemetry();
+            let memText = '';
+            try { memText = fs.readFileSync(FILES.memory, 'utf8'); } catch (_) {}
+            const quickReply = await generateSmartButlerReply(promptText, cfg, sys, memText);
+            const txt = typeof quickReply === 'string' ? quickReply : quickReply.text;
+            return {
+              intent: 'brain',
+              hudColor: 'cyan',
+              hudTitle: `🗣 ${cfg.assistantName || '자비스'} 답변`,
+              hudSubtitle: txt,
+              heard: rawSentence,
+              spoken: txt
+            };
+          }
+        }
+
+        // Run JARVIS v3.0 Multi-Turn ReAct + Computer-Use Agent Loop!
+        const agentRes = await runJarvisAgentTurn(promptText, cfg, executeOsActions, this.onAsyncAgentProgress || null);
+        if (agentRes && agentRes.ok) {
+          if (agentRes.research) {
+            this.lastResearchReport = agentRes.research;
+          }
+          if (agentRes.pendingPermission) {
+            this.pendingSend = {
+              kind: 'agentPermission',
+              summary: agentRes.pendingPermission.summary,
+              toolName: agentRes.pendingPermission.toolName,
+              toolArgs: agentRes.pendingPermission.toolArgs,
+              expiresAt: Date.now() + 60000
+            };
+            return {
+              intent: 'agentPermission',
+              awaitingConfirm: true,
+              pendingSend: this.pendingSend,
+              hudColor: 'amber',
+              hudTitle: `🛡 제어 승인 요청: ${agentRes.pendingPermission.summary}`,
+              hudSubtitle: agentRes.text,
+              heard: rawSentence,
+              spoken: agentRes.text
+            };
+          }
+          const usedTools = Array.isArray(agentRes.executedTools) && agentRes.executedTools.length > 0;
+          return {
+            intent: agentRes.research ? 'research' : 'agentCore',
+            ...(agentRes.research ? { research: agentRes.research, researchId: agentRes.researchId } : {}),
+            hudColor: agentRes.isClarification ? 'amber' : (usedTools ? 'lime' : 'cyan'),
+            hudTitle: agentRes.isClarification
+              ? '❓ 자비스 확인 질문 (이어 말씀해 주세요)'
+              : usedTools
+              ? `⚡ 에이전트 실행 완료 (${agentRes.executedTools.map(t => t.split('(')[0]).join(' ➔ ')})`
+              : `🗣 ${cfg.assistantName || '자비스'} 답변`,
+            hudSubtitle: agentRes.text,
+            heard: rawSentence,
+            spoken: agentRes.text,
+            llm: {
+              provider: agentRes.provider,
+              model: agentRes.model,
+              modelVerified: true,
+              fallback: Boolean(agentRes.fallback),
+              elapsedMs: agentRes.elapsedMs
+            }
+          };
+        }
+
+        // Final fallback if agent core could not connect
         const sys = this.getSystemTelemetry();
         let memText = '';
-        try {
-          memText = fs.readFileSync(FILES.memory, 'utf8');
-        } catch (_) {}
-        const reply = await generateSmartButlerReply(parsed.prompt, cfg, sys, memText);
+        try { memText = fs.readFileSync(FILES.memory, 'utf8'); } catch (_) {}
+        const reply = await generateSmartButlerReply(promptText, cfg, sys, memText);
         const replyText = typeof reply === 'string' ? reply : reply.text;
-        const unavailable = typeof reply === 'object' && reply.provider === 'unavailable';
         return {
           intent: 'brain',
-          hudColor: unavailable ? 'amber' : 'cyan',
-          hudTitle: unavailable ? '⚠ 대화 AI 연결 확인' : `🗣 ${cfg.assistantName || '자비스'} 답변` + (reply.fallback ? ' · 로컬 AI' : ''),
+          hudColor: 'cyan',
+          hudTitle: `🗣 ${cfg.assistantName || '자비스'} 답변`,
           hudSubtitle: replyText,
           heard: rawSentence,
-          spoken: replyText,
-          ...(typeof reply === 'object' ? { llm: { provider: reply.provider, model: reply.model, requestedModel: reply.requestedModel, modelVerified: reply.modelVerified, warm: reply.warm, firstTextMs: reply.firstTextMs, fallback: reply.fallback, fallbackReason: reply.fallbackReason, elapsedMs: reply.elapsedMs }, ...(unavailable ? { error: 'ai-unavailable' } : {}) } : {})
+          spoken: replyText
         };
       }
     }

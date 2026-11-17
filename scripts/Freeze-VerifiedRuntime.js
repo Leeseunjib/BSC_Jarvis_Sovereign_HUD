@@ -28,6 +28,7 @@ files.push('scripts/voice-brain.js');
 files.push('scripts/antigravity-brain.js','config/jarvis-voice-agent.md');
 files.push('scripts/speaker-gate.js','scripts/speaker-worker.js','public/js/speaker-capture.js','public/js/speaker-capture-worklet.js','public/js/jarvis-app.js');
 files.push('scripts/ecosystem-index.js','scripts/office-doc-engine.js','scripts/rea-laya-bridge.js','scripts/recursive-learning.js');
+files.push('scripts/computer-use-hands.js','scripts/jarvis-ide-cli-mcp-tools.js','scripts/jarvis-briefing-hub.js','scripts/jarvis-agent-core.js');
 const hashes=Object.fromEntries(files.map(file=>[file,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file))).digest('hex')]));
 fs.writeFileSync(path.join(root,'data','verified-runtime.json'),JSON.stringify({createdAt:new Date().toISOString(),hashes},null,2));
 console.log('Reviewed server and engine snapshots saved.');

@@ -54,6 +54,7 @@ const {
   runJarvisHarness2EvolutionCycle
 } = require('./scripts/jarvis-harness2-engine');
 const { handleMcpJsonRpcRequest, MCP_SERVER_INFO, MCP_TOOLS } = require('./scripts/jarvis-mcp-server');
+const { updateLastExternalWindow, getLastExternalWindow } = require('./scripts/computer-use-hands');
 
 let MsEdgeTTS = null;
 let OUTPUT_FORMAT = null;
@@ -665,6 +666,16 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 1-B2) Active External Foreground Window Tracker (/api/computer/foreground)
+  if (req.method === 'POST' && pathname === '/api/computer/foreground') {
+    const body = await readBody(req);
+    const updated = updateLastExternalWindow(body || {});
+    return sendJson(res, 200, { ok: true, foregroundWindow: updated });
+  }
+  if (req.method === 'GET' && pathname === '/api/computer/foreground') {
+    return sendJson(res, 200, { ok: true, foregroundWindow: getLastExternalWindow() });
+  }
+
   // 1-C) POST /api/tasks/run | /api/tasks/stop | /api/tasks/dismiss
   if (req.method === 'POST' && pathname === '/api/tasks/run') {
     try {
@@ -1140,7 +1151,8 @@ const server = http.createServer(async (req, res) => {
       earHealth: global.__jarvisEarHealth || null,
       micLevel: global.__jarvisMicLevel || 0,
       isSpeaking: Boolean(global.__jarvisIsSpeaking),
-      bargeInSeq: global.__jarvisBargeInSeq || 0
+      bargeInSeq: global.__jarvisBargeInSeq || 0,
+      foregroundWindow: getLastExternalWindow()
     });
   }
   if (req.method === 'POST' && pathname === '/api/ear/launch-chrome') {
@@ -1444,6 +1456,7 @@ if (require.main === module) {
   server.listen(PORT, '127.0.0.1', () => {
     console.log('Jarvis server listening on 127.0.0.1:' + PORT);
     if (butler.getConfig().brainProvider === 'antigravity-cli') verifyBrain(butler.getConfig()).catch(() => {});
+    if (process.env.JARVIS_DISABLE_NEURAL_TTS !== '1') { setTimeout(async () => { try { const cfg = butler.getConfig(); const { voice, speed } = speechOptions(cfg, {}); if (voice && voice !== 'windows-ko') { for (const p of ['네, 이건우 대표님. 바로 말씀하세요.', '네, 대표님. 말씀하세요.', '자비스가 준비되었습니다.', '작업을 완료했습니다, 대표님.', '메모장에 작성을 완료했습니다.']) { const cl = humanizeKoreanSpeechText(p); const wk = voice + '|' + speed + '|' + cl; if (!ttsWavCache.has(wk)) { const mp3 = await synthesizeStudioNeuralMp3Buffer(cl, voice, speed); if (mp3 && mp3.length > 256) { const wav = await mp3ToWav(mp3); if (wav && wav.length > 44) ttsWavCache.set(wk, wav); } } } } } catch (_) {} }, 600); }
   });
 }
 

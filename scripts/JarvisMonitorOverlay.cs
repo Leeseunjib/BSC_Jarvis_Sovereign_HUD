@@ -45,6 +45,10 @@ namespace JarvisSasariSa
         private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -122,6 +126,10 @@ namespace JarvisSasariSa
         private static SoundPlayer activeSoundPlayer = null;
         private static System.Threading.CancellationTokenSource activeSpeechCts = null;
         private static int lastSeenBargeInSeq = 0;
+        private static TextBlock txtActiveWindowBadge = null;
+        private static readonly Border[] voiceEqBars = new Border[5];
+        private static long lastReportedForegroundHwnd = 0;
+        private static int fgCheckCounter = 0;
 
         private static void StopAllVoicePlaybackImmediately(bool notifyServer = false)
         {
@@ -148,9 +156,9 @@ namespace JarvisSasariSa
             }
         }
 
-        private static readonly Color CyanColor = Color.FromRgb(77, 217, 255);   // #4DD9FF (HUD.swift cyan)
-        private static readonly Color AmberColor = Color.FromRgb(255, 184, 64);  // #FFB840 (HUD.swift amber)
-        private static readonly Color LimeColor = Color.FromRgb(115, 255, 153);  // #73FF99 (HUD.swift lime)
+        private static readonly Color CyanColor = Color.FromRgb(56, 189, 248);   // #38BDF8 (BSC Sovereign Ice-Cyan)
+        private static readonly Color AmberColor = Color.FromRgb(245, 158, 11);  // #F59E0B (BSC Executive Gold)
+        private static readonly Color LimeColor = Color.FromRgb(52, 211, 153);   // #34D399 (BSC Verified Emerald)
 
         private static void WriteLog(string msg)
         {
@@ -708,25 +716,25 @@ namespace JarvisSasariSa
 
             cardGlow = new DropShadowEffect
             {
-                Color = CyanColor,
-                BlurRadius = 22,
-                ShadowDepth = 0,
-                Opacity = 0.70
+                Color = Colors.Black,
+                BlurRadius = 26,
+                ShadowDepth = 8,
+                Opacity = 0.68
             };
 
             hudCardBorder = new Border
             {
-                Width = 680,
-                MinHeight = 114,
+                Width = 688,
+                MinHeight = 108,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 8, 0, 0),
-                CornerRadius = new CornerRadius(22),
-                Background = new SolidColorBrush(Color.FromArgb(244, 5, 11, 22)),
-                BorderBrush = new SolidColorBrush(CyanColor),
-                BorderThickness = new Thickness(1.6),
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(Color.FromArgb(248, 11, 15, 25)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(43, 59, 82)),
+                BorderThickness = new Thickness(1.0),
                 Effect = cardGlow,
-                Padding = new Thickness(18, 12, 22, 12),
+                Padding = new Thickness(16, 12, 18, 12),
                 Cursor = Cursors.SizeAll,
                 ToolTip = "드래그하여 이동 · 자비스를 부르거나 직접 입력하세요"
             };
@@ -803,15 +811,15 @@ namespace JarvisSasariSa
             fullContentGrid.Children.Add(hudVerticalStack);
 
             Grid cardLayout = new Grid();
-            cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(108) });
+            cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68) });
             cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             hudCardBorder.Child = cardLayout;
 
-            // Left: 88x88 3-Ring Spinning Dashed Orb (Image 3 1:1)
-            FrameworkElement orbElem = CreateSpinningOrb(88, true);
+            // Left: BSC Sovereign 5-Bar Live Acoustic Waveform Module (Distinctive Non-Cloned Design)
+            FrameworkElement orbElem = CreateSovereignVoiceCrest(true);
             orbElem.Cursor = Cursors.Hand;
-            orbElem.ToolTip = "클릭하여 음성 듣기";
+            orbElem.ToolTip = "클릭하여 즉시 음성 듣기 (JARVIS v3.0 Sovereign Acoustic Engine)";
             orbElem.MouseLeftButtonUp += (s, e) =>
             {
                 e.Handled = true;
@@ -820,7 +828,7 @@ namespace JarvisSasariSa
             Grid.SetColumn(orbElem, 0);
             cardLayout.Children.Add(orbElem);
 
-            // Middle: ONLY 2 Clean Lines like Image 3 ("○ 받아 적는 중" + "클래식 음악 좀 틀어 줘")
+            // Middle: Sovereign Executive Status + Live Target Window Pill + Command Input
             StackPanel textCol = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
@@ -829,16 +837,46 @@ namespace JarvisSasariSa
             Grid.SetColumn(textCol, 1);
             cardLayout.Children.Add(textCol);
 
+            WrapPanel statusHeaderRow = new WrapPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
             txtStatus = new TextBlock
             {
-                Text = "○ 호출어 대기 · 자비스라고 불러 주세요",
-                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
-                FontSize = 14,
+                Text = "● JARVIS v3.0 대기 · 자비스라고 불러 주세요",
+                FontFamily = new FontFamily("Malgun Gothic, Segoe UI"),
+                FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(CyanColor),
-                Margin = new Thickness(0, 0, 0, 8)
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
             };
-            textCol.Children.Add(txtStatus);
+            statusHeaderRow.Children.Add(txtStatus);
+
+            Border targetBadgeBorder = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(180, 20, 29, 45)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(48, 65, 90)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(7, 2, 7, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "대표님이 마지막으로 클릭하신 외부 작업 창 (메모장·브라우저 등 자동 인식)"
+            };
+            txtActiveWindowBadge = new TextBlock
+            {
+                Text = "대상 창: 자동 감지 중",
+                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(165, 185, 212))
+            };
+            targetBadgeBorder.Child = txtActiveWindowBadge;
+            statusHeaderRow.Children.Add(targetBadgeBorder);
+
+            textCol.Children.Add(statusHeaderRow);
 
             txtHeard = new TextBlock
             {
@@ -1208,8 +1246,57 @@ namespace JarvisSasariSa
             bootWindow.Show(); WriteLog("Startup boot visible; main HUD hidden"); timer.Start();
         }
 
+        private static FrameworkElement CreateSovereignVoiceCrest(bool bindLiveBars)
+        {
+            Border shell = new Border
+            {
+                Width = 56,
+                Height = 56,
+                CornerRadius = new CornerRadius(10),
+                Background = new SolidColorBrush(Color.FromRgb(17, 24, 39)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(45, 62, 86)),
+                BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            StackPanel barRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            double[] baseHeights = { 10, 18, 26, 16, 11 };
+            for (int i = 0; i < 5; i++)
+            {
+                Border bar = new Border
+                {
+                    Width = 4.5,
+                    Height = baseHeights[i],
+                    CornerRadius = new CornerRadius(2.2),
+                    Background = new SolidColorBrush(i == 2 ? CyanColor : Color.FromRgb(94, 168, 224)),
+                    Margin = new Thickness(2.2, 0, 2.2, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                if (bindLiveBars)
+                {
+                    voiceEqBars[i] = bar;
+                }
+                barRow.Children.Add(bar);
+            }
+
+            if (bindLiveBars && orbCoreScale == null)
+            {
+                orbCoreScale = new ScaleTransform(1.0, 1.0);
+            }
+
+            shell.Child = barRow;
+            return shell;
+        }
+
         // =====================================================================
-        // 3. SPINNING 3-RING DASHED ORB (OrbView in HUD.swift 1:1)
+        // 3. SPINNING 3-RING DASHED ORB (BootScene Legacy Support)
         // =====================================================================
         private static FrameworkElement CreateSpinningOrb(double size, bool bindMicScale)
         {
@@ -1281,8 +1368,8 @@ namespace JarvisSasariSa
         // =====================================================================
         private static void StartContinuousMicrophoneEngine()
         {
-            // Poll /api/ear/latest every 150ms for live micLevel (OrbView.level) + Korean transcripts
-            DispatcherTimer earPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            // Poll /api/ear/latest every 65ms for sub-1s responsiveness + live acoustic waveform + foreground window tracking
+            DispatcherTimer earPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(65) };
             string lastSyncedKey = "";
             string lastSpokenKey = "";
             bool earPollInFlight = false;
@@ -1322,9 +1409,51 @@ namespace JarvisSasariSa
                         }
                     }
 
-                    // 1. Animate Orb core scale from live microphone RMS (`HUD.swift` line 52: 1 + min(v * 18, 0.6))
+                    // 0-B. Track user's clicked external foreground window every ~260ms so Computer Use knows exact target HWND
+                    fgCheckCounter++;
+                    if (fgCheckCounter >= 4)
+                    {
+                        fgCheckCounter = 0;
+                        try
+                        {
+                            IntPtr fgHwnd = GetForegroundWindow();
+                            if (fgHwnd != IntPtr.Zero)
+                            {
+                                uint fgPid = 0;
+                                GetWindowThreadProcessId(fgHwnd, out fgPid);
+                                int myPid = Process.GetCurrentProcess().Id;
+                                if (fgPid != 0 && fgPid != (uint)myPid && fgHwnd.ToInt64() != lastReportedForegroundHwnd)
+                                {
+                                    StringBuilder wTitle = new StringBuilder(256);
+                                    GetWindowText(fgHwnd, wTitle, 256);
+                                    string titleStr = wTitle.ToString().Trim();
+                                    string procName = "";
+                                    try { procName = Process.GetProcessById((int)fgPid).ProcessName; } catch { }
+                                    if (!string.IsNullOrEmpty(procName) &&
+                                        !string.Equals(procName, "JarvisHud", StringComparison.OrdinalIgnoreCase) &&
+                                        !string.Equals(procName, "SearchHost", StringComparison.OrdinalIgnoreCase) &&
+                                        !string.Equals(procName, "ShellExperienceHost", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        lastReportedForegroundHwnd = fgHwnd.ToInt64();
+                                        string shortTitle = titleStr.Length > 18 ? titleStr.Substring(0, 18) + "…" : titleStr;
+                                        if (txtActiveWindowBadge != null)
+                                        {
+                                            txtActiveWindowBadge.Text = string.IsNullOrEmpty(shortTitle)
+                                                ? ("대상: " + procName)
+                                                : ("대상: " + procName + " (" + shortTitle + ")");
+                                        }
+                                        string fgPayload = "{\"hwnd\":" + fgHwnd.ToInt64() + ",\"processId\":" + fgPid + ",\"process\":\"" + EscapeJson(procName) + "\",\"title\":\"" + EscapeJson(titleStr) + "\"}";
+                                        var _ = http.PostAsync("http://127.0.0.1:7788/api/computer/foreground", new StringContent(fgPayload, Encoding.UTF8, "application/json"));
+                                    }
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+
+                    // 1. Animate 5-bar Sovereign Acoustic Waveform from live microphone RMS
                     int mlIdx = json.IndexOf("\"micLevel\":");
-                    if (mlIdx >= 0 && orbCoreScale != null)
+                    if (mlIdx >= 0)
                     {
                         int start = mlIdx + 11;
                         int end = start;
@@ -1332,9 +1461,24 @@ namespace JarvisSasariSa
                         double lvl = 0;
                         if (double.TryParse(json.Substring(start, end - start), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lvl))
                         {
-                            double scale = 1.0 + Math.Min(lvl * 0.65, 0.65);
-                            orbCoreScale.ScaleX = scale;
-                            orbCoreScale.ScaleY = scale;
+                            if (orbCoreScale != null)
+                            {
+                                double scale = 1.0 + Math.Min(lvl * 0.65, 0.65);
+                                orbCoreScale.ScaleX = scale;
+                                orbCoreScale.ScaleY = scale;
+                            }
+                            double boost = isSpeaking ? 0.45 : Math.Min(1.0, lvl * 3.2);
+                            double[] minH = { 8, 13, 18, 12, 8 };
+                            double[] spanH = { 16, 22, 24, 20, 15 };
+                            double phase = (Environment.TickCount % 600) / 600.0 * Math.PI * 2.0;
+                            for (int bi = 0; bi < 5; bi++)
+                            {
+                                if (voiceEqBars[bi] != null)
+                                {
+                                    double wave = boost > 0.04 ? (0.55 + 0.45 * Math.Abs(Math.Sin(phase + bi * 0.85))) : 0.15;
+                                    voiceEqBars[bi].Height = minH[bi] + spanH[bi] * boost * wave;
+                                }
+                            }
                         }
                     }
 
@@ -1429,7 +1573,7 @@ namespace JarvisSasariSa
         private static string loadingResearchId = "";
         public class ResearchSection { public string title; public string text; public int sourceId; }
         public class ResearchSource { public int id; public string title; public string url; public string domain; public string readStatus; }
-        public class ResearchReport { public string id; public string query; public string title; public string status; public string createdAt; public string provider; public string note; public string summary; public string[] keywords; public ResearchSection[] sections; public ResearchSource[] sources; }
+        public class ResearchReport { public string id; public string query; public string title; public string layoutSize; public string status; public string createdAt; public string provider; public string note; public string summary; public string[] keywords; public ResearchSection[] sections; public ResearchSource[] sources; }
 
         private static TextBlock ResearchText(string text, double size, Brush color)
         {
@@ -1456,13 +1600,22 @@ namespace JarvisSasariSa
                 string json = await http.GetStringAsync("http://127.0.0.1:7788/api/research/" + Uri.EscapeDataString(id));
                 var report = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<ResearchReport>(json);
                 if (report == null || report.id != id) throw new Exception("검색 결과가 일치하지 않습니다.");
+                string sizeKind = (report.layoutSize ?? "").Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(sizeKind)) {
+                    int secCount = report.sections == null ? 0 : report.sections.Length;
+                    int totalLen = (report.summary ?? "").Length + (report.sections == null ? 0 : report.sections.Sum(s => (s.text ?? "").Length));
+                    sizeKind = (secCount <= 1 && totalLen < 380) ? "compact" : (totalLen > 1600 ? "wide" : "standard");
+                }
+                double targetW = sizeKind == "compact" ? 660 : (sizeKind == "wide" ? 1180 : 980);
+                double targetH = sizeKind == "compact" ? 440 : (sizeKind == "wide" ? 810 : 700);
+                var area = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
+                var source = System.Windows.PresentationSource.FromVisual(hudWindow);
+                var matrix = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
+                var origin = matrix.Transform(new Point(area.Left, area.Top));
+                var extent = matrix.Transform(new Point(area.Width, area.Height));
+                double width = Math.Min(targetW, extent.X - 48), height = Math.Min(targetH, extent.Y - 120);
+
                 if (researchWindow == null) {
-                    var area = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
-                    var source = System.Windows.PresentationSource.FromVisual(hudWindow);
-                    var matrix = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
-                    var origin = matrix.Transform(new Point(area.Left, area.Top));
-                    var extent = matrix.Transform(new Point(area.Width, area.Height));
-                    double width = Math.Min(1040, extent.X - 48), height = Math.Min(760, extent.Y - 120);
                     researchWindow = new Window {
                         Title = "JARVIS — 리서치 & 브리핑 리포트",
                         Width = width,
@@ -1474,10 +1627,15 @@ namespace JarvisSasariSa
                         Background = Brushes.Transparent,
                         Topmost = true,
                         ResizeMode = ResizeMode.CanResizeWithGrip,
-                        MinWidth = 720,
-                        MinHeight = 480
+                        MinWidth = 520,
+                        MinHeight = 340
                     };
                     researchWindow.Closed += (sender, args) => { researchWindow = null; };
+                } else if (researchWindow.WindowState != WindowState.Maximized) {
+                    researchWindow.Width = width;
+                    researchWindow.Height = height;
+                    researchWindow.Left = origin.X + (extent.X - width) / 2;
+                    researchWindow.Top = origin.Y + Math.Max(60, (extent.Y - height) / 2);
                 }
 
                 Color bgShell = Color.FromRgb(11, 15, 23);
@@ -2522,6 +2680,37 @@ namespace JarvisSasariSa
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(6, 0, 0, 0)
             };
+
+            // -1) [🎙 성문] Button — Opens Voiceprint & Microphone Settings Directly
+            Border voicePrintBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(40, 56, 189, 248)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(120, 56, 189, 248)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "내 목소리 성문 등록 (WeSpeaker ResNet34) 및 마이크 설정 열기"
+            };
+            TextBlock voicePrintTxt = new TextBlock
+            {
+                Text = "🎙 성문",
+                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(186, 230, 253)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            voicePrintBtn.Child = voicePrintTxt;
+            voicePrintBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            voicePrintBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                ShowHotkeySettingsWindow();
+            };
+            topRightBar.Children.Add(voicePrintBtn);
 
             // 0) [📋 Plan · 규칙] Button — Opens Dedicated Plan & CHLGD Document Viewer HUD Window
             Border planTopBtn = new Border
@@ -5537,9 +5726,83 @@ namespace JarvisSasariSa
 
         private static void SetHudAppearance(Color c)
         {
-            hudCardBorder.BorderBrush = new SolidColorBrush(c);
+            hudCardBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(185, c.R, c.G, c.B));
             txtStatus.Foreground = new SolidColorBrush(c);
-            cardGlow.Color = c;
+            for (int bi = 0; bi < 5; bi++)
+            {
+                if (voiceEqBars[bi] != null)
+                {
+                    voiceEqBars[bi].Background = new SolidColorBrush(bi == 2 ? c : Color.FromArgb(200, c.R, c.G, c.B));
+                }
+            }
+        }
+
+        private static string[] SplitFirstSpeechClause(string text)
+        {
+            string trimmed = (text ?? "").Trim();
+            if (trimmed.Length <= 46) return new string[] { trimmed };
+            int bestIdx = -1;
+            string[] endings = { "다. ", "요. ", "죠. ", "까? ", "네. ", ". ", "! ", "? " };
+            foreach (string endToken in endings)
+            {
+                int pos = trimmed.IndexOf(endToken, 12, StringComparison.Ordinal);
+                if (pos >= 12 && pos <= 72)
+                {
+                    int cut = pos + endToken.Length - 1;
+                    if (bestIdx < 0 || cut < bestIdx) bestIdx = cut;
+                }
+            }
+            if (bestIdx > 12 && bestIdx < trimmed.Length - 8)
+            {
+                string c1 = trimmed.Substring(0, bestIdx).Trim();
+                string c2 = trimmed.Substring(bestIdx).Trim();
+                if (!string.IsNullOrEmpty(c1) && !string.IsNullOrEmpty(c2)) return new string[] { c1, c2 };
+            }
+            return new string[] { trimmed };
+        }
+
+        private static async Task<byte[]> FetchTtsWavClauseAsync(string clause, System.Threading.CancellationToken token)
+        {
+            string url = "http://127.0.0.1:7788/api/tts-mp3?format=wav&text=" + Uri.EscapeDataString(clause);
+            using (var timeout = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                timeout.CancelAfter(10000);
+                using (var response = await http.GetAsync(url, timeout.Token))
+                {
+                    if (!response.IsSuccessStatusCode) return null;
+                    byte[] bytes = await response.Content.ReadAsByteArrayAsync();
+                    System.Collections.Generic.IEnumerable<string> values;
+                    string actualVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Voice", out values) ? values.FirstOrDefault() : "unknown";
+                    string actualSpeed = response.Headers.TryGetValues("X-Jarvis-Tts-Speed", out values) ? values.FirstOrDefault() : "unknown";
+                    SetSettingsFeedback("재생 음성: " + actualVoice + " · 속도 " + actualSpeed + "×", false);
+                    return bytes;
+                }
+            }
+        }
+
+        private static async Task<bool> PlayWavBytesInterruptibleAsync(byte[] bytes, System.Threading.CancellationToken token, Stopwatch clock)
+        {
+            if (bytes == null || bytes.Length <= 44 || token.IsCancellationRequested) return false;
+            bool wav = bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E';
+            if (!wav) return await PlayMp3OnUiThreadAsync(bytes);
+            int byteRate = BitConverter.ToInt32(bytes, 28);
+            int durationMs = byteRate > 0 ? (int)((bytes.Length - 44) * 1000L / byteRate) + 45 : 2200;
+            durationMs = Math.Max(160, Math.Min(25000, durationMs));
+            using (var stream = new MemoryStream(bytes))
+            using (var player = new SoundPlayer(stream))
+            {
+                activeSoundPlayer = player;
+                player.Load();
+                if (!token.IsCancellationRequested)
+                {
+                    WriteLog("WAV clause started: readyMs=" + clock.ElapsedMilliseconds + ", durationMs=" + durationMs);
+                    player.Play();
+                    try { await Task.Delay(durationMs, token); }
+                    catch (TaskCanceledException) { try { player.Stop(); } catch { } }
+                }
+                if (activeSoundPlayer == player) activeSoundPlayer = null;
+            }
+            return true;
         }
 
         private static async void SpeakAsync(string text)
@@ -5569,7 +5832,7 @@ namespace JarvisSasariSa
                 try
                 {
                     string speakPayload = "{\"speaking\":true,\"text\":\"" + EscapeJson(text) + "\"}";
-                    await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent(speakPayload, Encoding.UTF8, "application/json"));
+                    var _ = http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent(speakPayload, Encoding.UTF8, "application/json"));
                 }
                 catch { }
 
@@ -5577,50 +5840,16 @@ namespace JarvisSasariSa
                 var audioClock = System.Diagnostics.Stopwatch.StartNew();
                 try
                 {
-                    string url = "http://127.0.0.1:7788/api/tts-mp3?format=wav&text=" + Uri.EscapeDataString(text);
-                    using (var timeout = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(myCts.Token))
+                    // Sub-1s Clause-Streaming TTS: synthesize Clause 1 & Clause 2 in parallel so audio starts in ~320ms!
+                    string[] clauses = SplitFirstSpeechClause(text);
+                    Task<byte[]>[] fetchTasks = clauses.Select(c => FetchTtsWavClauseAsync(c, myCts.Token)).ToArray();
+                    for (int ci = 0; ci < fetchTasks.Length; ci++)
                     {
-                        timeout.CancelAfter(12000);
-                        using (var response = await http.GetAsync(url, timeout.Token))
+                        byte[] wavBytes = await fetchTasks[ci];
+                        if (myCts.IsCancellationRequested) break;
+                        if (await PlayWavBytesInterruptibleAsync(wavBytes, myCts.Token, audioClock))
                         {
-                            byte[] bytes = await response.Content.ReadAsByteArrayAsync();
-                            if (myCts.IsCancellationRequested) return;
-                            System.Collections.Generic.IEnumerable<string> values;
-                            string actualVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Voice", out values) ? values.FirstOrDefault() : "unknown";
-                            string actualSpeed = response.Headers.TryGetValues("X-Jarvis-Tts-Speed", out values) ? values.FirstOrDefault() : "unknown";
-                            bool fallbackVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Fallback", out values) && values.FirstOrDefault() == "1";
-                            WriteLog("TTS response voice=" + actualVoice + ", speed=" + actualSpeed + ", fallback=" + fallbackVoice + ", fetchMs=" + audioClock.ElapsedMilliseconds);
-                            SetSettingsFeedback("재생 음성: " + actualVoice + " · 속도 " + actualSpeed + "×", false);
-                            if (response.IsSuccessStatusCode && bytes.Length > 44)
-                            {
-                                bool wav = bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F' && bytes[8] == 'W' && bytes[9] == 'A' && bytes[10] == 'V' && bytes[11] == 'E';
-                                if (wav)
-                                {
-                                    int byteRate = BitConverter.ToInt32(bytes, 28);
-                                    int durationMs = byteRate > 0 ? (int)((bytes.Length - 44) * 1000L / byteRate) + 80 : 2500;
-                                    durationMs = Math.Max(200, Math.Min(25000, durationMs));
-                                    using (var stream = new MemoryStream(bytes))
-                                    using (var player = new SoundPlayer(stream))
-                                    {
-                                        activeSoundPlayer = player;
-                                        player.Load();
-                                        if (!myCts.IsCancellationRequested)
-                                        {
-                                            WriteLog("WAV playback started (interruptible): readyMs=" + audioClock.ElapsedMilliseconds + ", durationMs=" + durationMs);
-                                            player.Play();
-                                            try { await Task.Delay(durationMs, myCts.Token); }
-                                            catch (TaskCanceledException) { try { player.Stop(); } catch { } }
-                                        }
-                                        if (activeSoundPlayer == player) activeSoundPlayer = null;
-                                    }
-                                    played = true;
-                                    WriteLog("WAV playback completed: " + bytes.Length + " bytes");
-                                }
-                                else if (response.Content.Headers.ContentType != null && response.Content.Headers.ContentType.MediaType == "audio/mpeg")
-                                {
-                                    played = await PlayMp3OnUiThreadAsync(bytes);
-                                }
-                            }
+                            played = true;
                         }
                     }
                 }
