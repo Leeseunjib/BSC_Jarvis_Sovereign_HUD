@@ -12,3 +12,12 @@
 - [2026-11-02 04:34:40] [Harness² Recursion] 승격(explicit) · 앞으로 검색 결과는 핵심 출처와 파일 경로를 먼저 정리해줘 · 근거 1회
 - [2026-11-03 03:01:37] [Harness² Recursion] 승격(explicit) · 앞으로 C:\자비스가 유일한 메인 상용 자비스 정본이며 다른 자비스 폴더(C:\BSC_Javis_OS 등)는 샌드박스로만 취급해줘 · 근거 1회
 - [2026-11-03 03:12:27] [Harness² Recursion] 사이클 #1 (Warehouse Obsidian Neuron 79-Node Integration into JARVIS) · 활성 규칙 2 · 후보 0 · 보류 0 · 만료 0
+- [2026-11-04 08:17:25] [Harness² Recursion] 승격(failure) · 'brain' 작업이 2회 실패했습니다. 최근 오류: ⚠ 대화 AI 연결 확인 · 근거 1회
+- [2026-11-04 08:34:24] [Harness² Recursion] 승격(repetition) · 자주 하시는 요청: 「유튜브 켜 줘」 (3회) · 근거 1회
+- [2026-11-04 08:36:22] [Harness² Recursion] 승격(repetition) · 자주 하시는 요청: 「유튜브 열어 줘 웹 브라우저」 (3회) · 근거 1회
+- [2026-11-04 08:36:22] [Harness² Recursion] 승격(repetition) · 자주 하시는 요청: 「start chrome --new-window "http://127.0.0.1:7777/?v=live_dashboard"」 (3회) · 근거 1회
+- [2026-11-16 02:28:27] [Harness² Recursion] 승격(repetition) · 자주 하시는 요청: 「재생 일시정지 토글」 (3회) · 근거 1회
+- [2026-11-17 03:39:46] [Harness² Recursion] 승격(repetition) · 자주 하시는 요청: 「삼성전자랑 엔비디아 주가 시황 알려줘」 (3회) · 근거 1회
+- [2026-11-17 07:18:45] [Harness² Recursion] 승격(failure) · 'agentCore' 작업이 3회 실패했습니다. 최근 오류: ❓ 자비스 확인 질문 (이어 말씀해 주세요) · 근거 1회
+- [2026-11-17 07:19:32] [Harness² Recursion] 승격(explicit) · 이제부터는 이제 이런 부분들이 이제 자동화예요 근데 한가지 말하면 요런 부분들을 · 근거 1회
+- [2026-11-17 07:56:59] [Harness² Recursion] 승격(repetition) · 자주 하시는 요청: 「자비스 인공지능 에이전트 시스템에서」 (3회) · 근거 1회

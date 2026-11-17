@@ -39,3 +39,35 @@
 - **Trigger**: Warehouse Obsidian Neuron 79-Node Integration into JARVIS
 - **Surface**: 0 files (0/20000B, Valid=true)
 - **Ledger**: R=4000, P=3000 Verified
+
+## [2026-11-04 Learned failure]
+- 'brain' 작업이 2회 실패했습니다. 최근 오류: ⚠ 대화 AI 연결 확인
+
+## [2026-11-04 Learned repetition]
+- 자주 하시는 요청: 「유튜브 켜 줘」 (3회)
+
+## [2026-11-04 Learned repetition]
+- 자주 하시는 요청: 「유튜브 열어 줘 웹 브라우저」 (3회)
+
+## [2026-11-04 Learned repetition]
+- 자주 하시는 요청: 「start chrome --new-window "http://127.0.0.1:7777/?v=live_dashboard"」 (3회)
+
+## [2026-11-12 CEO Rule Learned]
+- **Rule**: [이건우 대표님 2026-11-12 특명 — 프로젝트 생성 및 제작 5단계 표준 워크플로우 헌장] 모든 신규 프로젝트 생성 및 제작 시 즉시 코드 개발(본 제작)로 직행하는 것을 절대 금지하며, 반드시 대표님과 다음 5단계를 순서대로 수행한다: ① Stage 1: 딥리서치(NotebookLM 50~120개 사이트 조사 및 TOP 20 선별)를 통한 초기 기획 수립 -> ② Stage 2: 기획한 내용 및 벤치마크 타겟을 바탕으로 REA(4-Stage 클린룸 역공학) 및 Craft-Anything 작업으로 정밀 분석·역설계 진행 -> ③ Stage 3: 역설계 결과를 반영한 화면·컴포넌트·명세서 시안 이미지를 10~50장 이상 제작 -> ④ Stage 4: 리서치·역설계·시안 이미지를 통합하여 최종 기획안(Final PRD)을 재작성 및 대표님 승인 획득 -> ⑤ Stage 5: 승인된 최종 기획안에 따라 본 제작(코드 구현 및 검증) 진행.
+- **Source**: Antigravity MCP Bridge
+
+## [2026-11-16 Learned repetition]
+- 자주 하시는 요청: 「재생 일시정지 토글」 (3회)
+
+## [2026-11-17 Learned repetition]
+- 자주 하시는 요청: 「삼성전자랑 엔비디아 주가 시황 알려줘」 (3회)
+
+## [2026-11-17 Learned failure]
+- 'agentCore' 작업이 3회 실패했습니다. 최근 오류: ❓ 자비스 확인 질문 (이어 말씀해 주세요)
+
+## [2026-11-17 CEO Rule Learned]
+- **Rule**: 이제부터는 이제 이런 부분들이 이제 자동화예요 근데 한가지 말하면 요런 부분들을
+- **Source**: Harness² 재귀 학습 (explicit, 근거 1회)
+
+## [2026-11-17 Learned repetition]
+- 자주 하시는 요청: 「자비스 인공지능 에이전트 시스템에서」 (3회)

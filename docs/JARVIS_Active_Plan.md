@@ -1,22 +1,22 @@
-# 🧠 C:\Warehouse 옵시디언 뉴런 (79 Nodes · 138 Synapses) × JARVIS 완전 직결 설계서
+# 📋 [Plan] 아니 그거 지금 나한테 그 제공한 플라잉 있잖아 그 플랜에 대해서 좀 설명해 줘
 
-- **분류**: JARVIS × Warehouse Obsidian Neuron & CHLGD CI/CD
+- **분류**: CEO Requested CHLGD Plan
 - **작성**: JARVIS Sovereign Butler (CHLGD × Harness²)
-- **업데이트**: 2026-11-03 03:12:27
+- **업데이트**: 2026-11-17 02:39:59
 
-> C:\Warehouse (05.BSC_Skill_Warehouse)의 5계층 옵시디언 뉴런 볼트(79 Nodes / 138 Synapses), 7대 도메인, 18대 BSC 정본 스킬, 217개 세부 스킬, 55대 GitHub 레포, 32인 에이전트 무장 맵, 그리고 bsc warehouse CI/CD 파이프라인을 C:\자비스(포트 7788 · JarvisHud.exe · MCP Server)에 100% 직결 완료했습니다.
+> 이건우 대표님께서 지시하신 「아니 그거 지금 나한테 그 제공한 플라잉 있잖아 그 플랜에 대해서 좀 설명해 줘」 작업을 위한 단계별 CHLGD 실행 계획서입니다.
 
-## 1. Warehouse 5계층 옵시디언 뉴런 ↔ 자비스 엔진 직결
-• 그래프 정본: C:\Warehouse\00.운영\warehouse_neuron_graph.json (79 Nodes / 138 Synapses / 7 Domains / 18 Originals / 19 Imported Packs / 32 Agent Maps)
-• 자비스 인덱스 모듈: C:\자비스\scripts\ecosystem-index.js (getWarehouseNeuronGraph, searchWarehouseNeurons, neuronToResearchReport 탑재)
-• 2-Hop 시냅스 탐색 속도: 4ms ~ 13ms 이내 (1-Hop 직접 뉴런 + 2-Hop 도메인·에이전트·원본팩·REA 블루프린트 동시 추출)
+## 1. 🎯 목표 및 핵심 방향 (Context & Goal)
+• 대표님 지시 사항: 「아니 그거 지금 나한테 그 제공한 플라잉 있잖아 그 플랜에 대해서 좀 설명해 줘」
+• C:\BeausCreators CHLGD 표준 및 데이터 무손실 헌장(Zero Data Loss)을 준수하여 설계합니다.
 
-## 2. 자비스 음성/텍스트 오더 & 전용 UI 창(Research HUD / Plan HUD) 연동
-• 「자비스, 옵시디언 뉴런에서 REA 검색해줘」 / 「창고 뉴런 보여줘」 / 「뉴런에서 유니티 찾아줘」 ➔ 전용 검색 결과 창(ShowResearchResultAsync)에 1-Hop 직접 뉴런과 2-Hop 연결 에이전트·도메인·시냅스 엣지 즉시 팝업 및 1클릭 Word(.docx)·MD(.md)·PDF(.pdf)·PPT(.pptx) 변환 지원
-• 「자비스, 창고 감사 돌려줘」 / 「뉴런 재구축해줘」 ➔ 실시간 터미널 미니 창에서 18대 정본 스킬 6-Gate 마스터 감사(Test-MasterAuditAndVerification.ps1) 및 뉴런 그래프 재구축 실행
+## 2. 🛡 Google Harness² & 스킬 실행 설계 (Harness & Skills)
+• 활용 스킬: chlgd-orchestrator, powershell-python-cicd, antigravity-mcp-bridge
+• 협력 에이전트: 기획(소하/지윤) · 설계/아키텍처(태준/거누) · 검증(수호)
+• 실행 환경: Windows 11 (Winsta0\Default) + UTF-8 무결성 파이프라인
 
-## 3. REST API & Antigravity 2.0 MCP 양방향 도구 확장
-• GET /api/warehouse/neurons (& ?q=키워드) : 79 Nodes / 138 Synapses 전체 현황 및 2-Hop 시냅스 검색
-• POST /api/warehouse/neurons : 뉴런 볼트 실시간 재구축(rebuild) 및 Plan HUD 동기화
-• MCP Tool 추가: jarvis-sovereign-butler 내 jarvis_warehouse_neuron 도구 및 warehouse-obsidian-neuron 코어 스킬 탑재
-• 런타임 무결성 검증: Freeze-VerifiedRuntime.js 통과 (server.verified.js & butler-engine.verified.js SHA-256 해시 잠금 완료)
+## 3. ⚡ 단계별 실행 체크리스트 (Execution Steps)
+1) [Context] 기존 에러 로그(error-log.md) 및 대표님 대화 규칙 원장 스캔
+2) [Harness] .ps1 / .py / .js 모듈 구현 및 로컬 샌드박스 테스트
+3) [Loop] 실행 결과 검증 후 ceo-orders-log.jsonl 및 jarvis-loop.md에 영구 기록
+4) [MCP Sync] Antigravity IDE와 상태 동기화 및 Git 커밋 준비
