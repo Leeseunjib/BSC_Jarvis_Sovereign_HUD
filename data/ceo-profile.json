@@ -20,7 +20,7 @@
   ],
   "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
   "stats": {
-    "totalOrders": 220,
+    "totalOrders": 222,
     "intentCounts": {
       "youtubeAutoPlay": 11,
       "mediaNext": 2,
@@ -39,7 +39,7 @@
       "makeRoutine": 3,
       "volume": 2,
       "bye": 1,
-      "agentCore": 46,
+      "agentCore": 48,
       "youtubeNth": 1
     },
     "favoriteMusicQueries": [
@@ -69,6 +69,18 @@
     ]
   },
   "recentOrders": [
+    {
+      "ts": "2026-11-18 03:49:26",
+      "sentence": "대표님의 말씀",
+      "intent": "agentCore",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-11-18 03:49:19",
+      "sentence": "자비스가 준비되었습니다",
+      "intent": "agentCore",
+      "title": "🗣 자비스 답변"
+    },
     {
       "ts": "2026-11-18 01:30:28",
       "sentence": "이제는 작업하기가 너무 편하다 여기다 주르르르르르르르르르르르르르르르르르르 말하고 일을 하면 된다",
@@ -236,19 +248,7 @@
       "sentence": "메모장 좀 켜 줘",
       "intent": "openApp",
       "title": "🚀 메모장 실행"
-    },
-    {
-      "ts": "2026-11-18 00:50:11",
-      "sentence": "bgm이라고 했다",
-      "intent": "research",
-      "title": "⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)"
-    },
-    {
-      "ts": "2026-11-18 00:50:00",
-      "sentence": "게임 egm 음악 틀어 줘",
-      "intent": "youtubeAutoPlay",
-      "title": "○ 받아 적는 중 · 실행 완료"
     }
   ],
-  "updatedAt": "2026-11-18T01:30:28.043Z"
+  "updatedAt": "2026-11-18T03:49:26.282Z"
 }

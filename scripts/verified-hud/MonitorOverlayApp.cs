@@ -135,6 +135,79 @@ namespace JarvisSasariSa
         private static readonly Border[] voiceEqBars = new Border[5];
         private static long lastReportedForegroundHwnd = 0;
         private static int fgCheckCounter = 0;
+        private static bool isHudMicMuted = false;
+        private static bool isHudTtsMuted = false;
+        private static Border btnHudMicToggle = null;
+        private static TextBlock txtHudMicToggle = null;
+        private static Border btnHudTtsToggle = null;
+        private static TextBlock txtHudTtsToggle = null;
+
+        private static void SyncHudAudioControlButtons()
+        {
+            try
+            {
+                if (btnHudMicToggle != null && txtHudMicToggle != null)
+                {
+                    txtHudMicToggle.Text = isHudMicMuted ? "🔇 마이크 OFF" : "🎙 마이크 ON";
+                    txtHudMicToggle.Foreground = new SolidColorBrush(isHudMicMuted ? Color.FromRgb(253, 186, 116) : Color.FromRgb(167, 243, 208));
+                    btnHudMicToggle.Background = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(65, 239, 68, 68) : Color.FromArgb(45, 16, 185, 129));
+                    btnHudMicToggle.BorderBrush = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(185, 248, 113, 113) : Color.FromArgb(150, 52, 211, 153));
+                }
+                if (btnHudTtsToggle != null && txtHudTtsToggle != null)
+                {
+                    txtHudTtsToggle.Text = isHudTtsMuted ? "🔕 음소거" : "🔊 소리 ON";
+                    txtHudTtsToggle.Foreground = new SolidColorBrush(isHudTtsMuted ? Color.FromRgb(253, 224, 71) : Color.FromRgb(186, 230, 253));
+                    btnHudTtsToggle.Background = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(65, 245, 158, 11) : Color.FromArgb(40, 56, 189, 248));
+                    btnHudTtsToggle.BorderBrush = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(185, 251, 191, 36) : Color.FromArgb(140, 56, 189, 248));
+                }
+            }
+            catch { }
+        }
+
+        private static void ToggleHudAudioControlAsync(bool? nextMicMuted, bool? nextTtsMuted)
+        {
+            if (nextMicMuted.HasValue) isHudMicMuted = nextMicMuted.Value;
+            if (nextTtsMuted.HasValue) isHudTtsMuted = nextTtsMuted.Value;
+            SyncHudAudioControlButtons();
+
+            if (isHudTtsMuted)
+            {
+                StopAllVoicePlaybackImmediately(true);
+            }
+            if (txtStatus != null)
+            {
+                if (isHudMicMuted && isHudTtsMuted)
+                {
+                    SetHudAppearance(AmberColor);
+                    txtStatus.Text = "🔇 마이크 OFF · 🔕 음소거 (다른 음성 대화와 충돌 완전 차단)";
+                }
+                else if (isHudMicMuted)
+                {
+                    SetHudAppearance(AmberColor);
+                    txtStatus.Text = "🔇 자비스 마이크 OFF (안티그래비티 음성 대화 충돌 방지 중)";
+                }
+                else if (isHudTtsMuted)
+                {
+                    SetHudAppearance(AmberColor);
+                    txtStatus.Text = "🔕 자비스 소리 음소거 (화면 텍스트로만 응답)";
+                }
+                else
+                {
+                    SetHudAppearance(CyanColor);
+                    txtStatus.Text = "● 자비스 마이크·소리 ON · 자비스라고 불러 주세요";
+                }
+            }
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    string payload = "{\"micMuted\":" + (isHudMicMuted ? "true" : "false") + ",\"ttsMuted\":" + (isHudTtsMuted ? "true" : "false") + "}";
+                    await http.PostAsync("http://127.0.0.1:7788/api/ear/control", new StringContent(payload, Encoding.UTF8, "application/json"));
+                }
+                catch { }
+            });
+        }
 
         private static void StopAllVoicePlaybackImmediately(bool notifyServer = false)
         {
@@ -1460,7 +1533,20 @@ namespace JarvisSasariSa
                         earWarningVisible = false;
                     }
 
-                    // 0. Check server-side Barge-In signal (interrupts TTS in <50ms when user speaks mid-sentence)
+                    // 0. Check server-side Barge-In signal & Mic/TTS Mute state
+                    bool srvMicMuted = json.Contains("\"micMuted\":true");
+                    bool srvTtsMuted = json.Contains("\"ttsMuted\":true");
+                    if (srvMicMuted != isHudMicMuted || srvTtsMuted != isHudTtsMuted)
+                    {
+                        isHudMicMuted = srvMicMuted;
+                        isHudTtsMuted = srvTtsMuted;
+                        SyncHudAudioControlButtons();
+                        if (isHudTtsMuted && isSpeaking)
+                        {
+                            StopAllVoicePlaybackImmediately(false);
+                        }
+                    }
+
                     string bargeStr = ExtractJsonNumber(json, "bargeInSeq");
                     int parsedBargeSeq = 0;
                     if (!string.IsNullOrEmpty(bargeStr) && int.TryParse(bargeStr, out parsedBargeSeq) && parsedBargeSeq > lastSeenBargeInSeq)
@@ -2744,6 +2830,78 @@ namespace JarvisSasariSa
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(6, 0, 0, 0)
             };
+
+            // -3) [🎙 마이크 ON / 🔇 마이크 OFF] Button — Prevents voice collision with Antigravity Voice Chat
+            Border micToggleBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(65, 239, 68, 68) : Color.FromArgb(45, 16, 185, 129)),
+                BorderBrush = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(185, 248, 113, 113) : Color.FromArgb(150, 52, 211, 153)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "자비스 마이크 듣기 켜기/끄기 (안티그래비티 보이스챗 등 다른 음성 대화와 충돌할 때 클릭하여 일시정지)"
+            };
+            TextBlock micToggleTxt = new TextBlock
+            {
+                Text = isHudMicMuted ? "🔇 마이크 OFF" : "🎙 마이크 ON",
+                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(isHudMicMuted ? Color.FromRgb(253, 186, 116) : Color.FromRgb(167, 243, 208)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            micToggleBtn.Child = micToggleTxt;
+            if (btnHudMicToggle == null)
+            {
+                btnHudMicToggle = micToggleBtn;
+                txtHudMicToggle = micToggleTxt;
+            }
+            micToggleBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            micToggleBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                ToggleHudAudioControlAsync(!isHudMicMuted, null);
+            };
+            topRightBar.Children.Add(micToggleBtn);
+
+            // -2) [🔊 소리 ON / 🔕 음소거] Button — Mutes/Unmutes JARVIS TTS voice output immediately
+            Border ttsToggleBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(65, 245, 158, 11) : Color.FromArgb(40, 56, 189, 248)),
+                BorderBrush = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(185, 251, 191, 36) : Color.FromArgb(140, 56, 189, 248)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 0, 8, 0),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "자비스 대답 음성(TTS) 켜기/음소거 전환 (클릭 시 말하던 음성 즉시 중단 · 텍스트만 표시)"
+            };
+            TextBlock ttsToggleTxt = new TextBlock
+            {
+                Text = isHudTtsMuted ? "🔕 음소거" : "🔊 소리 ON",
+                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(isHudTtsMuted ? Color.FromRgb(253, 224, 71) : Color.FromRgb(186, 230, 253)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            ttsToggleBtn.Child = ttsToggleTxt;
+            if (btnHudTtsToggle == null)
+            {
+                btnHudTtsToggle = ttsToggleBtn;
+                txtHudTtsToggle = ttsToggleTxt;
+            }
+            ttsToggleBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            ttsToggleBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                ToggleHudAudioControlAsync(null, !isHudTtsMuted);
+            };
+            topRightBar.Children.Add(ttsToggleBtn);
 
             // -1) [🎙 성문] Button — Opens Voiceprint & Microphone Settings Directly
             Border voicePrintBtn = new Border
@@ -5838,7 +5996,8 @@ namespace JarvisSasariSa
                     System.Collections.Generic.IEnumerable<string> values;
                     string actualVoice = response.Headers.TryGetValues("X-Jarvis-Tts-Voice", out values) ? values.FirstOrDefault() : "unknown";
                     string actualSpeed = response.Headers.TryGetValues("X-Jarvis-Tts-Speed", out values) ? values.FirstOrDefault() : "unknown";
-                    SetSettingsFeedback("재생 음성: " + actualVoice + " · 속도 " + actualSpeed + "×", false);
+                    string rawPersona = response.Headers.TryGetValues("X-Jarvis-Tts-Persona", out values) ? Uri.UnescapeDataString(values.FirstOrDefault() ?? "") : "";
+                    SetSettingsFeedback("재생 음성: " + (!string.IsNullOrEmpty(rawPersona) ? (rawPersona + " (" + actualVoice + ")") : actualVoice) + " · 속도 " + actualSpeed + "×", false);
                     return bytes;
                 }
             }
@@ -5875,6 +6034,11 @@ namespace JarvisSasariSa
                 Application.Current.Dispatcher.BeginInvoke(new Action(() => SpeakAsync(text))); return;
             }
             if (string.IsNullOrWhiteSpace(text)) return;
+            if (isHudTtsMuted)
+            {
+                StopAllVoicePlaybackImmediately(false);
+                return;
+            }
             if (text == lastSpeechRequest && (DateTime.UtcNow - lastSpeechRequestAt).TotalSeconds < 4.0) return;
             lastSpeechRequest = text;
             lastSpeechRequestAt = DateTime.UtcNow;

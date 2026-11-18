@@ -52,7 +52,7 @@
     return { isSpeaking, speakHd };
   }
 
-  function useMicrophoneMeter(serverSpeakingRef, serverSpeakingTextRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef) {
+  function useMicrophoneMeter(serverSpeakingRef, serverSpeakingTextRef, serverMicMutedRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef) {
     const [micLevel, setMicLevel] = useState(0);
     const [micActive, setMicActive] = useState(false);
     const [micDeviceLabel, setMicDeviceLabel] = useState('');
@@ -210,6 +210,9 @@
                 if (d && typeof d.speakingText === 'string' && serverSpeakingTextRef) {
                   serverSpeakingTextRef.current = d.speakingText;
                 }
+                if (d && typeof d.micMuted === 'boolean' && serverMicMutedRef) {
+                  serverMicMutedRef.current = d.micMuted;
+                }
                 if (d && captureRef.current) captureRef.current.sync(d.speaker, d.isSpeaking);
                 if (d && typeof d.forceAwakeUntil === 'number' && d.forceAwakeUntil > Date.now() && awakeUntilRef) {
                   awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, d.forceAwakeUntil);
@@ -278,6 +281,7 @@
 
     const serverSpeakingRef = useRef(false);
     const serverSpeakingTextRef = useRef('');
+    const serverMicMutedRef = useRef(false);
     const { isSpeaking, speakHd } = useStudioHdVoice();
     const audioActivityRef = useRef(null);
     const speechActivityRef = useRef(false);
@@ -295,7 +299,7 @@
     const executeRef = useRef(null);
     const captureRef = useRef(null);
     if (!captureRef.current && window.JarvisSpeakerCapture) captureRef.current = new window.JarvisSpeakerCapture();
-    const { micLevel, micActive, micDeviceLabel, voiceFeaturesRef, startMeter, streamRef } = useMicrophoneMeter(serverSpeakingRef, serverSpeakingTextRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef);
+    const { micLevel, micActive, micDeviceLabel, voiceFeaturesRef, startMeter, streamRef } = useMicrophoneMeter(serverSpeakingRef, serverSpeakingTextRef, serverMicMutedRef, audioActivityRef, mediaContextRef, awakeUntilRef, turnRef, speechActivityRef, captureRef);
     const configRef = useRef(config);
     configRef.current = config;
     const generationRef = useRef(0);
@@ -390,7 +394,7 @@
             })
             .catch(() => {});
         },
-        isMuted: () => false,
+        isMuted: () => Boolean(serverMicMutedRef.current),
         onPreview: text => {
           if (captureRef.current && (captureRef.current.enrolling || captureRef.current.protected)) return;
           const normalize = s => String(s || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
@@ -492,6 +496,15 @@
           else interim += `${t} `;
         }
         const combinedHeard = `${finals.map(f => f.text).join(' ')} ${interim}`.trim();
+        if (serverMicMutedRef.current) {
+          const normMuteCheck = combinedHeard.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+          if (/(?:자비스.*(?:마이크켜|듣기켜|다시들어)|^(?:마이크켜|듣기켜)$)/.test(normMuteCheck)) {
+            serverMicMutedRef.current = false;
+          } else {
+            turnRef.current.stop();
+            return;
+          }
+        }
         if (isSpeakingRef.current || serverSpeakingRef.current) {
           const normHeard = combinedHeard.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
           const normSpk = String(serverSpeakingTextRef.current || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');

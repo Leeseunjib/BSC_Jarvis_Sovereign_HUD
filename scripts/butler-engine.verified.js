@@ -33,6 +33,7 @@ const { runRea, reaToResearchReport, runLaya, startLayaService, layaToResearchRe
 const { toResearchReport: learningToResearchReport } = require('./recursive-learning');
 const { runJarvisAgentTurn, executeAgentTool } = require('./jarvis-agent-core');
 const { buildExecutiveNewsletter, fetchStockMarketIntelligence, fetchLiveWeatherBriefing } = require('./jarvis-briefing-hub');
+const { PERSONA_VOICE_MAP, resolvePersonaVoice } = require('./tts-audio');
 
 function runPowerShell(script) {
   const wrapped = `$ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; try {\n${script}\n} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
@@ -1000,7 +1001,18 @@ class ButlerEngine {
   hasWakeWord(rawText) {
     const cfg = this.getConfig();
     const t = String(rawText || '').trim();
-    const wakes = [...(cfg.wakeWords || []), ...(cfg.learnedWakes || []), cfg.assistantName, '자비스', '사사리사', '재비스', '싸싸리싸'];
+    const wakes = [
+      ...(cfg.wakeWords || []),
+      ...(cfg.learnedWakes || []),
+      cfg.assistantName,
+      '자비스',
+      '사사리사',
+      '재비스',
+      '싸싸리싸',
+      '소하야', '소하님', '수석비서소하',
+      '태준아', '태준님', '비서실장태준',
+      '거누야', '시안아', '유나야', '서아야', '나린아', '도현아', '시온아', '수호야'
+    ];
     for (const w of wakes.filter(Boolean)) {
       if (t.toLowerCase().includes(w.toLowerCase())) return true;
     }
@@ -1133,6 +1145,32 @@ class ButlerEngine {
     }
     if (/^(방금뭐했어|뭐했어|방금뭐한거야|whatdidyoudo)$/.test(sq2)) {
       return { intent: 'whatDid' };
+    }
+
+    // 8-A) JARVIS HUD Microphone ON/OFF & TTS Voice Mute Control (Prevents collision with Antigravity Voice Chat)
+    if (/(?:마이크\s*(?:꺼|끄기|오프|off|잠가|일시정지)|듣기\s*(?:꺼|멈춰|중지|오프))/.test(s.toLowerCase())) {
+      return { intent: 'earControl', micMuted: true };
+    }
+    if (/(?:마이크\s*(?:켜|켜기|온|on|열어)|듣기\s*(?:켜|재개|시작)|다시\s*들어)/.test(s.toLowerCase())) {
+      return { intent: 'earControl', micMuted: false };
+    }
+    if (/(?:자비스\s*음소거|목소리\s*음소거|대답\s*소리\s*꺼|음성\s*출력\s*꺼|자비스\s*소리\s*꺼)/.test(s.toLowerCase())) {
+      return { intent: 'earControl', ttsMuted: true };
+    }
+    if (/(?:자비스\s*음소거\s*해제|목소리\s*음소거\s*해제|대답\s*소리\s*켜|음성\s*출력\s*켜|자비스\s*소리\s*켜)/.test(s.toLowerCase())) {
+      return { intent: 'earControl', ttsMuted: false };
+    }
+
+    // 8-B) Multi-Persona / Gender-Specific BSC Agent Voice Greeting & Test
+    if (
+      (/(?:소하|수석비서).*(?:태준|비서실장)|(?:태준|비서실장).*(?:소하|수석비서)/.test(s) && /(?:목소리|음성|인사|대화|들려|말해|테스트)/.test(s)) ||
+      /(?:에이전트|페르소나)\s*(?:별|마다)?\s*(?:목소리|음성)\s*(?:테스트|들려|확인|비교)/.test(s)
+    ) {
+      return { intent: 'personaVoiceDemo', mode: 'multi' };
+    }
+    const singlePersonaVoiceMatch = s.match(/^(?:(소하|태준|거누|도현|시온|나린|시안|유나|서아|수호|강서진|서진|우진|하준|루카|재호|태오|지윤|한정숙|정숙|마커스|다인|세아|하린|클레어|카엘|제이|리나|로아|은우|아린|엘렌))(?:야|아|님)?\s*(?:목소리로|음성으로)?\s*(?:인사해\s*줘|목소리\s*들려줘|자기소개해\s*줘|말해\s*줘|대답해\s*줘)?$/);
+    if (singlePersonaVoiceMatch && resolvePersonaVoice(singlePersonaVoiceMatch[1])) {
+      return { intent: 'personaVoiceDemo', mode: 'single', persona: resolvePersonaVoice(singlePersonaVoiceMatch[1]) };
     }
 
     if (
@@ -2500,6 +2538,68 @@ class ButlerEngine {
         return { intent: 'rewrite', awaitingConfirm: true, pendingSend: { kind: 'rewrite', expiresAt: this.pendingSend.expiresAt }, hudColor: 'amber', hudTitle: '수정할 문장 확인', hudSubtitle: revised, heard: rawSentence, spoken: '수정된 문장을 표시했습니다. 선택한 글을 바꿀까요?' };
       }
 
+      case 'earControl': {
+        if (typeof parsed.micMuted === 'boolean') {
+          const muted = parsed.micMuted;
+          return {
+            intent: 'earControl',
+            earControl: { micMuted: muted },
+            hudColor: muted ? 'amber' : 'lime',
+            hudTitle: muted ? '🔇 자비스 마이크 OFF (다른 음성 대화와 충돌 방지 중)' : '🎙 자비스 마이크 ON (실시간 음성 인식 재개)',
+            hudSubtitle: muted
+              ? '상단 [🔇 마이크 OFF] 버튼을 다시 누르시거나 "자비스 마이크 켜"라고 말씀하시면 복구됩니다.'
+              : '자비스가 다시 대표님의 음성을 실시간으로 경청합니다.',
+            heard: rawSentence,
+            spoken: muted ? '네, 대표님. 다른 음성 대화와 겹치지 않도록 자비스 마이크를 일시정지했습니다.' : '네, 대표님. 자비스 마이크를 다시 켰습니다.'
+          };
+        }
+        const tMuted = Boolean(parsed.ttsMuted);
+        return {
+          intent: 'earControl',
+          earControl: { ttsMuted: tMuted },
+          hudColor: tMuted ? 'amber' : 'lime',
+          hudTitle: tMuted ? '🔕 자비스 음성 출력 음소거 (화면 텍스트만 표시)' : '🔊 자비스 음성 출력 켜짐',
+          hudSubtitle: tMuted
+            ? '자비스 목소리만 음소거되었습니다. 상단 [🔕 음소거] 버튼으로 언제든 켤 수 있습니다.'
+            : '자비스 음성 답변 출력이 다시 활성화되었습니다.',
+          heard: rawSentence,
+          spoken: tMuted ? '' : '네, 대표님. 자비스 음성 출력을 다시 켰습니다.'
+        };
+      }
+
+      case 'personaVoiceDemo': {
+        if (parsed.mode === 'multi') {
+          const multiScript =
+            '소하: 안녕하세요, 이건우 대표님. 프론트오피스 수석비서 소하입니다. 저는 여성 뉴럴 보이스로 대표님의 일정과 아이디어를 보좌합니다.\n' +
+            '태준: 반갑습니다, 이건우 대표님. 백오피스 비서실장 태준입니다. 저는 남성 뉴럴 보이스로 칸반 실행과 서른 명 에이전트 지휘를 총괄합니다.';
+          return {
+            intent: 'personaVoiceDemo',
+            personaId: 'soha+taejun',
+            personaName: '수석비서 소하 · 비서실장 태준',
+            personaVoice: 'ko-KR-SunHiNeural+ko-KR-InJoonNeural',
+            hudColor: 'lime',
+            hudTitle: '🗣 30인 에이전트 성별·페르소나 맞춤 보이스 (소하 여성 · 태준 남성)',
+            hudSubtitle: multiScript,
+            heard: rawSentence,
+            spoken: multiScript
+          };
+        }
+        const p = parsed.persona || PERSONA_VOICE_MAP.soha;
+        const genderLabel = p.gender === 'female' ? '여성 Neural 음성' : '남성 Neural 음성';
+        const line = `${p.name}: 안녕하세요, 이건우 대표님. BeausCreators ${p.name}입니다. 제 성별과 캐릭터에 맞춘 전용 ${genderLabel}으로 보고드리겠습니다.`;
+        return {
+          intent: 'personaVoiceDemo',
+          personaId: p.id,
+          personaName: p.name,
+          personaVoice: p.voice,
+          hudColor: p.gender === 'female' ? 'cyan' : 'lime',
+          hudTitle: `🗣 ${p.name} (${genderLabel} · ${p.voice})`,
+          hudSubtitle: line,
+          heard: rawSentence,
+          spoken: line
+        };
+      }
+
       case 'hush':
       case 'bye':
         this.mode = 'idle';
@@ -2597,6 +2697,10 @@ class ButlerEngine {
           }
         }
 
+        // Check if the user addressed a specific BSC persona (e.g., "소하야 오늘 일정 브리핑해줘", "태준아 ...", "시안아 ...")
+        const addressedPersonaMatch = promptText.match(/^(?:(소하|수석비서\s*소하|태준|비서실장\s*태준|거누|도현|시온|나린|시안|유나|서아|수호|강서진|서진|우진|하준|루카|재호|태오|지윤|한정숙|정숙|마커스|다인|세아|하린|클레어|카엘|제이|리나|로아|은우|아린|엘렌))(?:야|아|님|씨)?[\s,.:：]+(.+)$/);
+        const activePersona = addressedPersonaMatch ? resolvePersonaVoice(addressedPersonaMatch[1]) : resolvePersonaVoice(promptText);
+
         // Run JARVIS v3.0 Multi-Turn ReAct + Computer-Use Agent Loop!
         const agentRes = await runJarvisAgentTurn(promptText, cfg, executeOsActions, this.onAsyncAgentProgress || null);
         if (agentRes && agentRes.ok) {
@@ -2623,18 +2727,25 @@ class ButlerEngine {
             };
           }
           const usedTools = Array.isArray(agentRes.executedTools) && agentRes.executedTools.length > 0;
+          const replyPersona = activePersona || resolvePersonaVoice(agentRes.text);
+          const spokenOut = (replyPersona && !String(agentRes.text || '').startsWith(replyPersona.name))
+            ? `${replyPersona.name}: ${agentRes.text}`
+            : agentRes.text;
           return {
             intent: agentRes.research ? 'research' : 'agentCore',
             ...(agentRes.research ? { research: agentRes.research, researchId: agentRes.researchId } : {}),
+            ...(replyPersona ? { personaId: replyPersona.id, personaName: replyPersona.name, personaVoice: replyPersona.voice } : {}),
             hudColor: agentRes.isClarification ? 'amber' : (usedTools ? 'lime' : 'cyan'),
             hudTitle: agentRes.isClarification
               ? '❓ 자비스 확인 질문 (이어 말씀해 주세요)'
               : usedTools
               ? `⚡ 에이전트 실행 완료 (${agentRes.executedTools.map(t => t.split('(')[0]).join(' ➔ ')})`
+              : replyPersona
+              ? `🗣 ${replyPersona.name} (${replyPersona.gender === 'female' ? '여성 보이스' : '남성 보이스'}) 답변`
               : `🗣 ${cfg.assistantName || '자비스'} 답변`,
             hudSubtitle: agentRes.text,
             heard: rawSentence,
-            spoken: agentRes.text,
+            spoken: spokenOut,
             llm: {
               provider: agentRes.provider,
               model: agentRes.model,

@@ -518,6 +518,7 @@ async function runJarvisAgentTurn(userSentence, cfg = {}, executeOsActions = tru
     `4. 수집한 정보나 작업 결과를 시각적으로 보여드리면 좋을 때는 present_dynamic_window 도구로 분량에 맞는 크기(compact/standard/wide)의 창을 유기적으로 띄워 드리세요.`,
     `5. 지시 대상이나 의미가 정말로 모호할 때만 ask_user_clarification으로 짧게 질문하세요.`,
     `6. 실행하지 않은 작업을 완료했다고 거짓 보고하지 마세요. 도구 실행이 성공한 뒤에만 1~2문장으로 간결하고 자연스럽게 결과를 보고하세요.`,
+    `7. 대표님이 BeausCreators 에이전트(예: 수석비서 소하, 비서실장 태준, CTO 거누, 수석디자이너 시안, 프론트엔드 유나, 출판에디터 서아, CFO 도현, COO 시온, CMO 나린, QA 수호 등)를 호출하거나 대화를 요청하시면 해당 페르소나의 역할과 말투로 응답하되, 문장 앞에 "소하: ..." 또는 "태준: ..." 형식으로 화자를 명시하세요(자비스 TTS 엔진이 자동으로 여성 에이전트는 ko-KR-SunHiNeural 여성 보이스, 남성 에이전트는 ko-KR-InJoonNeural/Hyunsu 남성 보이스로 분리 발화합니다).`,
     lastWin.process ? `현재 대표님이 직전에 클릭/사용하신 외부 창: 프로세스=${lastWin.process}, 제목="${lastWin.title}", HWND=${lastWin.hwnd}` : '',
     recentCtx ? `최근 대화 맥락:\n${recentCtx}` : ''
   ].filter(Boolean).join('\n');
