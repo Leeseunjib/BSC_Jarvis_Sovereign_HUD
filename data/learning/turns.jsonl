@@ -121,3 +121,35 @@
 {"ts":"2026-11-17T07:57:47.296Z","sentence":"자비스 인공지능 에이전트 시스템에서 중용 23장의 핵심 의미가 뭐야","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (present_dynamic_window)","error":"","source":"voice"}
 {"ts":"2026-11-17T07:59:01.526Z","sentence":"미니고 자비스 인공지능 에이전트 시스템에서 중용 23장의 핵심 의미가 뭐야","intent":"research","failed":false,"hudTitle":"🔍 검색 결과 창 열기 완료","error":"","source":"voice"}
 {"ts":"2026-11-17T07:59:14.080Z","sentence":"오","intent":"youtubeNth","failed":true,"hudTitle":"⚠︎ 먼저 유튜브 검색을 말씀해 주세요","error":"","source":"voice"}
+{"ts":"2026-11-18T00:49:12.719Z","sentence":"유튜브에서 에픽 장르로 나한테 틀어 줘","intent":"youtubeAutoPlay","failed":false,"hudTitle":"○ 받아 적는 중 · 실행 완료","error":"","source":"voice"}
+{"ts":"2026-11-18T00:49:40.079Z","sentence":"그래서 에피 내려서 그래서 야 에피 가수 거 에픽하이 말고 에픽 장르라고 해 가지고 게임 전장에서 나올 만한 음악을 틀어 줘","intent":"youtubeAutoPlay","failed":false,"hudTitle":"○ 받아 적는 중 · 실행 완료","error":"","source":"voice"}
+{"ts":"2026-11-18T00:50:00.684Z","sentence":"게임 egm 음악 틀어 줘","intent":"youtubeAutoPlay","failed":false,"hudTitle":"○ 받아 적는 중 · 실행 완료","error":"","source":"voice"}
+{"ts":"2026-11-18T00:50:11.373Z","sentence":"bgm이라고 했다","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T00:50:32.044Z","sentence":"메모장 좀 켜 줘","intent":"openApp","failed":false,"hudTitle":"🚀 메모장 실행","error":"","source":"voice"}
+{"ts":"2026-11-18T00:50:51.706Z","sentence":"메모장을 열었습니다 메모장에 오늘 날씨 작성해 줘","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ computer_write_to_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T00:51:23.472Z","sentence":"야 오늘 구글 캘린더에 나의 일정이 있어","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ executive_newsletter)","error":"","source":"voice"}
+{"ts":"2026-11-18T00:51:53.062Z","sentence":"여보 지금 보게 되면 여기 보면은 두 개 섹션으로 써져 있잖아 내가 2학기 한게 하나 있어","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ computer_read_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T01:24:01.179Z","sentence":"내가 너희들이랑 음성으로 대화를 할 때가 있는데 자비스가 켜져 있는 상황에서 이야기를 하려고 하다 보니까 자비스도 들어 버리고 너희들도 듣다 보니까 동시에 대답할 때가 있는 거 같아 그래서 자비스가 나한테 이야기할 때 너희들이 나한테 이야기하는게 서로 같이 들리는 충돌되는 부분들이 좀 있는 거 같아 그래서 자비스 시스템에서도 너희 그 지금 대화 스타트 보이스 거기 창에 보면 마이크가 그 듣기 그 버튼 있잖아 그런 것들 때처럼 자비스 시스템에서도 내 목소리를 들릴 수 있게끔 하는 부분들이 다 음소거 또 이제 마이크 사용 이런 거 등등을 그런 버튼들 또 추가해 줬으면 좋겠다고 생각이 좀 들거든","intent":"volume","failed":false,"hudTitle":"🔊 음소거 전환","error":"","source":"voice"}
+{"ts":"2026-11-18T01:26:38.545Z","sentence":"내가 분명히 말했잖아 이거 우리 나 나 어제 이러고 있었다 이제 거짓말하고 자비스 시스템은 어떤게 땅인 줄 알아 마우스도 있지 마우스 마우스 있잖아 마우스를 내가 여기다 대고 있어 그러면 이거를 찍었다라고 하는 거래가 자비스 여기 ui에 떠 그래서 얘가 커서를 이렇게 해가지고 움직이다가 딱 클릭하면 어 아 여기서 작업하려고 하는구나 이거를 알아 자비스","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 종합 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:26:50.670Z","sentence":"그래서 뭐 카카오톡에다가도 예를 들어서","intent":"brain","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:26:51.109Z","sentence":"있어 그러면 내 거에다 이렇게 창에 떠 있는데 거기다가 어떤 거 어떤 것도 작성해서 그 해 가지고 넣어 달라고 하면 넣어 줘 이렇게 해 가지고","intent":"makeRoutine","failed":false,"hudTitle":"✓ 새 루틴 학습 완료: 「있어 그러면 내 거에다 이렇게 창에 떠 있는데 거기다가 어떤 거 어떤 것도 작성해서 그 해 가지고 넣어 달」","error":"","source":"voice"}
+{"ts":"2026-11-18T01:26:59.302Z","sentence":"그렇게 돼 그것까지 다 돼 그러니까 와","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:27:03.774Z","sentence":"미친 거지 그런 작업들 그 다음에 또 놀라지 마라","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:27:24.143Z","sentence":"그때 말했던 수험이라던가 팀워크 막 이런 것도 있어 그다음에 우리가 수험해 가지고 이제 들어가는 수험 있잖아요 이렇게 들어가잖아","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:27:51.078Z","sentence":"오케스트라이터 아이들이거든 그래서 여기 옆에 다 떠 진짜 다 떠 그래 가지고 수화물 통해 가지고 작업을 하는 거는 아까 전에 말했지만 아까 우리는 그동안에 없었잖아 누가 없었어 창 떠 가지고 개별적으로 이전트들이 움직이는 거 없었지 이것도 되는 거야 그러니까","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:27:59.271Z","sentence":"아니야 나 대기하고 있어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:28:02.832Z","sentence":"네가 다 완성하면 나한테 이야기해","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:28:32.402Z","sentence":"그래서 이렇게 뭐 창문이 있어 그렇죠 하나의 있어 가지고 그러면 부모들이 좀 되는 거야","intent":"brain","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:28:36.581Z","sentence":"아르곤이야 그러니까 원래 그동안에는 우리가 이렇게 돼 가지고","intent":"agentCore","failed":true,"hudTitle":"❓ 자비스 확인 질문 (이어 말씀해 주세요)","error":"","source":"voice"}
+{"ts":"2026-11-18T01:28:40.994Z","sentence":"이런 시스템이었지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:28:44.659Z","sentence":"그지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:28:51.426Z","sentence":"이렇게 들어왔잖아 아니야 처음부터","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:29:10.995Z","sentence":"처음부터 이거 왜 하나의 프로젝트를 먼저 내 오더를 받고 처음부터 이거야 그러면 얘네들은 또 이렇게 연결되는 거야 얘네들이 또 이렇게 가는 거야 그러면서 출산해 가지고 추려 가지고 만들어져 있는 거를","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:29:15.664Z","sentence":"이렇게 연결해서 이렇게 만드는 과정이야","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (present_dynamic_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T01:29:21.037Z","sentence":"근데 얘네들이 전부 다 진짜 애들처럼 움직이는 거야","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:29:23.251Z","sentence":"대박이지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:29:43.090Z","sentence":"그래서 이런 식으로도 가고 오픈해서 나하고 대화했었던 것들의 정리되어져 있는 이걸 쓴다고 생각해 봐 맨날 키보드에다가","intent":"brain","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:30:00.589Z","sentence":"내가 너희들이랑 내가 너희들이랑 음성으로 대화를 할 때 자비스가 쳐져 있는 생각해 봐 이제 손가락이 아파 너무 쳐 가지고 이제 관절이 앞단 말이야 근데 어때","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:30:06.130Z","sentence":"아 근데 아이디에서는 안 돼 2.0 이상만 돼","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:30:22.060Z","sentence":"그래도 개 쩔잖아 그지 있다","intent":"brain","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T01:30:28.045Z","sentence":"이제는 작업하기가 너무 편하다 여기다 주르르르르르르르르르르르르르르르르르르 말하고 일을 하면 된다","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}

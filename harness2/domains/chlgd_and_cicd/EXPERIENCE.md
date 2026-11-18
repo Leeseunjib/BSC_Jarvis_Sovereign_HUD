@@ -71,3 +71,7 @@
 
 ## [2026-11-17 Learned repetition]
 - 자주 하시는 요청: 「자비스 인공지능 에이전트 시스템에서」 (3회)
+
+## [2026-11-18 CEO Rule Learned]
+- **Rule**: 미친 거지 그런 작업들 그 다음에 또 놀라지 마라
+- **Source**: Harness² 재귀 학습 (explicit, 근거 1회)

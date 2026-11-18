@@ -3,6 +3,13 @@
   "activeTab": "plan",
   "conversationRules": [
     {
+      "id": "rule-1794965223777",
+      "category": "대화 · 업무 규칙",
+      "rule": "미친 거지 그런 작업들 그 다음에 또 놀라지 마라",
+      "source": "Harness² 재귀 학습 (explicit, 근거 1회)",
+      "createdAt": "2026-11-18"
+    },
+    {
       "id": "rule-1794899972540",
       "category": "음성 · 경청 규칙",
       "rule": "이제부터는 이제 이런 부분들이 이제 자동화예요 근데 한가지 말하면 요런 부분들을",
