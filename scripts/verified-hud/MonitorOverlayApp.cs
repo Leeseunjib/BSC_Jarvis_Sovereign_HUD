@@ -813,7 +813,7 @@ namespace JarvisSasariSa
             return System.Windows.Forms.Screen.PrimaryScreen;
         }
 
-        // Clamp the proposed native move before Windows applies it so each HUD stays inside its assigned monitor.
+        // Allow free dragging across ALL connected monitors while keeping the HUD inside the target monitor's working area once placed.
         private static IntPtr KeepHudPositionOnAssignedScreen(IntPtr window, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             const int WindowPositionChanging = 0x0046;
@@ -823,8 +823,6 @@ namespace JarvisSasariSa
                 bool moving = (position.Flags & SWP_NOMOVE) == 0;
                 bool resizing = (position.Flags & SWP_NOSIZE) == 0;
                 if (!moving && !resizing) return IntPtr.Zero;
-                var screen = ResolveScreenForHwnd(window);
-                var bounds = screen.WorkingArea;
                 int width = position.Width, height = position.Height;
                 if (!moving || !resizing) {
                     HudWindowRectangle rectangle;
@@ -832,8 +830,31 @@ namespace JarvisSasariSa
                     if (!resizing) { width = rectangle.Right - rectangle.Left; height = rectangle.Bottom - rectangle.Top; }
                     if (!moving) { position.X = rectangle.Left; position.Y = rectangle.Top; }
                 }
+
+                // Determine which monitor the window's top-center is currently over (supports moving freely across all monitors)
+                int probeX = position.X + Math.Max(1, width) / 2;
+                int probeY = position.Y + Math.Min(48, Math.Max(1, height) / 2);
+                var targetScreen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(probeX, probeY)) ?? System.Windows.Forms.Screen.PrimaryScreen;
+                foreach (var inst in hudInstances)
+                {
+                    if (inst.Window != null && new System.Windows.Interop.WindowInteropHelper(inst.Window).Handle == window)
+                    {
+                        inst.AssignedScreen = targetScreen;
+                        inst.ScreenDeviceName = targetScreen.DeviceName;
+                        break;
+                    }
+                }
+
+                // While the user is actively dragging with the left mouse button, allow seamless movement across monitor boundaries without edge-snapping
+                bool leftMouseDown = (GetAsyncKeyState(0x01) & 0x8000) != 0;
+                if (leftMouseDown && moving)
+                {
+                    return IntPtr.Zero;
+                }
+
+                var bounds = targetScreen.WorkingArea;
                 int x = Math.Max(bounds.Left, Math.Min(position.X, bounds.Right - Math.Max(1, width)));
-                int y = Math.Max(bounds.Top, Math.Min(position.Y, bounds.Bottom - Math.Max(1, height)));
+                int y = Math.Max(bounds.Top, Math.Min(position.Y, bounds.Bottom - Math.Max(1, Math.Min(height, bounds.Height))));
                 if (x != position.X || y != position.Y) position.Flags &= ~SWP_NOMOVE;
                 position.X = x; position.Y = y;
                 Marshal.StructureToPtr(position, lParam, false);
@@ -844,12 +865,17 @@ namespace JarvisSasariSa
         private static void KeepWindowOnScreen(HudWindowInstance inst)
         {
             if (inst == null || inst.Window == null || !inst.Window.IsLoaded) return;
+            if ((GetAsyncKeyState(0x01) & 0x8000) != 0) return; // Do not interfere while user is dragging
             var source = System.Windows.PresentationSource.FromVisual(inst.Window);
             var transform = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformToDevice : System.Windows.Media.Matrix.Identity;
             var point = transform.Transform(new Point(inst.Window.Left, inst.Window.Top));
-            var screen = inst.AssignedScreen ?? System.Windows.Forms.Screen.PrimaryScreen;
-            var bounds = screen.WorkingArea;
-            if (point.X < bounds.Left || point.Y < bounds.Top || point.X + inst.Window.ActualWidth * transform.M11 > bounds.Right || point.Y + 80 * transform.M22 > bounds.Bottom)
+            double physW = Math.Max(200, inst.Window.ActualWidth * transform.M11);
+            var headerCenter = new System.Drawing.Point((int)(point.X + physW / 2.0), (int)(point.Y + 28 * transform.M22));
+            var currentScreen = System.Windows.Forms.Screen.FromPoint(headerCenter) ?? System.Windows.Forms.Screen.PrimaryScreen;
+            inst.AssignedScreen = currentScreen;
+            inst.ScreenDeviceName = currentScreen.DeviceName;
+            var bounds = currentScreen.WorkingArea;
+            if (point.X < bounds.Left - physW + 120 || point.Y < bounds.Top - 10 || point.X > bounds.Right - 120 || point.Y + 60 * transform.M22 > bounds.Bottom)
             {
                 PlaceHudInstanceOnScreen(inst);
             }
@@ -973,7 +999,8 @@ namespace JarvisSasariSa
             hudInstances.Clear();
             activeHubOwner = null;
             var screens = GetOrderedScreens();
-            int count = isAuditMode ? 3 : Math.Min(screens.Length, 3);
+            // Single HUD Window by default (movable across all monitors); layout audit mode can still inspect multi-screen metrics
+            int count = isAuditMode ? 3 : 1;
 
             for (int i = 0; i < count; i++)
             {
@@ -1174,8 +1201,36 @@ namespace JarvisSasariSa
             miPosBottomRight.Click += (s, e) => PositionHudOnAssignedScreen(inst, "bottom-right");
             ctx.Items.Add(miPosBottomRight);
 
-            MenuItem miResetAll = new MenuItem { Header = "모든 모니터 기본 정렬" };
-            miResetAll.Click += (s, e) => PlaceHudWindows();
+            MenuItem miMoveNextMonitor = new MenuItem { Header = "모니터 이동: 다음 모니터로 전환" };
+            miMoveNextMonitor.Click += (s, e) =>
+            {
+                var screens = GetOrderedScreens();
+                if (screens.Length > 1)
+                {
+                    int curIdx = 0;
+                    for (int si = 0; si < screens.Length; si++)
+                    {
+                        if (inst.AssignedScreen != null && screens[si].DeviceName == inst.AssignedScreen.DeviceName)
+                        {
+                            curIdx = si;
+                            break;
+                        }
+                    }
+                    var nextScr = screens[(curIdx + 1) % screens.Length];
+                    inst.AssignedScreen = nextScr;
+                    inst.ScreenDeviceName = nextScr.DeviceName;
+                    PositionHudOnAssignedScreen(inst, "top-left");
+                }
+            };
+            ctx.Items.Add(miMoveNextMonitor);
+
+            MenuItem miResetAll = new MenuItem { Header = "주 모니터 기본 위치로 복귀" };
+            miResetAll.Click += (s, e) =>
+            {
+                inst.AssignedScreen = System.Windows.Forms.Screen.PrimaryScreen;
+                inst.ScreenDeviceName = System.Windows.Forms.Screen.PrimaryScreen.DeviceName;
+                PlaceHudWindows();
+            };
             ctx.Items.Add(miResetAll);
 
             ctx.Items.Add(new Separator());

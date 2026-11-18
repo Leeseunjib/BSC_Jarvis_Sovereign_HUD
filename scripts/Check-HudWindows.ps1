@@ -72,9 +72,9 @@ $windows = @()
 foreach ($item in $items) { $windows += @([JarvisWindowInventory]::VisibleTitles([uint32]$item.ProcessId) | Where-Object { $_ -match 'Monitor.*HUD' }) }
 $global = @([JarvisWindowInventory]::OnscreenHudWindows())
 $placements = @($items | ForEach-Object { [JarvisWindowInventory]::Placements([uint32]$_.ProcessId) })
-$primaryPlacements = @($placements | Where-Object { $_.Primary -and $_.Topmost })
-$allTopmost = $placements.Count -ge 1 -and @($placements | Where-Object { -not $_.Topmost }).Count -eq 0
+$validPlacements = @($placements | Where-Object { $_.MonitorQueryOk -and $_.Topmost })
+$allTopmost = $placements.Count -eq 1 -and $validPlacements.Count -eq 1
 $uniqueTitles = @($windows | Select-Object -Unique)
-$primaryTopmost = ($primaryPlacements.Count -eq 1) -and $allTopmost
-[pscustomobject]@{ ProcessCount = $items.Count; VisibleHudCount = $windows.Count; GlobalOnscreenHudCount = $global.Count; ExpectedScreenCount = $expectedMaxHudCount; PrimaryAndTopmost = $primaryTopmost; Titles = @($windows); OnscreenHuds = $global; Placements=$placements } | ConvertTo-Json -Depth 4 -Compress
-if ($items.Count -ne 1 -or $windows.Count -lt 1 -or $windows.Count -gt $expectedMaxHudCount -or $uniqueTitles.Count -ne $windows.Count -or $global.Count -ne $windows.Count -or -not $primaryTopmost) { exit 1 }
+$primaryTopmost = $allTopmost
+[pscustomobject]@{ ProcessCount = $items.Count; VisibleHudCount = $windows.Count; GlobalOnscreenHudCount = $global.Count; ExpectedScreenCount = 1; PrimaryAndTopmost = $primaryTopmost; Titles = @($windows); OnscreenHuds = $global; Placements=$placements } | ConvertTo-Json -Depth 4 -Compress
+if ($items.Count -ne 1 -or $windows.Count -ne 1 -or $uniqueTitles.Count -ne 1 -or $global.Count -ne 1 -or -not $primaryTopmost) { exit 1 }
