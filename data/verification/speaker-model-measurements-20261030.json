@@ -9,7 +9,7 @@
         1
       ],
       "allowed": true,
-      "milliseconds": 396
+      "milliseconds": 563
     },
     {
       "name": "fangjun-test-sr-2.wav",
@@ -17,7 +17,7 @@
         0.9135752618357822
       ],
       "allowed": true,
-      "milliseconds": 41
+      "milliseconds": 42
     },
     {
       "name": "leijun-test-sr-1.wav",
@@ -27,7 +27,7 @@
         0.8073462268266756
       ],
       "allowed": false,
-      "milliseconds": 140
+      "milliseconds": 150
     },
     {
       "name": "leijun-test-sr-2.wav",
@@ -36,7 +36,7 @@
         0.7179256742159305
       ],
       "allowed": false,
-      "milliseconds": 131
+      "milliseconds": 124
     },
     {
       "name": "liudehua-test-sr-1.wav",
@@ -44,7 +44,7 @@
         0.7256173560745165
       ],
       "allowed": false,
-      "milliseconds": 70
+      "milliseconds": 74
     },
     {
       "name": "liudehua-test-sr-2.wav",
@@ -52,7 +52,7 @@
         0.6646483385041126
       ],
       "allowed": false,
-      "milliseconds": 62
+      "milliseconds": 55
     }
   ]
 }

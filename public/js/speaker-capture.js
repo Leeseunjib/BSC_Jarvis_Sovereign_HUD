@@ -10,7 +10,12 @@
       this.node = new AudioWorkletNode(ctx, 'jarvis-speaker-capture');
       this.mute = ctx.createGain(); this.mute.gain.value = 0;
       source.connect(this.node); this.node.connect(this.mute); this.mute.connect(ctx.destination);
-      this.node.port.onmessage = event => this.append(event.data);
+      this.node.port.onmessage = event => {
+        this.append(event.data);
+        if (typeof this.onAudioFrame === 'function') {
+          try { this.onAudioFrame(); } catch (_) {}
+        }
+      };
       this.ready = true;
     }
     append(samples) {
@@ -22,7 +27,7 @@
       if (e && e.phase === 'recording' && at >= e.endAt + 250 && this.submitted !== e.id) {
         this.submitted = e.id;
         const audio = this.encode(e.startAt, e.endAt);
-        const transcript = this.contaminated ? '' : this.enrollmentText;
+        const transcript = this.contaminated ? '' : (this.enrollmentText || '자비스 내 목소리를 등록해 주세요 오늘 할 일을 천천히 정리하고 필요한 정보를 확인합니다');
         this.send('/api/speaker/enroll/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: e.id, audio, transcript }) }).catch(() => {});
         this.turnAt = null;
       }

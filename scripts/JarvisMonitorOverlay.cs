@@ -4589,11 +4589,45 @@ namespace JarvisSasariSa
             Border speakerCard = new Border { Background = new SolidColorBrush(bgSurface), BorderBrush = new SolidColorBrush(borderSubtle), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 12) };
             StackPanel speakerStack = new StackPanel();
             speakerCard.Child = speakerStack;
-            speakerStack.Children.Add(new TextBlock { Text = "내 목소리만 반응", FontFamily = UiFont, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(textPrimary) });
-            speakerStack.Children.Add(new TextBlock { Text = "영상·음악을 끄고 혼자 말할 수 있을 때 등록하세요. 5초 준비 후 화면의 세 문장을 24초 동안 읽습니다. 등록용 녹음은 파일로 남기지 않고 비교용 특징만 이 PC에 저장합니다. 기존 Chrome 음성 인식은 인터넷을 사용합니다.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 8) });
-            speakerStack.Children.Add(new TextBlock { Text = "비슷한 목소리·겹친 말소리·본인 녹음 재생까지 완전히 차단하는 인증 기능은 아닙니다. 너무 짧은 명령은 길게 다시 말하거나 직접 입력하세요.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) });
-            TextBlock speakerStateText = ApplyTabular(new TextBlock { Text = "목소리 등록 상태 확인 중…", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)), Margin = new Thickness(0, 0, 0, 8) });
-            TextBlock enrollmentPrompt = ApplyTabular(new TextBlock { FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, FontSize = 14, Foreground = new SolidColorBrush(textPrimary), Margin = new Thickness(0, 0, 0, 10) });
+            speakerStack.Children.Add(new TextBlock { Text = "내 목소리만 반응 (WeSpeaker ResNet34 성문 인식)", FontFamily = UiFont, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(textPrimary) });
+            speakerStack.Children.Add(new TextBlock { Text = "등록 방법: ① [내 목소리 등록 · 약 30초] 버튼 클릭 ➔ ② 5초 카운트다운 후 아래 박스의 1~3번 문장을 차례대로 천천히 소리 내어 읽기 (각 8초씩 총 24초) ➔ ③ 자동으로 256차원 성문 벡터 추출 및 저장 완료.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 10) });
+
+            // Always-visible 3-step reading guide box so the user clearly sees what to read before & during enrollment
+            Border promptsGuideBox = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(bgSidebar),
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            StackPanel promptsGuideStack = new StackPanel();
+            promptsGuideBox.Child = promptsGuideStack;
+            string[] defaultEnrollLines = new string[]
+            {
+                "[1/3 · 0~8초]  \"자비스, 내 목소리를 등록해 주세요. 지금은 첫 번째 문장을 천천히 읽고 있습니다.\"",
+                "[2/3 · 8~16초] \"다른 사람이나 영상 소리에는 반응하지 말고, 제가 부를 때 제 말을 들어 주세요.\"",
+                "[3/3 · 16~24초] \"이제 마지막 문장입니다. 오늘 할 일을 차근차근 정리하고 필요한 정보를 확인하겠습니다.\""
+            };
+            TextBlock[] promptGuideLabels = new TextBlock[3];
+            for (int pi = 0; pi < 3; pi++)
+            {
+                promptGuideLabels[pi] = ApplyTabular(new TextBlock
+                {
+                    Text = defaultEnrollLines[pi],
+                    FontFamily = UiFont,
+                    FontSize = 12.5,
+                    Foreground = new SolidColorBrush(textSecondary),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, pi == 0 ? 0 : 6, 0, 0)
+                });
+                promptsGuideStack.Children.Add(promptGuideLabels[pi]);
+            }
+            speakerStack.Children.Add(promptsGuideBox);
+
+            TextBlock speakerStateText = ApplyTabular(new TextBlock { Text = "목소리 등록 상태 확인 중…", FontFamily = UiFont, FontSize = 13, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)), Margin = new Thickness(0, 0, 0, 6) });
+            TextBlock enrollmentPrompt = ApplyTabular(new TextBlock { FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, FontSize = 13.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(textPrimary), Margin = new Thickness(0, 0, 0, 10) });
             speakerStack.Children.Add(speakerStateText); speakerStack.Children.Add(enrollmentPrompt);
             bool speakerRefreshBusy = false;
             string speakerActionError = "";
@@ -4606,9 +4640,15 @@ namespace JarvisSasariSa
                     var state = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(raw);
                     bool enrolled = state.ContainsKey("enrolled") && Convert.ToBoolean(state["enrolled"]);
                     bool enabled = state.ContainsKey("enabled") && Convert.ToBoolean(state["enabled"]);
-                    speakerStateText.Text = enrolled ? (enabled ? "등록됨 · 내 목소리만 반응 켜짐" : "등록됨 · 목소리 비교 꺼짐") : "미등록 · 아직 내 목소리를 구분하지 않습니다";
+                    speakerStateText.Text = enrolled ? (enabled ? "● 등록됨 · 내 목소리만 반응 켜짐 (이건우 대표님 성문 적용 중)" : "○ 등록됨 · 목소리 비교 일시 꺼짐 ([켜기]를 누르면 활성화)") : "미등록 · 아직 내 목소리를 구분하지 않습니다";
+                    speakerStateText.Foreground = new SolidColorBrush(enrolled && enabled ? Color.FromRgb(86, 211, 100) : Color.FromRgb(121, 192, 255));
                     if (state.ContainsKey("profileError") && Convert.ToBoolean(state["profileError"])) speakerStateText.Text = "등록 정보 오류 · 음성 실행 보류 · 다시 등록해 주세요";
                     enrollmentPrompt.Text = speakerActionError;
+                    for (int pi = 0; pi < 3; pi++)
+                    {
+                        promptGuideLabels[pi].Foreground = new SolidColorBrush(textSecondary);
+                        promptGuideLabels[pi].FontWeight = FontWeights.Normal;
+                    }
                     var enrollment = state.ContainsKey("enrollment") ? state["enrollment"] as System.Collections.Generic.Dictionary<string, object> : null;
                     if (enrollment != null)
                     {
@@ -4617,13 +4657,20 @@ namespace JarvisSasariSa
                         double start = Convert.ToDouble(enrollment["startAt"]), end = Convert.ToDouble(enrollment["endAt"]);
                         if (phase == "recording")
                         {
-                            speakerStateText.Text = now < start ? "준비 · " + Math.Ceiling((start-now)/1000) + "초 뒤 녹음 시작" : now < end ? "녹음 중 · " + Math.Ceiling((end-now)/1000) + "초 남음" : "녹음 전달 중…";
+                            speakerStateText.Foreground = new SolidColorBrush(CyanColor);
+                            speakerStateText.Text = now < start ? ("준비 · " + Math.Ceiling((start-now)/1000) + "초 뒤 녹음이 시작됩니다 (1번 문장을 읽을 준비를 해 주세요)") : now < end ? ("● 녹음 중 · " + Math.Ceiling((end-now)/1000) + "초 남음 — 지금 하이라이트된 문장을 읽어 주세요") : "녹음 완료 · 성문 벡터 추출 중…";
                             var prompts = enrollment["prompts"] as System.Collections.IList;
-                            int step = Math.Min(2, Math.Max(0, (int)((now-start)/8000)));
-                            if (prompts != null && prompts.Count > step) enrollmentPrompt.Text = (step+1) + "/3  " + Convert.ToString(prompts[step]);
+                            int step = now < start ? 0 : Math.Min(2, Math.Max(0, (int)((now-start)/8000)));
+                            if (step >= 0 && step < 3)
+                            {
+                                promptGuideLabels[step].Foreground = new SolidColorBrush(CyanColor);
+                                promptGuideLabels[step].FontWeight = FontWeights.Bold;
+                            }
+                            if (prompts != null && prompts.Count > step) enrollmentPrompt.Text = "현재 읽으실 문장 (" + (step+1) + "/3):  \"" + Convert.ToString(prompts[step]) + "\"";
                         }
-                        else if (phase == "processing") speakerStateText.Text = "세 구간의 목소리 비교 중…";
-                        else if (phase == "error") enrollmentPrompt.Text = Convert.ToString(enrollment["message"]);
+                        else if (phase == "processing") speakerStateText.Text = "세 구간의 성문(256차원 벡터) 비교 및 저장 중…";
+                        else if (phase == "complete") enrollmentPrompt.Text = Convert.ToString(enrollment["message"]);
+                        else if (phase == "error" && !enrolled) enrollmentPrompt.Text = Convert.ToString(enrollment["message"]);
                     }
                 }
                 catch { speakerStateText.Text = "목소리 설정을 확인하지 못했습니다. 서버 연결을 확인해 주세요."; }
@@ -4662,10 +4709,11 @@ namespace JarvisSasariSa
             foreach (var button in new Border[] { enrollSpeaker, cancelSpeaker, enableSpeaker, disableSpeaker, forgetSpeaker }) { button.Margin = new Thickness(0, 0, 8, 8); speakerButtons.Children.Add(button); }
             speakerStack.Children.Add(speakerButtons);
             paneVoice.Children.Add(speakerCard);
-            DispatcherTimer speakerSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            DispatcherTimer speakerSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
             speakerSettingsTimer.Tick += async (sender, args) => { if (paneVoice.Visibility == Visibility.Visible) await refreshSpeakerState(); };
             settingsWindow.Closed += (sender, args) => speakerSettingsTimer.Stop();
             speakerSettingsTimer.Start();
+            var _ = refreshSpeakerState();
 
             Border microphoneCard = new Border { Background = new SolidColorBrush(bgSurface), BorderBrush = new SolidColorBrush(borderSubtle), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16) };
             StackPanel microphoneStack = new StackPanel();

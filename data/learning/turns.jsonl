@@ -155,3 +155,4 @@
 {"ts":"2026-11-18T01:30:28.045Z","sentence":"이제는 작업하기가 너무 편하다 여기다 주르르르르르르르르르르르르르르르르르르 말하고 일을 하면 된다","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
 {"ts":"2026-11-18T03:49:19.316Z","sentence":"자비스가 준비되었습니다","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
 {"ts":"2026-11-18T03:49:26.284Z","sentence":"대표님의 말씀","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T06:52:19.003Z","sentence":"아빠 왔어","intent":"greet","failed":false,"hudTitle":"◉ 자비스 · BSC 3대 생태계 & 26인 에이전트 ONLINE","error":"","source":"manual"}

@@ -61,13 +61,18 @@ class SpeakerWorker {
 class SpeakerGate {
   constructor({ file = path.join(process.env.JARVIS_DATA_DIR || path.join(__dirname, '../data'), 'owner-speaker-profile.json'), worker = new SpeakerWorker(), now = Date.now } = {}) {
     this.file = file; this.worker = worker; this.now = now; this.profile = null; this.enrollment = null; this.last = null; this.loadError = false;
+    this.reload();
+  }
+  reload() {
+    this.profile = null; this.loadError = false;
     try {
-      if (fs.existsSync(file)) {
-        const p = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (fs.existsSync(this.file)) {
+        const p = JSON.parse(fs.readFileSync(this.file, 'utf8'));
         if (p.version !== 1 || p.model !== MODEL || p.vectors.length !== 3 || !p.vectors.every(v => Array.isArray(v) && v.length === 256 && v.every(Number.isFinite))) throw new Error('invalid-profile');
         this.profile = p;
       }
     } catch (_) { this.loadError = true; }
+    return this.status();
   }
   get enabled() { return this.loadError || !!this.profile?.enabled; }
   get enrolling() { return !!(this.enrollment && this.enrollment.expiresAt > this.now() && ['recording', 'processing'].includes(this.enrollment.phase)); }
@@ -107,9 +112,10 @@ class SpeakerGate {
     e.phase = 'processing';
     try {
       this.validateAudio(audio, 22, 26);
-      if (!String(transcript || '').includes('등록') || String(transcript || '').replace(/[^가-힣a-z]/gi, '').length < 30) throw new Error('등록 문장이 인식되지 않았습니다. 조용한 곳에서 화면의 문장을 읽어 주세요.');
+      if (String(transcript || '').replace(/[^가-힣a-z]/gi, '').length < 4) throw new Error('등록 문장이 인식되지 않았습니다. 조용한 곳에서 화면의 문장을 읽어 주세요.');
       const vectors = await this.worker.extract(audio.pcm, true);
-      if (vectors.length !== 3 || cosine(vectors[0], vectors[1]) < THRESHOLD || cosine(vectors[0], vectors[2]) < THRESHOLD || cosine(vectors[1], vectors[2]) < THRESHOLD) throw new Error('세 구간의 목소리가 충분히 일치하지 않습니다. 영상과 음악을 끄고 다시 등록해 주세요.');
+      const enrollMinCosine = 0.55;
+      if (vectors.length !== 3 || cosine(vectors[0], vectors[1]) < enrollMinCosine || cosine(vectors[0], vectors[2]) < enrollMinCosine || cosine(vectors[1], vectors[2]) < enrollMinCosine) throw new Error('세 구간의 목소리가 충분히 일치하지 않습니다. 영상과 음악을 끄고 다시 등록해 주세요.');
       if (this.enrollment !== e || e.phase !== 'processing') throw new Error('등록이 취소됐습니다.');
       const old = this.profile;
       this.profile = { version: 1, model: MODEL, enabled: true, updatedAt: new Date(this.now()).toISOString(), vectors };
@@ -132,7 +138,8 @@ class SpeakerGate {
       if (this.profile !== profile || this.enrolling) throw new Error('speaker-profile-changed');
       const scores = vectors.map(v => Math.max(...this.profile.vectors.map(p => cosine(v, p))));
       const score = Math.min(...scores);
-      const allowed = Number.isFinite(score) && score >= THRESHOLD;
+      const activeThreshold = Number.isFinite(this.profile.verifyThreshold) ? this.profile.verifyThreshold : THRESHOLD;
+      const allowed = Number.isFinite(score) && score >= activeThreshold;
       this.last = { at: new Date(this.now()).toISOString(), allowed, score: Math.round(score * 1000) / 1000, reason: allowed ? 'owner-match' : 'different-or-uncertain-speaker' };
       return { ...this.last, verified: allowed };
     } catch (error) {

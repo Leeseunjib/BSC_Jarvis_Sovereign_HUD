@@ -1206,10 +1206,15 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await readBody(req, 1200000);
       if (pathname === '/api/speaker/enroll/start') {
+        global.__jarvisMicMuted = false;
+        global.__jarvisIsSpeaking = false;
+        global.__jarvisSpeakingText = '';
         const health = global.__jarvisEarHealth;
-        if (!health || !health.speakerCapture || health.microphone !== 'ready' || Date.now()-health.ts > 15000) throw new Error('등록용 마이크 연결을 기다린 뒤 다시 눌러 주세요.');
-        if (global.__jarvisIsSpeaking) throw new Error('자비스 음성이 끝난 뒤 등록을 시작해 주세요.');
+        if (!health || !health.speakerCapture || health.microphone !== 'ready' || Date.now()-health.ts > 30000) throw new Error('등록용 마이크 연결을 기다린 뒤 다시 눌러 주세요.');
         return sendJson(res, 200, speakerGate.start());
+      }
+      if (pathname === '/api/speaker/reload') {
+        return sendJson(res, 200, speakerGate.reload());
       }
       if (pathname === '/api/speaker/enroll/complete') {
         const result = await speakerGate.finish(body.id, body.audio, body.transcript);

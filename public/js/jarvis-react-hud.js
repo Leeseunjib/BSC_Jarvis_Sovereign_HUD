@@ -108,8 +108,10 @@
         analyser.fftSize = 256;
         src.connect(analyser);
         if (captureRef.current) {
-          try { await captureRef.current.connect(ctx, src); reportEarHealth({ speakerCapture: true }, 'speaker-capture-ready'); }
-          catch (error) { reportEarHealth({ speakerCapture: false }, 'speaker-capture-unavailable'); }
+          try {
+            await captureRef.current.connect(ctx, src);
+            reportEarHealth({ speakerCapture: true }, 'speaker-capture-ready');
+          } catch (error) { reportEarHealth({ speakerCapture: false }, 'speaker-capture-unavailable'); }
         }
         const data = new Float32Array(analyser.fftSize);
         const sampleRate = ctx.sampleRate || 48000;
@@ -222,7 +224,12 @@
           }
           rafRef.current = setTimeout(tick, 120);
         };
-        rafRef.current = requestAnimationFrame(tick);
+        if (captureRef.current) {
+          captureRef.current.onAudioFrame = () => {
+            if (Date.now() - lastPushRef.current >= 120) tick();
+          };
+        }
+        rafRef.current = setTimeout(tick, 120);
         return true;
       } catch (err) {
         setMicActive(false);

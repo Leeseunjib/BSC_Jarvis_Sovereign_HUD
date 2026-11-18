@@ -20,7 +20,7 @@
   ],
   "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
   "stats": {
-    "totalOrders": 222,
+    "totalOrders": 223,
     "intentCounts": {
       "youtubeAutoPlay": 11,
       "mediaNext": 2,
@@ -32,7 +32,7 @@
       "resumeMusic": 2,
       "clock": 5,
       "research": 33,
-      "greet": 1,
+      "greet": 2,
       "web": 11,
       "openApp": 5,
       "togglePlayPause": 5,
@@ -69,6 +69,12 @@
     ]
   },
   "recentOrders": [
+    {
+      "ts": "2026-11-18 06:52:18",
+      "sentence": "아빠 왔어",
+      "intent": "greet",
+      "title": "◉ 자비스 · BSC 3대 생태계 & 26인 에이전트 ONLINE"
+    },
     {
       "ts": "2026-11-18 03:49:26",
       "sentence": "대표님의 말씀",
@@ -242,13 +248,7 @@
       "sentence": "메모장을 열었습니다 메모장에 오늘 날씨 작성해 줘",
       "intent": "agentCore",
       "title": "⚡ 에이전트 실행 완료 (web_search_and_extract ➔ computer_write_to_window)"
-    },
-    {
-      "ts": "2026-11-18 00:50:32",
-      "sentence": "메모장 좀 켜 줘",
-      "intent": "openApp",
-      "title": "🚀 메모장 실행"
     }
   ],
-  "updatedAt": "2026-11-18T03:49:26.282Z"
+  "updatedAt": "2026-11-18T06:52:18.998Z"
 }
