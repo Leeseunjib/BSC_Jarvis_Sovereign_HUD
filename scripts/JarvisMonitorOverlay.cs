@@ -68,41 +68,97 @@ namespace JarvisSasariSa
         private const int SW_SHOW = 5;
         private const int SW_SHOWNOACTIVATE = 4;
         private const int SW_RESTORE = 9;
-        private const int VK_RMENU = 0xA5;    // Right Alt (if present)
         private const int VK_MENU = 0x12;     // Alt
         private const int VK_CONTROL = 0x11;  // Ctrl
         private const int VK_SHIFT = 0x10;    // Shift
         private const int VK_SPACE = 0x20;    // Space (Ctrl + Space -> 자비스 즉시 호출)
-        private const int VK_F2 = 0x71;       // F2 단독 키 (원터치 음성 호출)
         private const int VK_F8 = 0x77;       // F8 단독 키 (원터치 음성 호출)
         private const int VK_J = 0x4A;        // Ctrl + Shift + J -> 전체화면 부트 시퀀스 호출
-        private const byte VK_LWIN = 0x5B;    // Left Win
-        private const byte VK_H = 0x48;       // H (Win + H 한국어 신경망 음성 받아쓰기)
-        private const uint KEYEVENTF_KEYUP = 0x0002;
 
-        // Customizable user hotkey (editable in Settings UI)
+        // Customizable user hotkey (editable in Settings UI & persisted in config.json)
         private static int customHotkeyVk = VK_SPACE;
         private static bool customNeedCtrl = true;
         private static bool customNeedAlt = false;
         private static bool customNeedShift = false;
         private static string customHotkeyLabel = "Ctrl + Space";
 
+        // BSC Human-Crafted Design System (AGENTS.md §8: Concentric 12->8->6, Matte Dark Slate, Neutral Hairlines)
+        private static readonly FontFamily UiFont = new FontFamily("Pretendard, Noto Sans KR, Segoe UI, Malgun Gothic");
+        private static readonly FontFamily MonoFont = new FontFamily("JetBrains Mono, Consolas, Pretendard, Malgun Gothic");
+        private static readonly FontFamily GlyphFont = new FontFamily("Segoe MDL2 Assets, Segoe Fluent Icons, Segoe UI Symbol");
+
+        private static readonly Color BgOuterCard = Color.FromArgb(248, 12, 16, 23);     // #0C1017
+        private static readonly Color BgSurface = Color.FromRgb(17, 22, 31);           // #11161F
+        private static readonly Color BgSubRow = Color.FromRgb(10, 14, 20);            // #0A0E14
+        private static readonly Color BgHover = Color.FromRgb(26, 33, 45);             // #1A212D
+        private static readonly Color BgActiveTint = Color.FromRgb(22, 34, 52);        // #162234
+        private static readonly Color BorderHairline = Color.FromRgb(38, 44, 54);      // #262C36
+        private static readonly Color BorderSubtle = Color.FromRgb(30, 36, 46);        // #1E242E
+        private static readonly Color TextPrimary = Color.FromRgb(241, 245, 249);      // #F1F5F9
+        private static readonly Color TextSecondary = Color.FromRgb(148, 163, 184);    // #94A3B8
+        private static readonly Color TextMuted = Color.FromRgb(100, 116, 139);        // #64748B
+        private static readonly Color DangerColor = Color.FromRgb(248, 113, 113);      // #F87171
+
+        private static readonly Color CyanColor = Color.FromRgb(56, 189, 248);   // #38BDF8 (BSC Sovereign Ice-Cyan)
+        private static readonly Color AmberColor = Color.FromRgb(245, 158, 11);  // #F59E0B (BSC Executive Gold)
+        private static readonly Color LimeColor = Color.FromRgb(52, 211, 153);   // #34D399 (BSC Verified Emerald)
+
+        private sealed class HudWindowInstance
+        {
+            public int MonitorIndex;
+            public System.Windows.Forms.Screen AssignedScreen;
+            public string ScreenDeviceName;
+            public bool IsPrimary;
+            public Window Window;
+            public Border CardBorder;
+            public Grid FullContentGrid;
+            public Grid MiniOrbGrid;
+            public StackPanel VerticalStack;
+            public Ellipse StatusDot;
+            public TextBlock TxtStatus;
+            public Border TargetBadgeBorder;
+            public TextBlock TxtActiveWindowBadge;
+            public Border ClockWeatherBadgeBorder;
+            public TextBlock TxtClockWeatherBadge;
+            public TextBlock TxtMainBody;
+            public Border InputBoxWrapper;
+            public TextBox InputBox;
+            public Button BtnSubmit;
+            public Button BtnYes;
+            public Button BtnNo;
+            public Border MicToggleBtn;
+            public System.Windows.Shapes.Path MicToggleIcon;
+            public TextBlock TxtMicToggle;
+            public Border TtsToggleBtn;
+            public System.Windows.Shapes.Path TtsToggleIcon;
+            public TextBlock TxtTtsToggle;
+            public Border HubToggleBtn;
+            public Ellipse HubActivityDot;
+            public TextBlock TxtHubToggle;
+            public System.Windows.Shapes.Path HubChevronIcon;
+            public StackPanel HeaderControlsPanel;
+            public Border HubHostContainer;
+            public Border LiveStripHostContainer;
+            public Border[] EqBars = new Border[5];
+        }
+
+        private static readonly System.Collections.Generic.List<HudWindowInstance> hudInstances = new System.Collections.Generic.List<HudWindowInstance>();
+        private static HudWindowInstance activeHubOwner = null;
+        private static int activeHubTabIndex = 0;
+
         private static Window hudWindow;
+        private static Window secHudWindow;
+        private static Window thirdHudWindow;
         private static Window bootWindow;
         private static Window settingsWindow;
         private static Window planDocWindow;
         private static int lastSeenPlanWindowSeq = -1;
         private static Border hudCardBorder;
         private static TextBlock txtStatus;
-        private static TextBlock txtHeard;
         private static TextBlock txtMainBody;
         private static TextBox inputBox;
         private static Button btnYes;
         private static Button btnNo;
-        private static ScaleTransform orbCoreScale;
-        private static DropShadowEffect cardGlow;
-        private static Grid fullContentGrid;
-        private static Grid miniOrbGrid;
         private static bool isMiniMode = false;
 
         private static readonly MediaPlayer koreanVoicePlayer = new MediaPlayer();
@@ -116,6 +172,7 @@ namespace JarvisSasariSa
         private static string currentUserPlanTier = "ultra";
         private static bool suppressTextChanged = false;
         private static DateTime nextScreenCheck = DateTime.MinValue;
+        private static bool subWindowsPollInFlight = false;
         private static readonly HttpClient http = new HttpClient();
         private static bool hotkeyWasDown = false;
         private static bool bootHotkeyWasDown = false;
@@ -128,37 +185,173 @@ namespace JarvisSasariSa
         private static int lastSeenBargeInSeq = 0;
         private static int currentSpeechSeq = 0;
         private static DateTime currentSpeechStartedAt = DateTime.MinValue;
-        private static TextBlock txtActiveWindowBadge = null;
-        private static TextBlock txtClockWeatherBadge = null;
-        private static string cachedLiveWeatherText = "날씨 수신 중…";
+        private static string cachedTargetWindowText = "대상 창: 자동 감지 중";
+        private static string cachedLiveWeatherText = "날씨 수신 중";
+        private static string cachedStatusText = "JARVIS v3.0 대기 · 자비스라고 불러 주세요";
+        private static string cachedBodyText = "무엇을 도와드릴까요?";
+        private static Color cachedAccentColor = CyanColor;
         private static DateTime lastWeatherFetchAt = DateTime.MinValue;
-        private static readonly Border[] voiceEqBars = new Border[5];
         private static long lastReportedForegroundHwnd = 0;
         private static int fgCheckCounter = 0;
         private static bool isHudMicMuted = false;
         private static bool isHudTtsMuted = false;
-        private static Border btnHudMicToggle = null;
-        private static TextBlock txtHudMicToggle = null;
-        private static Border btnHudTtsToggle = null;
-        private static TextBlock txtHudTtsToggle = null;
+        private static bool clockWeatherTimerStarted = false;
+        private static bool hasActiveTaskLive = false;
+        private static bool hasActiveMediaLive = false;
+        private static string dismissedTaskKey = "";
+        private static string currentTaskKey = "";
+
+        private static TextBlock ApplyTabular(TextBlock tb)
+        {
+            if (tb != null) System.Windows.Documents.Typography.SetNumeralAlignment(tb, FontNumeralAlignment.Tabular);
+            return tb;
+        }
+
+        private static System.Windows.Shapes.Path MakeIconPath(string pathData, Color color, double size, bool strokeOnly)
+        {
+            var p = new System.Windows.Shapes.Path
+            {
+                Data = Geometry.Parse(pathData),
+                Width = size,
+                Height = size,
+                Stretch = Stretch.Uniform,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            if (strokeOnly)
+            {
+                p.Stroke = new SolidColorBrush(color);
+                p.StrokeThickness = 1.6;
+                p.StrokeStartLineCap = PenLineCap.Round;
+                p.StrokeEndLineCap = PenLineCap.Round;
+                p.StrokeLineJoin = PenLineJoin.Round;
+            }
+            else
+            {
+                p.Fill = new SolidColorBrush(color);
+            }
+            return p;
+        }
+
+        private const string IconMicOnData = "M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8";
+        private const string IconMicOffData = "M1 1l22 22 M9 9v3a3 3 0 0 0 5.12 2.12 M15 9.34V4a3 3 0 0 0-5.94-.6 M17 16.95A7 7 0 0 1 5 12v-2 M19 10v2a7 7 0 0 1-.11 1.23 M12 19v4 M8 23h8";
+        private const string IconSpeakerOnData = "M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14";
+        private const string IconSpeakerOffData = "M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6";
+        private const string IconHubGridData = "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z";
+        private const string IconChevronDownData = "M6 9l6 6 6-6";
+        private const string IconChevronUpData = "M18 15l-6-6-6 6";
+
+        private static void BroadcastStatus(string statusText)
+        {
+            cachedStatusText = statusText ?? "";
+            foreach (var inst in hudInstances)
+            {
+                if (inst.TxtStatus != null) inst.TxtStatus.Text = cachedStatusText;
+            }
+        }
+
+        private static void BroadcastBody(string bodyText)
+        {
+            cachedBodyText = bodyText ?? "";
+            foreach (var inst in hudInstances)
+            {
+                if (inst.TxtMainBody != null) inst.TxtMainBody.Text = cachedBodyText;
+            }
+        }
+
+        private static void BroadcastConfirmButtons(bool visible)
+        {
+            Visibility vis = visible ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var inst in hudInstances)
+            {
+                if (inst.BtnYes != null) inst.BtnYes.Visibility = vis;
+                if (inst.BtnNo != null) inst.BtnNo.Visibility = vis;
+            }
+        }
+
+        private static void BroadcastTargetBadge(string targetText)
+        {
+            cachedTargetWindowText = targetText ?? "대상 창: 자동 감지 중";
+            foreach (var inst in hudInstances)
+            {
+                if (inst.TxtActiveWindowBadge != null) inst.TxtActiveWindowBadge.Text = cachedTargetWindowText;
+            }
+        }
+
+        private static void BroadcastClockWeather(string clockWeatherText)
+        {
+            foreach (var inst in hudInstances)
+            {
+                if (inst.TxtClockWeatherBadge != null) inst.TxtClockWeatherBadge.Text = clockWeatherText;
+            }
+        }
+
+        private static void SyncHubActivityIndicators()
+        {
+            bool hasLiveActivity = hasActiveTaskLive || hasActiveMediaLive;
+            foreach (var inst in hudInstances)
+            {
+                bool isOpenHere = (activeHubOwner == inst && hubPanelBorder != null && hubPanelBorder.Visibility == Visibility.Visible);
+                if (inst.HubToggleBtn != null)
+                {
+                    inst.HubToggleBtn.Background = new SolidColorBrush(isOpenHere ? BgActiveTint : BgSurface);
+                    inst.HubToggleBtn.BorderBrush = new SolidColorBrush(isOpenHere ? Color.FromArgb(120, CyanColor.R, CyanColor.G, CyanColor.B) : BorderHairline);
+                }
+                if (inst.TxtHubToggle != null)
+                {
+                    inst.TxtHubToggle.Foreground = new SolidColorBrush(isOpenHere ? TextPrimary : TextSecondary);
+                }
+                if (inst.HubChevronIcon != null)
+                {
+                    inst.HubChevronIcon.Data = Geometry.Parse(isOpenHere ? IconChevronUpData : IconChevronDownData);
+                    inst.HubChevronIcon.Stroke = new SolidColorBrush(isOpenHere ? CyanColor : TextSecondary);
+                }
+                if (inst.HubActivityDot != null)
+                {
+                    inst.HubActivityDot.Visibility = hasLiveActivity ? Visibility.Visible : Visibility.Collapsed;
+                    inst.HubActivityDot.Fill = new SolidColorBrush(hasActiveTaskLive ? CyanColor : LimeColor);
+                }
+            }
+        }
 
         private static void SyncHudAudioControlButtons()
         {
             try
             {
-                if (btnHudMicToggle != null && txtHudMicToggle != null)
+                Color micFg = isHudMicMuted ? Color.FromRgb(252, 165, 165) : Color.FromRgb(167, 243, 208);
+                Color micBg = isHudMicMuted ? Color.FromArgb(42, 239, 68, 68) : Color.FromArgb(26, 16, 185, 129);
+                Color micBd = isHudMicMuted ? Color.FromArgb(110, 248, 113, 113) : Color.FromArgb(90, 52, 211, 153);
+
+                Color ttsFg = isHudTtsMuted ? Color.FromRgb(253, 224, 71) : Color.FromRgb(186, 230, 253);
+                Color ttsBg = isHudTtsMuted ? Color.FromArgb(42, 245, 158, 11) : Color.FromArgb(26, 56, 189, 248);
+                Color ttsBd = isHudTtsMuted ? Color.FromArgb(110, 251, 191, 36) : Color.FromArgb(90, 56, 189, 248);
+
+                foreach (var inst in hudInstances)
                 {
-                    txtHudMicToggle.Text = isHudMicMuted ? "🔇 마이크 OFF" : "🎙 마이크 ON";
-                    txtHudMicToggle.Foreground = new SolidColorBrush(isHudMicMuted ? Color.FromRgb(253, 186, 116) : Color.FromRgb(167, 243, 208));
-                    btnHudMicToggle.Background = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(65, 239, 68, 68) : Color.FromArgb(45, 16, 185, 129));
-                    btnHudMicToggle.BorderBrush = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(185, 248, 113, 113) : Color.FromArgb(150, 52, 211, 153));
-                }
-                if (btnHudTtsToggle != null && txtHudTtsToggle != null)
-                {
-                    txtHudTtsToggle.Text = isHudTtsMuted ? "🔕 음소거" : "🔊 소리 ON";
-                    txtHudTtsToggle.Foreground = new SolidColorBrush(isHudTtsMuted ? Color.FromRgb(253, 224, 71) : Color.FromRgb(186, 230, 253));
-                    btnHudTtsToggle.Background = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(65, 245, 158, 11) : Color.FromArgb(40, 56, 189, 248));
-                    btnHudTtsToggle.BorderBrush = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(185, 251, 191, 36) : Color.FromArgb(140, 56, 189, 248));
+                    if (inst.MicToggleBtn != null && inst.TxtMicToggle != null)
+                    {
+                        inst.TxtMicToggle.Text = isHudMicMuted ? "마이크 OFF" : "마이크 ON";
+                        inst.TxtMicToggle.Foreground = new SolidColorBrush(micFg);
+                        inst.MicToggleBtn.Background = new SolidColorBrush(micBg);
+                        inst.MicToggleBtn.BorderBrush = new SolidColorBrush(micBd);
+                        if (inst.MicToggleIcon != null)
+                        {
+                            inst.MicToggleIcon.Data = Geometry.Parse(isHudMicMuted ? IconMicOffData : IconMicOnData);
+                            inst.MicToggleIcon.Stroke = new SolidColorBrush(micFg);
+                        }
+                    }
+                    if (inst.TtsToggleBtn != null && inst.TxtTtsToggle != null)
+                    {
+                        inst.TxtTtsToggle.Text = isHudTtsMuted ? "음소거" : "소리 ON";
+                        inst.TxtTtsToggle.Foreground = new SolidColorBrush(ttsFg);
+                        inst.TtsToggleBtn.Background = new SolidColorBrush(ttsBg);
+                        inst.TtsToggleBtn.BorderBrush = new SolidColorBrush(ttsBd);
+                        if (inst.TtsToggleIcon != null)
+                        {
+                            inst.TtsToggleIcon.Data = Geometry.Parse(isHudTtsMuted ? IconSpeakerOffData : IconSpeakerOnData);
+                            inst.TtsToggleIcon.Stroke = new SolidColorBrush(ttsFg);
+                        }
+                    }
                 }
             }
             catch { }
@@ -174,28 +367,25 @@ namespace JarvisSasariSa
             {
                 StopAllVoicePlaybackImmediately(true);
             }
-            if (txtStatus != null)
+            if (isHudMicMuted && isHudTtsMuted)
             {
-                if (isHudMicMuted && isHudTtsMuted)
-                {
-                    SetHudAppearance(AmberColor);
-                    txtStatus.Text = "🔇 마이크 OFF · 🔕 음소거 (다른 음성 대화와 충돌 완전 차단)";
-                }
-                else if (isHudMicMuted)
-                {
-                    SetHudAppearance(AmberColor);
-                    txtStatus.Text = "🔇 자비스 마이크 OFF (안티그래비티 음성 대화 충돌 방지 중)";
-                }
-                else if (isHudTtsMuted)
-                {
-                    SetHudAppearance(AmberColor);
-                    txtStatus.Text = "🔕 자비스 소리 음소거 (화면 텍스트로만 응답)";
-                }
-                else
-                {
-                    SetHudAppearance(CyanColor);
-                    txtStatus.Text = "● 자비스 마이크·소리 ON · 자비스라고 불러 주세요";
-                }
+                SetHudAppearance(AmberColor);
+                BroadcastStatus("마이크 OFF · 음소거 (음성 대화 충돌 완전 차단)");
+            }
+            else if (isHudMicMuted)
+            {
+                SetHudAppearance(AmberColor);
+                BroadcastStatus("자비스 마이크 OFF (음성 대화 충돌 방지 중)");
+            }
+            else if (isHudTtsMuted)
+            {
+                SetHudAppearance(AmberColor);
+                BroadcastStatus("자비스 소리 음소거 (화면 텍스트로만 응답)");
+            }
+            else
+            {
+                SetHudAppearance(CyanColor);
+                BroadcastStatus("자비스 마이크·소리 ON · 자비스라고 불러 주세요");
             }
 
             Task.Run(async () =>
@@ -233,10 +423,6 @@ namespace JarvisSasariSa
                 });
             }
         }
-
-        private static readonly Color CyanColor = Color.FromRgb(56, 189, 248);   // #38BDF8 (BSC Sovereign Ice-Cyan)
-        private static readonly Color AmberColor = Color.FromRgb(245, 158, 11);  // #F59E0B (BSC Executive Gold)
-        private static readonly Color LimeColor = Color.FromRgb(52, 211, 153);   // #34D399 (BSC Verified Emerald)
 
         private static void WriteLog(string msg)
         {
@@ -299,6 +485,24 @@ namespace JarvisSasariSa
         {
             try
             {
+                if (args != null)
+                {
+                    for (int i = 0; i < args.Length; i++)
+                    {
+                        string arg = args[i] ?? "";
+                        if (string.Equals(arg, "--layout-audit", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                        {
+                            RunLayoutAudit(args[i + 1]);
+                            return;
+                        }
+                        if (arg.StartsWith("--layout-audit=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            RunLayoutAudit(arg.Substring("--layout-audit=".Length));
+                            return;
+                        }
+                    }
+                }
+
                 string deskName = GetObjName(GetThreadDesktop(GetCurrentThreadId()));
                 WriteLog("Main started on Desktop=" + deskName);
                 if (!string.Equals(deskName, "Default", StringComparison.OrdinalIgnoreCase))
@@ -333,15 +537,6 @@ namespace JarvisSasariSa
                 WriteLog("Main fatal: " + ex.ToString());
             }
         }
-
-        private static Window secHudWindow;
-        private static Window thirdHudWindow;
-        private static TextBlock secTxtStatus;
-        private static TextBlock secTxtMainBody;
-        private static Border secHudCardBorder;
-        private static TextBlock thirdTxtStatus;
-        private static TextBlock thirdTxtMainBody;
-        private static Border thirdHudCardBorder;
 
         [STAThread]
         public static void RunOverlay()
@@ -382,44 +577,27 @@ namespace JarvisSasariSa
 
             WriteLog("Step 1: Before EnsureBackendServerRunning");
             EnsureBackendServerRunning();
+            RefreshStoredSettings();
 
-            try
+            BuildAllMonitorHudWindows(false);
+            foreach (var inst in hudInstances)
             {
-                if (File.Exists("C:\\자비스\\data\\config.json"))
+                var captured = inst;
+                captured.Window.SourceInitialized += (sender, e) =>
                 {
-                    string cfgJson = File.ReadAllText("C:\\자비스\\data\\config.json", Encoding.UTF8);
-                    string bp = ExtractJsonField(cfgJson, "brainProvider");
-                    string bm = ExtractJsonField(cfgJson, "brainModel");
-                    if (!string.IsNullOrEmpty(bp)) currentBrainProvider = bp;
-                    if (!string.IsNullOrEmpty(bm)) currentBrainModel = bm;
-                    var mSpd = System.Text.RegularExpressions.Regex.Match(cfgJson, "\"ttsSpeed\"\\s*:\\s*([0-9.]+)");
-                    if (mSpd.Success)
-                    {
-                        double spdVal;
-                        if (double.TryParse(mSpd.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out spdVal) && spdVal >= 0.7 && spdVal <= 2.0)
-                        {
-                            currentSpeechSpeedRatio = spdVal;
-                        }
-                    }
-                }
+                    var source = System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(captured.Window).Handle);
+                    if (source != null) source.AddHook(KeepHudPositionOnAssignedScreen);
+                };
+                captured.Window.Closing += (sender, e) =>
+                {
+                    if (!allowShutdown) { e.Cancel = true; EnsureHudAlwaysVisibleAndTopmost(); }
+                };
             }
-            catch { }
+            if (hudWindow != null)
+            {
+                app.MainWindow = hudWindow;
+            }
 
-            BuildTopMonitorHudWindow();
-            hudWindow.SourceInitialized += (sender, e) => {
-                var source = System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle);
-                if (source != null) source.AddHook(KeepHudPositionOnPrimary);
-            };
-            app.MainWindow = hudWindow;
-            hudWindow.Closing += (sender, e) => {
-                if (!allowShutdown) { e.Cancel = true; EnsureHudAlwaysVisibleAndTopmost(); }
-            };
-            var context = new ContextMenu();
-            var returnHome = new MenuItem { Header = "주 모니터로 이동" };
-            returnHome.Click += (sender, e) => PlaceHudWindows();
-            var quit = new MenuItem { Header = "자비스 종료" };
-            quit.Click += (sender, e) => RequestHudShutdown("HUD context menu");
-            context.Items.Add(returnHome); context.Items.Add(quit); hudWindow.ContextMenu = context;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
             app.Exit += (sender, e) => {
                 WriteLog("WPF exit code=" + e.ApplicationExitCode + "; explicitQuit=" + allowShutdown);
@@ -427,6 +605,7 @@ namespace JarvisSasariSa
             };
             app.SessionEnding += (sender, e) => { allowShutdown = true; SignalSupervisorStop(); WriteLog("Windows session ending: " + e.ReasonSessionEnding); };
             StartContinuousMicrophoneEngine();
+            StartSubWindowsPolling();
             StartGlobalRightAltHook();
             StartRuntimeTimers();
             ShowFullMonitorBootScene("자비스", "대표님", "음성 비서를 준비하고 있습니다");
@@ -529,8 +708,10 @@ namespace JarvisSasariSa
                     if (initialBootComplete && !startupGreetingSpoken) {
                         startupGreetingSpoken = true; SpeakAsync("자비스가 준비되었습니다.");
                     }
-                    if (!wasReady && initialBootComplete && txtStatus != null) txtStatus.Text = "○ 서버 연결 복구 · 명령을 말씀해 주세요";
-                } else if (initialBootComplete && txtStatus != null) txtStatus.Text = "⚠ 서버 연결 복구 중 · 다시 확인하고 있습니다";
+                    if (!wasReady && initialBootComplete) BroadcastStatus("서버 연결 복구 · 명령을 말씀해 주세요");
+                } else if (initialBootComplete) {
+                    BroadcastStatus("서버 연결 복구 중 · 다시 확인하고 있습니다");
+                }
             };
             recovery.Start();
             var visibility = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -587,13 +768,19 @@ namespace JarvisSasariSa
 
         private static void EnsureHudAlwaysVisibleAndTopmost()
         {
-            if (!initialBootComplete || allowShutdown || hudWindow == null) return;
+            if (!initialBootComplete || allowShutdown || hudInstances.Count == 0) return;
             try {
-                if (hudWindow.WindowState == WindowState.Minimized) hudWindow.WindowState = WindowState.Normal;
-                if (!hudWindow.IsVisible) hudWindow.Show();
-                IntPtr handle = new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle;
-                if (handle != IntPtr.Zero) SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-                if (DateTime.UtcNow >= nextScreenCheck) { nextScreenCheck = DateTime.UtcNow.AddSeconds(2); KeepWindowOnScreen(hudWindow); }
+                bool checkScreen = DateTime.UtcNow >= nextScreenCheck;
+                if (checkScreen) nextScreenCheck = DateTime.UtcNow.AddSeconds(2);
+                foreach (var inst in hudInstances)
+                {
+                    if (inst.Window == null) continue;
+                    if (inst.Window.WindowState == WindowState.Minimized) inst.Window.WindowState = WindowState.Normal;
+                    if (!inst.Window.IsVisible) inst.Window.Show();
+                    IntPtr handle = new System.Windows.Interop.WindowInteropHelper(inst.Window).Handle;
+                    if (handle != IntPtr.Zero) SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                    if (checkScreen) KeepWindowOnScreen(inst);
+                }
             } catch (Exception ex) { WriteLog("HUD visibility: " + ex.Message); }
         }
 
@@ -615,9 +802,19 @@ namespace JarvisSasariSa
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr window, out HudWindowRectangle rectangle);
 
-        // Clamp the proposed native move before Windows applies it. A polling
-        // correction after DragMove lets the HUD leave the primary monitor first.
-        private static IntPtr KeepHudPositionOnPrimary(IntPtr window, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+        private static System.Windows.Forms.Screen ResolveScreenForHwnd(IntPtr window)
+        {
+            foreach (var inst in hudInstances)
+            {
+                if (inst.Window == null) continue;
+                IntPtr h = new System.Windows.Interop.WindowInteropHelper(inst.Window).Handle;
+                if (h == window && inst.AssignedScreen != null) return inst.AssignedScreen;
+            }
+            return System.Windows.Forms.Screen.PrimaryScreen;
+        }
+
+        // Clamp the proposed native move before Windows applies it so each HUD stays inside its assigned monitor.
+        private static IntPtr KeepHudPositionOnAssignedScreen(IntPtr window, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             const int WindowPositionChanging = 0x0046;
             if (message != WindowPositionChanging || lParam == IntPtr.Zero || allowShutdown) return IntPtr.Zero;
@@ -626,7 +823,8 @@ namespace JarvisSasariSa
                 bool moving = (position.Flags & SWP_NOMOVE) == 0;
                 bool resizing = (position.Flags & SWP_NOSIZE) == 0;
                 if (!moving && !resizing) return IntPtr.Zero;
-                var bounds = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
+                var screen = ResolveScreenForHwnd(window);
+                var bounds = screen.WorkingArea;
                 int width = position.Width, height = position.Height;
                 if (!moving || !resizing) {
                     HudWindowRectangle rectangle;
@@ -643,14 +841,18 @@ namespace JarvisSasariSa
             return IntPtr.Zero;
         }
 
-        private static void KeepWindowOnScreen(Window window)
+        private static void KeepWindowOnScreen(HudWindowInstance inst)
         {
-            if (window == null || !window.IsLoaded) return;
-            var source = System.Windows.PresentationSource.FromVisual(window);
+            if (inst == null || inst.Window == null || !inst.Window.IsLoaded) return;
+            var source = System.Windows.PresentationSource.FromVisual(inst.Window);
             var transform = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformToDevice : System.Windows.Media.Matrix.Identity;
-            var point = transform.Transform(new Point(window.Left, window.Top));
-            var bounds = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
-            if (point.X < bounds.Left || point.Y < bounds.Top || point.X + window.ActualWidth * transform.M11 > bounds.Right || point.Y + 80 * transform.M22 > bounds.Bottom) PlaceHudWindows();
+            var point = transform.Transform(new Point(inst.Window.Left, inst.Window.Top));
+            var screen = inst.AssignedScreen ?? System.Windows.Forms.Screen.PrimaryScreen;
+            var bounds = screen.WorkingArea;
+            if (point.X < bounds.Left || point.Y < bounds.Top || point.X + inst.Window.ActualWidth * transform.M11 > bounds.Right || point.Y + 80 * transform.M22 > bounds.Bottom)
+            {
+                PlaceHudInstanceOnScreen(inst);
+            }
         }
 
         private static async void StartInvisibleChromeEarWorker()
@@ -665,7 +867,8 @@ namespace JarvisSasariSa
                 if (!health.Contains("\"recoverable\":true")) return;
                 if (DateTime.UtcNow - lastEarLaunch < TimeSpan.FromSeconds(30)) return;
                 if (health.Contains("not-allowed") || health.Contains("permission-denied")) {
-                    if (txtStatus != null) txtStatus.Text = "⚠ 마이크 권한을 확인해 주세요"; return;
+                    SetHudAppearance(AmberColor);
+                    BroadcastStatus("마이크 권한을 확인해 주세요"); return;
                 }
                 lastEarLaunch = DateTime.UtcNow;
                 var recoveryClock = Stopwatch.StartNew();
@@ -706,8 +909,15 @@ namespace JarvisSasariSa
         {
             if (earWindowMaintenanceInFlight || allowShutdown) return;
             earWindowMaintenanceInFlight = true;
-            IntPtr myHwnd1 = hudWindow != null ? new System.Windows.Interop.WindowInteropHelper(hudWindow).Handle : IntPtr.Zero;
-            IntPtr myHwnd2 = secHudWindow != null ? new System.Windows.Interop.WindowInteropHelper(secHudWindow).Handle : IntPtr.Zero;
+            var ownHwnds = new System.Collections.Generic.HashSet<long>();
+            foreach (var inst in hudInstances)
+            {
+                if (inst.Window != null)
+                {
+                    IntPtr h = new System.Windows.Interop.WindowInteropHelper(inst.Window).Handle;
+                    if (h != IntPtr.Zero) ownHwnds.Add(h.ToInt64());
+                }
+            }
             try
             {
                 // Cross-process window messages may wait for Chrome's UI thread.
@@ -715,7 +925,7 @@ namespace JarvisSasariSa
                 await Task.Run(() => {
                 EnumWindows((hWnd, lParam) =>
                 {
-                    if (hWnd == myHwnd1 || hWnd == myHwnd2) return true;
+                    if (ownHwnds.Contains(hWnd.ToInt64())) return true;
                     StringBuilder sb = new StringBuilder(256);
                     if (GetWindowText(hWnd, sb, 256) > 0)
                     {
@@ -742,620 +952,749 @@ namespace JarvisSasariSa
         }
 
         // =====================================================================
-        // 1. DESKTOP FLOATING SMALL HUD PILL (680x114) — DRAGGABLE ON DESKTOP
+        // 1. UNIFIED MULTI-MONITOR HUD FACTORY (2-Row Full-Width + 3-Control Header)
         // =====================================================================
-        private static void BuildTopMonitorHudWindow()
+        private static System.Windows.Forms.Screen[] GetOrderedScreens()
         {
-            double winW = 720;
-            double winH = 190;
-
-            hudWindow = new Window
+            var all = System.Windows.Forms.Screen.AllScreens;
+            if (all == null || all.Length == 0)
             {
-                Title = "자비스 Monitor Top HUD",
-                Width = winW,
-                Height = winH,
-                SizeToContent = SizeToContent.Height,
-                Left = 180,
-                Top = 42,
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                Background = Brushes.Transparent,
-                Topmost = true,
-                ShowInTaskbar = true,
-                ResizeMode = ResizeMode.NoResize
-            };
-
-            // Register Windows System Tray Icon (1:1 port of `NSStatusBar.system` in `main.swift`)
-            try
-            {
-                var tray = new System.Windows.Forms.NotifyIcon
-                {
-                    Text = "◉ 자비스 (SasariSa v0.7.3)",
-                    Icon = System.Drawing.SystemIcons.Information,
-                    Visible = true
-                };
-                var trayMenu = new System.Windows.Forms.ContextMenuStrip();
-                trayMenu.Items.Add("🎙 지금 말하기 (음성 듣기)", null, (s, e) => PromptListenNow());
-                trayMenu.Items.Add("🔊 HD 자연음성 미리 듣기", null, (s, e) => SpeakAsync("안녕하세요, 이건우 대표님. 선택한 목소리와 속도로 안내하고 있습니다."));
-                trayMenu.Items.Add("⚡ 깨우기 장면 (BootScene)", null, (s, e) => SendCommandToButler("아빠 왔어"));
-                trayMenu.Items.Add("⚙ 단축키 및 호출 설정…", null, (s, e) => ShowHotkeySettingsWindow());
-                trayMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-                trayMenu.Items.Add("✕ 자비스 종료 (Quit)", null, (s, e) => { tray.Visible = false; RequestHudShutdown("tray menu"); });
-                tray.ContextMenuStrip = trayMenu;
-                tray.DoubleClick += (s, e) => { hudWindow.Show(); hudWindow.Activate(); };
+                return new System.Windows.Forms.Screen[] { System.Windows.Forms.Screen.PrimaryScreen };
             }
-            catch { }
+            return all
+                .OrderByDescending(s => s.Primary)
+                .ThenBy(s => s.Bounds.X)
+                .ThenBy(s => s.Bounds.Y)
+                .ToArray();
+        }
 
-            Grid root = new Grid();
-            hudWindow.Content = root;
+        private static void BuildAllMonitorHudWindows(bool isAuditMode)
+        {
+            hudInstances.Clear();
+            activeHubOwner = null;
+            var screens = GetOrderedScreens();
+            int count = isAuditMode ? 3 : Math.Min(screens.Length, 3);
 
-            fullContentGrid = new Grid();
-            root.Children.Add(fullContentGrid);
-
-            cardGlow = new DropShadowEffect
+            for (int i = 0; i < count; i++)
             {
-                Color = Colors.Black,
-                BlurRadius = 26,
-                ShadowDepth = 8,
-                Opacity = 0.68
-            };
+                var scr = i < screens.Length ? screens[i] : screens[0];
+                var inst = CreateHudWindowInstance(i, scr, i == 0, i == 0 && !isAuditMode, isAuditMode);
+                hudInstances.Add(inst);
+            }
 
-            hudCardBorder = new Border
+            if (hudInstances.Count > 0)
             {
-                Width = 688,
-                MinHeight = 108,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 8, 0, 0),
-                CornerRadius = new CornerRadius(14),
-                Background = new SolidColorBrush(Color.FromArgb(248, 11, 15, 25)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(43, 59, 82)),
-                BorderThickness = new Thickness(1.0),
-                Effect = cardGlow,
-                Padding = new Thickness(16, 12, 18, 12),
-                Cursor = Cursors.SizeAll,
-                ToolTip = "드래그하여 이동 · 자비스를 부르거나 직접 입력하세요"
-            };
+                var p = hudInstances[0];
+                hudWindow = p.Window;
+                hudCardBorder = p.CardBorder;
+                txtStatus = p.TxtStatus;
+                txtMainBody = p.TxtMainBody;
+                inputBox = p.InputBox;
+                btnYes = p.BtnYes;
+                btnNo = p.BtnNo;
+            }
+            secHudWindow = hudInstances.Count > 1 ? hudInstances[1].Window : null;
+            thirdHudWindow = hudInstances.Count > 2 ? hudInstances[2].Window : null;
 
-            hudCardBorder.MouseLeftButtonDown += (s, e) =>
+            SyncHudAudioControlButtons();
+            SyncHubActivityIndicators();
+            SetHudAppearance(cachedAccentColor);
+
+            if (!isAuditMode && !clockWeatherTimerStarted)
             {
-                DependencyObject source = e.OriginalSource as DependencyObject;
-                while (source != null && source != hudCardBorder)
-                {
-                    if (source is TextBox || source is Button) return;
-                    source = VisualTreeHelper.GetParent(source);
-                }
-                if (e.LeftButton == MouseButtonState.Pressed)
-                {
-                    try { hudWindow.DragMove(); } catch { }
-                }
-            };
+                clockWeatherTimerStarted = true;
+                StartClockWeatherTimer();
+            }
+        }
 
-            ContextMenu ctx = new ContextMenu();
-            MenuItem miWake = new MenuItem { Header = "🎙 지금 말하기 (음성 듣기)" };
-            miWake.Click += (s, e) => PromptListenNow();
-            ctx.Items.Add(miWake);
-
-            MenuItem miVoiceTest = new MenuItem { Header = "🔊 설정한 음성 미리 듣기" };
-            miVoiceTest.Click += (s, e) => SpeakAsync("안녕하세요, 대표님. 자비스입니다. 스튜디오 HD 자연음성으로 정상 연결되었습니다.");
-            ctx.Items.Add(miVoiceTest);
-
-            MenuItem miBoot = new MenuItem { Header = "⚡ 깨우기 장면 보기 (BootScene)" };
-            miBoot.Click += (s, e) => SendCommandToButler("아빠 왔어");
-            ctx.Items.Add(miBoot);
-
-            MenuItem miSet = new MenuItem { Header = "⚙ 단축키 및 호출 설정…" };
-            miSet.Click += (s, e) => ShowHotkeySettingsWindow();
-            ctx.Items.Add(miSet);
-
-            MenuItem miPlanHud = new MenuItem { Header = "📋 Plan · 설계 문서 프리뷰 HUD 창 열기" };
-            miPlanHud.Click += (s, e) => ShowPlanAndChlgdDocumentWindow("plan");
-            ctx.Items.Add(miPlanHud);
-
-            MenuItem miChlgdRules = new MenuItem { Header = "📓 CHLGD · 대표님 대화 규칙 & 학습 로그 원장 보기" };
-            miChlgdRules.Click += (s, e) => ShowPlanAndChlgdDocumentWindow("rules");
-            ctx.Items.Add(miChlgdRules);
-
-            ctx.Items.Add(new Separator());
-
-            MenuItem miPosTopLeft = new MenuItem { Header = "📍 위치: 바탕화면 왼쪽 위 (기본)" };
-            miPosTopLeft.Click += (s, e) => { hudWindow.Left = 180; hudWindow.Top = 42; };
-            ctx.Items.Add(miPosTopLeft);
-
-            MenuItem miPosTopCenter = new MenuItem { Header = "📍 위치: 모니터 가운데 위" };
-            miPosTopCenter.Click += (s, e) => { hudWindow.Left = (SystemParameters.PrimaryScreenWidth - hudWindow.Width) / 2.0; hudWindow.Top = 18; };
-            ctx.Items.Add(miPosTopCenter);
-
-            MenuItem miPosBottomRight = new MenuItem { Header = "📍 위치: 오른쪽 아래 (HUD.swift 기본)" };
-            miPosBottomRight.Click += (s, e) => { hudWindow.Left = 1920 - hudWindow.Width - 24; hudWindow.Top = SystemParameters.PrimaryScreenHeight - hudWindow.Height - 64; };
-            ctx.Items.Add(miPosBottomRight);
-
-            ctx.Items.Add(new Separator());
-
-            MenuItem miQuit = new MenuItem { Header = "✕ 자비스 종료 (Quit)" };
-            miQuit.Click += (s, e) => RequestHudShutdown("HUD menu");
-            ctx.Items.Add(miQuit);
-
-            hudCardBorder.ContextMenu = ctx;
-
-            StackPanel hudVerticalStack = new StackPanel
-            {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            hudVerticalStack.Children.Add(hudCardBorder);
-            hudVerticalStack.Children.Add(BuildCollapsibleSubDrawers());
-            fullContentGrid.Children.Add(hudVerticalStack);
-
-            Grid cardLayout = new Grid();
-            cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68) });
-            cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            hudCardBorder.Child = cardLayout;
-
-            // Left: BSC Sovereign 5-Bar Live Acoustic Waveform Module (Distinctive Non-Cloned Design)
-            FrameworkElement orbElem = CreateSovereignVoiceCrest(true);
-            orbElem.Cursor = Cursors.Hand;
-            orbElem.ToolTip = "클릭하여 즉시 음성 듣기 (JARVIS v3.0 Sovereign Acoustic Engine)";
-            orbElem.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                PromptListenNow();
-            };
-            Grid.SetColumn(orbElem, 0);
-            cardLayout.Children.Add(orbElem);
-
-            // Middle: Sovereign Executive Status + Live Target Window Pill + Command Input
-            StackPanel textCol = new StackPanel
-            {
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(12, 0, 8, 0)
-            };
-            Grid.SetColumn(textCol, 1);
-            cardLayout.Children.Add(textCol);
-
-            WrapPanel statusHeaderRow = new WrapPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-
-            txtStatus = new TextBlock
-            {
-                Text = "● JARVIS v3.0 대기 · 자비스라고 불러 주세요",
-                FontFamily = new FontFamily("Malgun Gothic, Segoe UI"),
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(CyanColor),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-            statusHeaderRow.Children.Add(txtStatus);
-
-            Border targetBadgeBorder = new Border
-            {
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromArgb(180, 20, 29, 45)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(48, 65, 90)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(7, 2, 7, 2),
-                Margin = new Thickness(0, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "대표님이 마지막으로 클릭하신 외부 작업 창 (메모장·브라우저 등 자동 인식)"
-            };
-            txtActiveWindowBadge = new TextBlock
-            {
-                Text = "대상 창: 자동 감지 중",
-                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
-                FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(165, 185, 212))
-            };
-            targetBadgeBorder.Child = txtActiveWindowBadge;
-            statusHeaderRow.Children.Add(targetBadgeBorder);
-
-            Border clockWeatherBadgeBorder = new Border
-            {
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromArgb(185, 16, 32, 48)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(110, 56, 189, 248)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 2, 8, 2),
-                VerticalAlignment = VerticalAlignment.Center,
-                Cursor = Cursors.Hand,
-                ToolTip = "실시간 시계 & 무료 기상청/Open-Meteo 날씨 (클릭 시 오늘 날씨 음성 브리핑)"
-            };
-            txtClockWeatherBadge = new TextBlock
-            {
-                Text = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR")) + "  ·  " + cachedLiveWeatherText,
-                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(186, 230, 253))
-            };
-            clockWeatherBadgeBorder.Child = txtClockWeatherBadge;
-            clockWeatherBadgeBorder.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            clockWeatherBadgeBorder.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                SendCommandToButler("오늘 날씨 브리핑해줘");
-            };
-            statusHeaderRow.Children.Add(clockWeatherBadgeBorder);
-
+        private static void StartClockWeatherTimer()
+        {
             DispatcherTimer clockWeatherTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             clockWeatherTimer.Tick += async (s, e) =>
             {
                 try
                 {
-                    if (txtClockWeatherBadge != null)
-                    {
-                        string nowStr = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR"));
-                        txtClockWeatherBadge.Text = nowStr + "  ·  " + cachedLiveWeatherText;
-                    }
+                    string nowStr = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR"));
+                    BroadcastClockWeather(nowStr + "  ·  " + cachedLiveWeatherText);
                     if ((DateTime.UtcNow - lastWeatherFetchAt).TotalMinutes >= 10.0)
                     {
                         lastWeatherFetchAt = DateTime.UtcNow;
                         string wJson = await http.GetStringAsync("http://127.0.0.1:7788/api/weather/current");
-                        string badge = ExtractJsonField(wJson, "badgeText");
+                        var wSer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                        var wDict = wSer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(wJson);
+                        string badge = JsonStr(wDict, "badgeText");
                         if (!string.IsNullOrEmpty(badge))
                         {
                             cachedLiveWeatherText = badge;
-                            if (txtClockWeatherBadge != null)
-                            {
-                                string nowStr = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR"));
-                                txtClockWeatherBadge.Text = nowStr + "  ·  " + cachedLiveWeatherText;
-                            }
+                            BroadcastClockWeather(nowStr + "  ·  " + cachedLiveWeatherText);
                         }
                     }
                 }
                 catch { }
             };
             clockWeatherTimer.Start();
+        }
 
-            textCol.Children.Add(statusHeaderRow);
-
-            txtHeard = new TextBlock
+        private static HudWindowInstance CreateHudWindowInstance(int monitorIndex, System.Windows.Forms.Screen screen, bool isPrimary, bool registerTray, bool isAuditMode)
+        {
+            var inst = new HudWindowInstance
             {
-                Text = "",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(185, 200, 220)),
-                Visibility = Visibility.Collapsed,
-                Margin = new Thickness(0, 0, 0, 2)
+                MonitorIndex = monitorIndex,
+                AssignedScreen = screen,
+                ScreenDeviceName = screen != null ? screen.DeviceName : "DISPLAY",
+                IsPrimary = isPrimary
             };
-            textCol.Children.Add(txtHeard);
 
-            txtMainBody = new TextBlock
+            string winTitle = monitorIndex == 0
+                ? "자비스 Monitor Top HUD"
+                : (monitorIndex == 1 ? "자비스 Secondary Monitor HUD" : "자비스 Third Monitor HUD");
+
+            Window w = new Window
             {
-                Text = "무엇을 도와드릴까요?",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 18,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = Brushes.White,
+                Title = winTitle,
+                Width = 744,
+                Height = 172,
+                SizeToContent = SizeToContent.Height,
+                Left = 180,
+                Top = 42,
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = !isAuditMode,
+                ShowInTaskbar = isPrimary && !isAuditMode,
+                ShowActivated = !isAuditMode,
+                ResizeMode = ResizeMode.NoResize
+            };
+            inst.Window = w;
+
+            if (registerTray)
+            {
+                try
+                {
+                    var tray = new System.Windows.Forms.NotifyIcon
+                    {
+                        Text = "자비스 (SasariSa v0.7.3)",
+                        Icon = System.Drawing.SystemIcons.Information,
+                        Visible = true
+                    };
+                    var trayMenu = new System.Windows.Forms.ContextMenuStrip();
+                    trayMenu.Items.Add("지금 말하기 (음성 듣기)", null, (s, e) => PromptListenNow());
+                    trayMenu.Items.Add("HD 자연음성 미리 듣기", null, (s, e) => SpeakAsync("안녕하세요, 이건우 대표님. 선택한 목소리와 속도로 안내하고 있습니다."));
+                    trayMenu.Items.Add("깨우기 장면 (BootScene)", null, (s, e) => SendCommandToButler("아빠 왔어"));
+                    trayMenu.Items.Add("단축키 및 호출 설정…", null, (s, e) => ShowHotkeySettingsWindow(0));
+                    trayMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+                    trayMenu.Items.Add("자비스 종료 (Quit)", null, (s, e) => { tray.Visible = false; RequestHudShutdown("tray menu"); });
+                    tray.ContextMenuStrip = trayMenu;
+                    tray.DoubleClick += (s, e) => { w.Show(); w.Activate(); };
+                }
+                catch { }
+            }
+
+            Grid root = new Grid();
+            w.Content = root;
+
+            Grid fullGrid = new Grid();
+            inst.FullContentGrid = fullGrid;
+            root.Children.Add(fullGrid);
+
+            StackPanel verticalStack = new StackPanel
+            {
+                Width = 720,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 8, 0, 12)
+            };
+            inst.VerticalStack = verticalStack;
+            fullGrid.Children.Add(verticalStack);
+
+            DropShadowEffect subtleShadow = new DropShadowEffect
+            {
+                Color = Colors.Black,
+                BlurRadius = 20,
+                ShadowDepth = 6,
+                Opacity = 0.45
+            };
+
+            Border cardBorder = new Border
+            {
+                Width = 720,
+                MinHeight = 104,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                CornerRadius = new CornerRadius(12),
+                Background = new SolidColorBrush(BgOuterCard),
+                BorderBrush = new SolidColorBrush(BorderHairline),
+                BorderThickness = new Thickness(1),
+                Effect = subtleShadow,
+                Padding = new Thickness(14, 12, 14, 12),
+                Cursor = Cursors.SizeAll,
+                ToolTip = "드래그하여 이동 · 자비스를 부르거나 직접 입력하세요"
+            };
+            inst.CardBorder = cardBorder;
+
+            cardBorder.MouseLeftButtonDown += (s, e) =>
+            {
+                DependencyObject source = e.OriginalSource as DependencyObject;
+                while (source != null && source != cardBorder)
+                {
+                    if (source is TextBox || source is Button) return;
+                    source = VisualTreeHelper.GetParent(source);
+                }
+                if (e.LeftButton == MouseButtonState.Pressed)
+                {
+                    try { w.DragMove(); } catch { }
+                }
+            };
+
+            // Clean Context Menu (zero emojis, screen-aware position presets, mini mode wired)
+            ContextMenu ctx = new ContextMenu();
+            MenuItem miWake = new MenuItem { Header = "지금 말하기 (음성 듣기)" };
+            miWake.Click += (s, e) => PromptListenNow();
+            ctx.Items.Add(miWake);
+
+            MenuItem miHub = new MenuItem { Header = "통합 허브 열기 / 닫기" };
+            miHub.Click += (s, e) => ToggleUnifiedHub(inst, null);
+            ctx.Items.Add(miHub);
+
+            MenuItem miMini = new MenuItem { Header = "미니 오브 모드로 접기" };
+            miMini.Click += (s, e) => ToggleMiniMode(true);
+            ctx.Items.Add(miMini);
+
+            ctx.Items.Add(new Separator());
+
+            MenuItem miPosTopLeft = new MenuItem { Header = "위치: 현재 모니터 왼쪽 위" };
+            miPosTopLeft.Click += (s, e) => PositionHudOnAssignedScreen(inst, "top-left");
+            ctx.Items.Add(miPosTopLeft);
+
+            MenuItem miPosTopCenter = new MenuItem { Header = "위치: 현재 모니터 가운데 위" };
+            miPosTopCenter.Click += (s, e) => PositionHudOnAssignedScreen(inst, "top-center");
+            ctx.Items.Add(miPosTopCenter);
+
+            MenuItem miPosBottomRight = new MenuItem { Header = "위치: 현재 모니터 오른쪽 아래" };
+            miPosBottomRight.Click += (s, e) => PositionHudOnAssignedScreen(inst, "bottom-right");
+            ctx.Items.Add(miPosBottomRight);
+
+            MenuItem miResetAll = new MenuItem { Header = "모든 모니터 기본 정렬" };
+            miResetAll.Click += (s, e) => PlaceHudWindows();
+            ctx.Items.Add(miResetAll);
+
+            ctx.Items.Add(new Separator());
+
+            MenuItem miQuit = new MenuItem { Header = "자비스 종료 (Quit)" };
+            miQuit.Click += (s, e) => RequestHudShutdown("HUD menu");
+            ctx.Items.Add(miQuit);
+
+            cardBorder.ContextMenu = ctx;
+            verticalStack.Children.Add(cardBorder);
+
+            // 2-Row Card Layout: Row 0 = Compact Header Bar, Row 1 = Full-Width Body & Input Area
+            Grid cardLayout = new Grid();
+            cardLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            cardLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            cardBorder.Child = cardLayout;
+
+            // ROW 0: Compact Header Bar (Left: Crest + Status/Meta, Right: ONLY 3 controls)
+            Grid headerRow = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetRow(headerRow, 0);
+            cardLayout.Children.Add(headerRow);
+
+            FrameworkElement crestElem = CreateSovereignVoiceCrest(inst);
+            crestElem.Cursor = Cursors.Hand;
+            crestElem.Margin = new Thickness(0, 0, 10, 0);
+            crestElem.ToolTip = "클릭하여 즉시 음성 듣기";
+            crestElem.MouseLeftButtonUp += (s, e) => { e.Handled = true; PromptListenNow(); };
+            Grid.SetColumn(crestElem, 0);
+            headerRow.Children.Add(crestElem);
+
+            StackPanel headerMetaCol = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            Grid.SetColumn(headerMetaCol, 1);
+            headerRow.Children.Add(headerMetaCol);
+
+            // Header Line 1: Crisp Status Dot + Single-Line Status Text
+            Grid statusLine = new Grid();
+            statusLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            statusLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Ellipse statusDot = new Ellipse
+            {
+                Width = 6,
+                Height = 6,
+                Fill = new SolidColorBrush(cachedAccentColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            inst.StatusDot = statusDot;
+            Grid.SetColumn(statusDot, 0);
+            statusLine.Children.Add(statusDot);
+
+            TextBlock statusTb = new TextBlock
+            {
+                Text = cachedStatusText,
+                FontFamily = UiFont,
+                FontSize = 12.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(cachedAccentColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            inst.TxtStatus = statusTb;
+            Grid.SetColumn(statusTb, 1);
+            statusLine.Children.Add(statusTb);
+            headerMetaCol.Children.Add(statusLine);
+
+            // Header Line 2: Target Window Pill (Auto MaxWidth) + Tabular Clock & Weather Pill (Star)
+            Grid metaRow = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            metaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            metaRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Border targetBadgeBorder = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(7, 2, 7, 2),
+                Margin = new Thickness(0, 0, 6, 0),
+                MaxWidth = 158,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "마지막으로 작업한 외부 창 자동 인식"
+            };
+            TextBlock activeWinTb = new TextBlock
+            {
+                Text = cachedTargetWindowText,
+                FontFamily = UiFont,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(TextSecondary),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            targetBadgeBorder.Child = activeWinTb;
+            inst.TargetBadgeBorder = targetBadgeBorder;
+            inst.TxtActiveWindowBadge = activeWinTb;
+            Grid.SetColumn(targetBadgeBorder, 0);
+            metaRow.Children.Add(targetBadgeBorder);
+
+            Border clockWeatherBadgeBorder = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(7, 2, 7, 2),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = Cursors.Hand,
+                ToolTip = "실시간 시계 & 날씨 (클릭 시 오늘 날씨 브리핑)"
+            };
+            string initNow = DateTime.Now.ToString("MM.dd(ddd) HH:mm:ss", new System.Globalization.CultureInfo("ko-KR"));
+            TextBlock clockWeatherTb = ApplyTabular(new TextBlock
+            {
+                Text = initNow + "  ·  " + cachedLiveWeatherText,
+                FontFamily = UiFont,
+                FontSize = 11,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush(TextPrimary),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            clockWeatherBadgeBorder.Child = clockWeatherTb;
+            clockWeatherBadgeBorder.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            clockWeatherBadgeBorder.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                SendCommandToButler("오늘 날씨 브리핑해줘");
+            };
+            inst.ClockWeatherBadgeBorder = clockWeatherBadgeBorder;
+            inst.TxtClockWeatherBadge = clockWeatherTb;
+            Grid.SetColumn(clockWeatherBadgeBorder, 1);
+            metaRow.Children.Add(clockWeatherBadgeBorder);
+            headerMetaCol.Children.Add(metaRow);
+
+            // Header Right: ONLY 3 Compact Controls (Mic Toggle, TTS Toggle, Unified Hub Button)
+            StackPanel headerControls = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            inst.HeaderControlsPanel = headerControls;
+            Grid.SetColumn(headerControls, 2);
+            headerRow.Children.Add(headerControls);
+
+            // 1) Mic Toggle
+            Border micBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(8),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(9, 0, 9, 0),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "자비스 마이크 켜기/끄기"
+            };
+            StackPanel micStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var micIcon = MakeIconPath(IconMicOnData, LimeColor, 12, true);
+            micIcon.Margin = new Thickness(0, 0, 5, 0);
+            TextBlock micTxt = new TextBlock
+            {
+                Text = "마이크 ON",
+                FontFamily = UiFont,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            micStack.Children.Add(micIcon);
+            micStack.Children.Add(micTxt);
+            micBtn.Child = micStack;
+            micBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            micBtn.MouseLeftButtonUp += (s, e) => { e.Handled = true; ToggleHudAudioControlAsync(!isHudMicMuted, null); };
+            inst.MicToggleBtn = micBtn;
+            inst.MicToggleIcon = micIcon;
+            inst.TxtMicToggle = micTxt;
+            headerControls.Children.Add(micBtn);
+
+            // 2) TTS Mute Toggle
+            Border ttsBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(8),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(9, 0, 9, 0),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "자비스 음성 출력 켜기/음소거"
+            };
+            StackPanel ttsStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var ttsIcon = MakeIconPath(IconSpeakerOnData, CyanColor, 12, true);
+            ttsIcon.Margin = new Thickness(0, 0, 5, 0);
+            TextBlock ttsTxt = new TextBlock
+            {
+                Text = "소리 ON",
+                FontFamily = UiFont,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            ttsStack.Children.Add(ttsIcon);
+            ttsStack.Children.Add(ttsTxt);
+            ttsBtn.Child = ttsStack;
+            ttsBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            ttsBtn.MouseLeftButtonUp += (s, e) => { e.Handled = true; ToggleHudAudioControlAsync(null, !isHudTtsMuted); };
+            inst.TtsToggleBtn = ttsBtn;
+            inst.TtsToggleIcon = ttsIcon;
+            inst.TxtTtsToggle = ttsTxt;
+            headerControls.Children.Add(ttsBtn);
+
+            // 3) Single Unified Hub Button
+            Border hubBtn = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(9, 0, 9, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "통합 허브 (빠른 실행 · 작업/미디어 · Plan/CHLGD/REA · 성문/음성 · 설정)"
+            };
+            StackPanel hubStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var hubIcon = MakeIconPath(IconHubGridData, TextPrimary, 11.5, true);
+            hubIcon.Margin = new Thickness(0, 0, 5, 0);
+            Ellipse hubDot = new Ellipse
+            {
+                Width = 5,
+                Height = 5,
+                Fill = new SolidColorBrush(CyanColor),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 4, 0),
+                Visibility = Visibility.Collapsed
+            };
+            TextBlock hubTxt = new TextBlock
+            {
+                Text = "허브",
+                FontFamily = UiFont,
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(TextPrimary),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var hubChevron = MakeIconPath(IconChevronDownData, TextSecondary, 10, true);
+            hubChevron.Margin = new Thickness(5, 1, 0, 0);
+            hubStack.Children.Add(hubIcon);
+            hubStack.Children.Add(hubDot);
+            hubStack.Children.Add(hubTxt);
+            hubStack.Children.Add(hubChevron);
+            hubBtn.Child = hubStack;
+            hubBtn.MouseEnter += (s, e) =>
+            {
+                if (activeHubOwner != inst || hubPanelBorder == null || hubPanelBorder.Visibility != Visibility.Visible)
+                {
+                    hubBtn.Background = new SolidColorBrush(BgHover);
+                }
+            };
+            hubBtn.MouseLeave += (s, e) => SyncHubActivityIndicators();
+            hubBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            hubBtn.MouseLeftButtonUp += (s, e) =>
+            {
+                e.Handled = true;
+                ToggleUnifiedHub(inst, null);
+            };
+            inst.HubToggleBtn = hubBtn;
+            inst.HubActivityDot = hubDot;
+            inst.TxtHubToggle = hubTxt;
+            inst.HubChevronIcon = hubChevron;
+            headerControls.Children.Add(hubBtn);
+
+            // ROW 1: Full-Width Response Body & Command Input Area (spans entire 690px inner width)
+            StackPanel bodyCol = new StackPanel { HorizontalAlignment = HorizontalAlignment.Stretch };
+            Grid.SetRow(bodyCol, 1);
+            cardLayout.Children.Add(bodyCol);
+
+            TextBlock bodyTb = new TextBlock
+            {
+                Text = cachedBodyText,
+                FontFamily = UiFont,
+                FontSize = 15.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(TextPrimary),
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 0)
+                LineHeight = 22
             };
-            textCol.Children.Add(txtMainBody);
-
-            // Visible typed command input; voice typing can still use this field.
-            Grid cmdRow = new Grid
+            inst.TxtMainBody = bodyTb;
+            ScrollViewer bodyScroll = new ScrollViewer
             {
-                Margin = new Thickness(0, 4, 0, 0)
+                Content = bodyTb,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MaxHeight = 240,
+                PanningMode = PanningMode.VerticalOnly
             };
+            bodyCol.Children.Add(bodyScroll);
+
+            Grid cmdRow = new Grid { Margin = new Thickness(0, 10, 0, 0) };
             cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             cmdRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            textCol.Children.Add(cmdRow);
+            bodyCol.Children.Add(cmdRow);
 
-            inputBox = new TextBox
+            Border inputWrapper = new Border
             {
-                MinWidth = 80,
-                Height = 31,
+                Height = 34,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderHairline),
                 BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(65, 86, 105)),
-                Background = new SolidColorBrush(Color.FromRgb(25, 30, 39)),
-                Foreground = Brushes.White,
-                CaretBrush = Brushes.White,
+                Padding = new Thickness(10, 0, 10, 0)
+            };
+            TextBox tbInput = new TextBox
+            {
+                BorderThickness = new Thickness(0),
+                Background = Brushes.Transparent,
+                Foreground = new SolidColorBrush(TextPrimary),
+                CaretBrush = new SolidColorBrush(TextPrimary),
+                FontFamily = UiFont,
                 FontSize = 13,
-                Padding = new Thickness(8, 4, 8, 4),
+                VerticalContentAlignment = VerticalAlignment.Center,
                 ToolTip = "명령을 입력하고 Enter 또는 전송을 누르세요"
             };
-            inputBox.PreviewKeyDown += (s, e) =>
+            inputWrapper.Child = tbInput;
+            Grid.SetColumn(inputWrapper, 0);
+            cmdRow.Children.Add(inputWrapper);
+            inst.InputBoxWrapper = inputWrapper;
+            inst.InputBox = tbInput;
+
+            tbInput.GotKeyboardFocus += (s, e) => { inputWrapper.BorderBrush = new SolidColorBrush(Color.FromArgb(140, CyanColor.R, CyanColor.G, CyanColor.B)); };
+            tbInput.LostKeyboardFocus += (s, e) => { inputWrapper.BorderBrush = new SolidColorBrush(BorderHairline); };
+            tbInput.PreviewKeyDown += (s, e) =>
             {
-                if (e.Key == Key.Enter) { e.Handled = true; SubmitHudInput(); }
+                if (e.Key == Key.Enter) { e.Handled = true; SubmitHudInput(inst); }
             };
-            inputBox.TextChanged += (s, e) =>
+            tbInput.TextChanged += (s, e) =>
             {
                 if (suppressTextChanged) return;
-                string live = inputBox.Text.Trim();
+                string rawText = tbInput.Text ?? "";
+                string live = rawText.Trim();
+                suppressTextChanged = true;
+                try
+                {
+                    foreach (var other in hudInstances)
+                    {
+                        if (other != inst && other.InputBox != null && other.InputBox.Text != rawText)
+                        {
+                            other.InputBox.Text = rawText;
+                        }
+                    }
+                }
+                finally { suppressTextChanged = false; }
                 if (!string.IsNullOrEmpty(live))
                 {
                     SetHudAppearance(CyanColor);
-                    txtStatus.Text = "○ 받아 적는 중";
-                    txtMainBody.Text = live;
-                    if (secTxtStatus != null) secTxtStatus.Text = "○ 받아 적는 중";
-                    if (secTxtMainBody != null) secTxtMainBody.Text = live;
-                    if (thirdTxtStatus != null) thirdTxtStatus.Text = "○ 받아 적는 중";
-                    if (thirdTxtMainBody != null) thirdTxtMainBody.Text = live;
+                    BroadcastStatus("받아 적는 중");
+                    BroadcastBody(live);
+                }
+                else if (cachedStatusText == "받아 적는 중")
+                {
+                    SetHudAppearance(CyanColor);
+                    BroadcastStatus("JARVIS v3.0 대기 · 자비스라고 불러 주세요");
+                    BroadcastBody("무엇을 도와드릴까요?");
                 }
             };
-            cmdRow.Children.Add(inputBox);
 
-            Button btnSubmit = CreatePillButton("전송", CyanColor);
-            btnSubmit.Margin = new Thickness(6, 0, 0, 0);
-            btnSubmit.Click += (s, e) => SubmitHudInput();
-            Grid.SetColumn(btnSubmit, 1);
-            cmdRow.Children.Add(btnSubmit);
+            Button submitBtn = CreatePillButton("전송", CyanColor);
+            submitBtn.Height = 34;
+            submitBtn.Margin = new Thickness(8, 0, 0, 0);
+            submitBtn.Click += (s, e) => SubmitHudInput(inst);
+            Grid.SetColumn(submitBtn, 1);
+            cmdRow.Children.Add(submitBtn);
+            inst.BtnSubmit = submitBtn;
 
-            btnYes = CreatePillButton("응 (전송)", LimeColor);
-            btnYes.Margin = new Thickness(6, 0, 6, 0);
-            btnYes.Visibility = Visibility.Collapsed;
-            btnYes.Click += (s, e) => SendCommandToButler("응");
-            Grid.SetColumn(btnYes, 2);
-            cmdRow.Children.Add(btnYes);
+            Button yesBtn = CreatePillButton("응 (전송)", LimeColor);
+            yesBtn.Height = 34;
+            yesBtn.Margin = new Thickness(6, 0, 0, 0);
+            yesBtn.Visibility = Visibility.Collapsed;
+            yesBtn.Click += (s, e) => SendCommandToButler("응");
+            Grid.SetColumn(yesBtn, 2);
+            cmdRow.Children.Add(yesBtn);
+            inst.BtnYes = yesBtn;
 
-            btnNo = CreatePillButton("아니 (취소)", AmberColor);
-            btnNo.Margin = new Thickness(0, 0, 0, 0);
-            btnNo.Visibility = Visibility.Collapsed;
-            btnNo.Click += (s, e) => SendCommandToButler("아니");
-            Grid.SetColumn(btnNo, 3);
-            cmdRow.Children.Add(btnNo);
+            Button noBtn = CreatePillButton("아니 (취소)", AmberColor);
+            noBtn.Height = 34;
+            noBtn.Margin = new Thickness(6, 0, 0, 0);
+            noBtn.Visibility = Visibility.Collapsed;
+            noBtn.Click += (s, e) => SendCommandToButler("아니");
+            Grid.SetColumn(noBtn, 3);
+            cmdRow.Children.Add(noBtn);
+            inst.BtnNo = noBtn;
 
-            // Top-right subtle native vector Settings Icon (only icon at top-right, no text buttons)
-            FrameworkElement btnGear = CreateTopRightGearIcon();
-            Grid.SetColumn(btnGear, 2);
-            cardLayout.Children.Add(btnGear);
-
-            // Mini Floating Orb Mode (draggable + double-click or click button to expand)
-            miniOrbGrid = new Grid
+            // Live Active Task/Media Strip Host + Unified Hub Host inside card stack (never loose over desktop)
+            Border liveStripHost = new Border
             {
-                Width = 130,
-                Height = 140,
+                Width = 720,
+                Margin = new Thickness(0, 8, 0, 0),
+                Visibility = Visibility.Collapsed
+            };
+            inst.LiveStripHostContainer = liveStripHost;
+            verticalStack.Children.Add(liveStripHost);
+
+            Border hubHost = new Border
+            {
+                Width = 720,
+                Margin = new Thickness(0, 8, 0, 0),
+                Visibility = Visibility.Collapsed
+            };
+            inst.HubHostContainer = hubHost;
+            verticalStack.Children.Add(hubHost);
+
+            if (isPrimary)
+            {
+                EnsureLiveStripsBuilt();
+                EnsureUnifiedHubBuilt();
+                liveStripHost.Child = liveStripsStack;
+            }
+
+            // Mini Floating Mode (clean matte badge, no RadialGradientBrush / no neon glow)
+            Grid miniGrid = new Grid
+            {
+                Width = 148,
+                Height = 112,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Top,
                 Visibility = Visibility.Collapsed,
                 Cursor = Cursors.SizeAll,
-                ToolTip = "드래그하여 이동 · 아래 [HUD 펼치기] 클릭 시 상단 바 복귀"
+                ToolTip = "드래그하여 이동 · [HUD 펼치기] 클릭 시 복귀"
+            };
+            Border miniCard = new Border
+            {
+                CornerRadius = new CornerRadius(12),
+                Background = new SolidColorBrush(BgOuterCard),
+                BorderBrush = new SolidColorBrush(BorderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 10, 12, 10)
             };
             StackPanel miniStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            miniStack.Children.Add(CreateSpinningOrb(92, false));
-            Button btnExpandHud = CreateMiniButton("▲ HUD 펼치기");
-            btnExpandHud.Margin = new Thickness(0, 4, 0, 0);
+            miniStack.Children.Add(CreateSpinningOrb(52, false));
+            Button btnExpandHud = CreateMiniButton("HUD 펼치기");
+            btnExpandHud.Margin = new Thickness(0, 8, 0, 0);
             btnExpandHud.Click += (s, e) => ToggleMiniMode(false);
             miniStack.Children.Add(btnExpandHud);
-            miniOrbGrid.Children.Add(miniStack);
-            miniOrbGrid.MouseLeftButtonDown += (s, e) =>
+            miniCard.Child = miniStack;
+            miniGrid.Children.Add(miniCard);
+            miniGrid.MouseLeftButtonDown += (s, e) =>
             {
                 if (e.LeftButton == MouseButtonState.Pressed)
                 {
-                    try { hudWindow.DragMove(); } catch { }
+                    try { w.DragMove(); } catch { }
                 }
             };
-            root.Children.Add(miniOrbGrid);
+            inst.MiniOrbGrid = miniGrid;
+            root.Children.Add(miniGrid);
+
+            return inst;
+        }
+
+        private static void PositionHudOnAssignedScreen(HudWindowInstance inst, string preset)
+        {
+            if (inst == null || inst.Window == null) return;
+            var screen = inst.AssignedScreen ?? System.Windows.Forms.Screen.PrimaryScreen;
+            var source = System.Windows.PresentationSource.FromVisual(inst.Window);
+            var transform = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
+            var origin = transform.Transform(new Point(screen.WorkingArea.Left, screen.WorkingArea.Top));
+            var extent = transform.Transform(new Point(screen.WorkingArea.Width, screen.WorkingArea.Height));
+            double winW = inst.Window.ActualWidth > 100 ? inst.Window.ActualWidth : inst.Window.Width;
+            double winH = inst.Window.ActualHeight > 60 ? inst.Window.ActualHeight : inst.Window.Height;
+
+            if (preset == "top-center")
+            {
+                inst.Window.Left = origin.X + Math.Max(12, (extent.X - winW) / 2.0);
+                inst.Window.Top = origin.Y + 18;
+            }
+            else if (preset == "bottom-right")
+            {
+                inst.Window.Left = origin.X + Math.Max(12, extent.X - winW - 20);
+                inst.Window.Top = origin.Y + Math.Max(18, extent.Y - winH - 24);
+            }
+            else
+            {
+                inst.Window.Left = origin.X + 20;
+                inst.Window.Top = origin.Y + 20;
+            }
+        }
+
+        private static void PlaceHudInstanceOnScreen(HudWindowInstance inst)
+        {
+            PositionHudOnAssignedScreen(inst, "top-left");
         }
 
         private static void PlaceHudWindows()
         {
-            if (hudWindow == null) return;
-            var screen = System.Windows.Forms.Screen.PrimaryScreen;
-            var source = System.Windows.PresentationSource.FromVisual(hudWindow);
-            var transform = source != null && source.CompositionTarget != null ? source.CompositionTarget.TransformFromDevice : System.Windows.Media.Matrix.Identity;
-            var point = transform.Transform(new Point(screen.WorkingArea.Left, screen.WorkingArea.Top));
-            hudWindow.Left = point.X + 20; hudWindow.Top = point.Y + 20;
-        }
-
-        private static void BuildSecondaryMonitorHudWindow()
-        {
-            try
+            foreach (var inst in hudInstances)
             {
-                secHudWindow = new Window
-                {
-                    Title = "자비스 Secondary Monitor HUD",
-                    Width = 720,
-                    Height = 152,
-                    Left = 180,
-                    Top = -1038, // Top-left of DISPLAY1 (Y = -1080 + 42)
-                    WindowStyle = WindowStyle.None,
-                    AllowsTransparency = true,
-                    Background = Brushes.Transparent,
-                    Topmost = true,
-                    ShowInTaskbar = false,
-                    ResizeMode = ResizeMode.NoResize
-                };
-
-                Grid root = new Grid();
-                secHudWindow.Content = root;
-
-                secHudCardBorder = new Border
-                {
-                    Width = 680,
-                    MinHeight = 114,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(0, 8, 0, 0),
-                    CornerRadius = new CornerRadius(22),
-                    Background = new SolidColorBrush(Color.FromArgb(244, 5, 11, 22)),
-                    BorderBrush = new SolidColorBrush(CyanColor),
-                    BorderThickness = new Thickness(1.6),
-                    Effect = new DropShadowEffect { Color = CyanColor, BlurRadius = 22, ShadowDepth = 0, Opacity = 0.70 },
-                    Padding = new Thickness(18, 12, 22, 12),
-                    Cursor = Cursors.SizeAll,
-                    ToolTip = "마우스로 드래그하여 창 이동 · 그냥 말씀하시면 자동으로 받아 적고 실행합니다"
-                };
-
-                secHudCardBorder.MouseLeftButtonDown += (s, e) =>
-                {
-                    if (e.LeftButton == MouseButtonState.Pressed)
-                    {
-                        try { secHudWindow.DragMove(); } catch { }
-                    }
-                };
-                secHudCardBorder.ContextMenu = hudCardBorder.ContextMenu;
-                root.Children.Add(secHudCardBorder);
-
-                Grid cardLayout = new Grid();
-                cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(108) });
-                cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                secHudCardBorder.Child = cardLayout;
-
-                FrameworkElement orbElem = CreateSpinningOrb(88, false);
-                orbElem.Cursor = Cursors.Hand;
-                orbElem.MouseLeftButtonUp += (s, e) => { e.Handled = true; PromptListenNow(); };
-                Grid.SetColumn(orbElem, 0);
-                cardLayout.Children.Add(orbElem);
-
-                StackPanel textCol = new StackPanel
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(12, 0, 8, 0)
-                };
-                Grid.SetColumn(textCol, 1);
-                cardLayout.Children.Add(textCol);
-
-                secTxtStatus = new TextBlock
-                {
-                    Text = "○ 호출어 대기 · 자비스라고 불러 주세요",
-                    FontFamily = new FontFamily("Malgun Gothic, Consolas"),
-                    FontSize = 14,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(CyanColor),
-                    Margin = new Thickness(0, 0, 0, 8)
-                };
-                textCol.Children.Add(secTxtStatus);
-
-                secTxtMainBody = new TextBlock
-                {
-                    Text = "무엇을 도와드릴까요? (BSC 3대 생태계 · 문서 제작 · REA · Laya)",
-                    FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 19,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = Brushes.White,
-                    TextWrapping = TextWrapping.Wrap
-                };
-                textCol.Children.Add(secTxtMainBody);
-
-                FrameworkElement secBtnGear = CreateTopRightGearIcon();
-                Grid.SetColumn(secBtnGear, 2);
-                cardLayout.Children.Add(secBtnGear);
-
-                secHudWindow.Show();
-                if (System.Windows.Forms.Screen.AllScreens.Length > 2) BuildThirdMonitorHudWindow();
+                PlaceHudInstanceOnScreen(inst);
             }
-            catch { }
-        }
-
-        private static void BuildThirdMonitorHudWindow()
-        {
-            try
-            {
-                thirdHudWindow = new Window
-                {
-                    Title = "자비스 Third Monitor HUD",
-                    Width = 720,
-                    Height = 152,
-                    Left = 3880,
-                    Top = -790, // Top-left of DISPLAY2 (X=3840+40, Y=-842+52)
-                    WindowStyle = WindowStyle.None,
-                    AllowsTransparency = true,
-                    Background = Brushes.Transparent,
-                    Topmost = true,
-                    ShowInTaskbar = false,
-                    ResizeMode = ResizeMode.NoResize
-                };
-
-                Grid root = new Grid();
-                thirdHudWindow.Content = root;
-
-                thirdHudCardBorder = new Border
-                {
-                    Width = 680,
-                    MinHeight = 114,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(0, 8, 0, 0),
-                    CornerRadius = new CornerRadius(22),
-                    Background = new SolidColorBrush(Color.FromArgb(244, 5, 11, 22)),
-                    BorderBrush = new SolidColorBrush(CyanColor),
-                    BorderThickness = new Thickness(1.6),
-                    Effect = new DropShadowEffect { Color = CyanColor, BlurRadius = 22, ShadowDepth = 0, Opacity = 0.70 },
-                    Padding = new Thickness(18, 12, 22, 12),
-                    Cursor = Cursors.SizeAll,
-                    ToolTip = "마우스로 드래그하여 창 이동 · 그냥 말씀하시면 자동으로 받아 적고 실행합니다"
-                };
-
-                thirdHudCardBorder.MouseLeftButtonDown += (s, e) =>
-                {
-                    if (e.LeftButton == MouseButtonState.Pressed)
-                    {
-                        try { thirdHudWindow.DragMove(); } catch { }
-                    }
-                };
-                thirdHudCardBorder.ContextMenu = hudCardBorder.ContextMenu;
-                root.Children.Add(thirdHudCardBorder);
-
-                Grid cardLayout = new Grid();
-                cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(108) });
-                cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                cardLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                thirdHudCardBorder.Child = cardLayout;
-
-                FrameworkElement orbElem = CreateSpinningOrb(88, false);
-                orbElem.Cursor = Cursors.Hand;
-                orbElem.MouseLeftButtonUp += (s, e) => { e.Handled = true; PromptListenNow(); };
-                Grid.SetColumn(orbElem, 0);
-                cardLayout.Children.Add(orbElem);
-
-                StackPanel textCol = new StackPanel
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(12, 0, 8, 0)
-                };
-                Grid.SetColumn(textCol, 1);
-                cardLayout.Children.Add(textCol);
-
-                thirdTxtStatus = new TextBlock
-                {
-                    Text = "○ 호출어 대기 · 자비스라고 불러 주세요",
-                    FontFamily = new FontFamily("Malgun Gothic, Consolas"),
-                    FontSize = 14,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(CyanColor),
-                    Margin = new Thickness(0, 0, 0, 8)
-                };
-                textCol.Children.Add(thirdTxtStatus);
-
-                thirdTxtMainBody = new TextBlock
-                {
-                    Text = "무엇을 도와드릴까요? (BSC 3대 생태계 · 문서 제작 · REA · Laya)",
-                    FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 19,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = Brushes.White,
-                    TextWrapping = TextWrapping.Wrap
-                };
-                textCol.Children.Add(thirdTxtMainBody);
-
-                FrameworkElement thirdBtnGear = CreateTopRightGearIcon();
-                Grid.SetColumn(thirdBtnGear, 2);
-                cardLayout.Children.Add(thirdBtnGear);
-
-                thirdHudWindow.Show();
-            }
-            catch { }
         }
 
         private static void ToggleMiniMode(bool mini)
         {
             isMiniMode = mini;
-            fullContentGrid.Visibility = mini ? Visibility.Collapsed : Visibility.Visible;
-            miniOrbGrid.Visibility = mini ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var inst in hudInstances)
+            {
+                if (inst.FullContentGrid != null) inst.FullContentGrid.Visibility = mini ? Visibility.Collapsed : Visibility.Visible;
+                if (inst.MiniOrbGrid != null) inst.MiniOrbGrid.Visibility = mini ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (mini && activeHubOwner != null)
+            {
+                CloseUnifiedHub();
+            }
         }
 
         // =====================================================================
-        // 2. SCREENSHOT 1: FULL-MONITOR TRANSPARENT ARC REACTOR BOOT SCENE
+        // 2. FULL-MONITOR BOOT SCENE (Matte Dark Slate, Zero AI-Slop Glow)
         // =====================================================================
         private static void ShowFullMonitorBootScene(string assistantName, string userName, string helloLine)
         {
@@ -1363,35 +1702,44 @@ namespace JarvisSasariSa
             var area = System.Windows.Forms.Screen.PrimaryScreen.Bounds;
             bootWindow = new Window {
                 Title = "자비스 BootScene Overlay", WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize,
-                AllowsTransparency = true, Background = new SolidColorBrush(Color.FromArgb(245, 3, 14, 24)),
+                AllowsTransparency = true, Background = new SolidColorBrush(Color.FromArgb(245, 8, 12, 19)),
                 Topmost = true, ShowInTaskbar = false, Left = area.Left, Top = area.Top,
                 Width = SystemParameters.PrimaryScreenWidth, Height = SystemParameters.PrimaryScreenHeight
             };
             var panel = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            panel.Children.Add(CreateSpinningOrb(250, false));
-            panel.Children.Add(new TextBlock { Text = "J A R V I S", FontSize = 36, Foreground = new SolidColorBrush(CyanColor), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 24, 0, 12) });
-            panel.Children.Add(new TextBlock { Text = helloLine, FontSize = 20, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
-            panel.Children.Add(new TextBlock { Text = "잠시 후 주 모니터에서 시작합니다", FontSize = 14, Foreground = Brushes.LightGray, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12, 0, 0) });
+            panel.Children.Add(CreateSpinningOrb(220, false));
+            panel.Children.Add(new TextBlock { Text = "J A R V I S", FontFamily = UiFont, FontSize = 34, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(CyanColor), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 24, 0, 12) });
+            panel.Children.Add(new TextBlock { Text = helloLine, FontFamily = UiFont, FontSize = 19, Foreground = new SolidColorBrush(TextPrimary), HorizontalAlignment = HorizontalAlignment.Center });
+            panel.Children.Add(new TextBlock { Text = "잠시 후 HUD가 시작됩니다", FontFamily = UiFont, FontSize = 13.5, Foreground = new SolidColorBrush(TextSecondary), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
             bootWindow.Content = panel;
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
             bootWindow.Closed += (sender, e) => {
                 timer.Stop(); bootWindow = null; initialBootComplete = true;
-                hudWindow.Show(); PlaceHudWindows(); EnsureHudAlwaysVisibleAndTopmost();
-                WriteLog("Startup complete: one primary HUD visible after boot"); WriteWindowDiag("primary HUD", hudWindow);
+                foreach (var inst in hudInstances)
+                {
+                    if (inst.Window != null) inst.Window.Show();
+                }
+                PlaceHudWindows();
+                EnsureHudAlwaysVisibleAndTopmost();
+                WriteLog("Startup complete: " + hudInstances.Count + " monitor HUD(s) visible after boot");
+                foreach (var inst in hudInstances)
+                {
+                    WriteWindowDiag("monitor HUD[" + inst.MonitorIndex + "]", inst.Window);
+                }
             };
             timer.Tick += (sender, e) => { timer.Stop(); if (bootWindow != null) bootWindow.Close(); };
             bootWindow.Show(); WriteLog("Startup boot visible; main HUD hidden"); timer.Start();
         }
 
-        private static FrameworkElement CreateSovereignVoiceCrest(bool bindLiveBars)
+        private static FrameworkElement CreateSovereignVoiceCrest(HudWindowInstance inst)
         {
             Border shell = new Border
             {
-                Width = 56,
-                Height = 56,
-                CornerRadius = new CornerRadius(10),
-                Background = new SolidColorBrush(Color.FromRgb(17, 24, 39)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(45, 62, 86)),
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderHairline),
                 BorderThickness = new Thickness(1),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -1404,28 +1752,23 @@ namespace JarvisSasariSa
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            double[] baseHeights = { 10, 18, 26, 16, 11 };
+            double[] baseHeights = { 7, 13, 18, 12, 8 };
             for (int i = 0; i < 5; i++)
             {
                 Border bar = new Border
                 {
-                    Width = 4.5,
+                    Width = 3,
                     Height = baseHeights[i],
-                    CornerRadius = new CornerRadius(2.2),
-                    Background = new SolidColorBrush(i == 2 ? CyanColor : Color.FromRgb(94, 168, 224)),
-                    Margin = new Thickness(2.2, 0, 2.2, 0),
+                    CornerRadius = new CornerRadius(1.5),
+                    Background = new SolidColorBrush(i == 2 ? cachedAccentColor : Color.FromRgb(94, 168, 224)),
+                    Margin = new Thickness(1.4, 0, 1.4, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                if (bindLiveBars)
+                if (inst != null)
                 {
-                    voiceEqBars[i] = bar;
+                    inst.EqBars[i] = bar;
                 }
                 barRow.Children.Add(bar);
-            }
-
-            if (bindLiveBars && orbCoreScale == null)
-            {
-                orbCoreScale = new ScaleTransform(1.0, 1.0);
             }
 
             shell.Child = barRow;
@@ -1433,18 +1776,18 @@ namespace JarvisSasariSa
         }
 
         // =====================================================================
-        // 3. SPINNING 3-RING DASHED ORB (BootScene Legacy Support)
+        // 3. CLEAN GEOMETRIC ORB (Matte Rings, Zero Neon Glow / Gradient)
         // =====================================================================
         private static FrameworkElement CreateSpinningOrb(double size, bool bindMicScale)
         {
             Grid g = new Grid { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
 
-            double[] radii = { 0.94, 0.78, 0.62 };
-            double[] widths = { 2.2, 1.5, 3.0 };
+            double[] radii = { 0.94, 0.76, 0.58 };
+            double[] widths = { 1.8, 1.4, 2.0 };
             DoubleCollection[] dashes = {
                 new DoubleCollection(new double[] { 6, 4 }),
-                new DoubleCollection(new double[] { 22, 6, 4, 6 }),
-                new DoubleCollection(new double[] { 2, 7 })
+                new DoubleCollection(new double[] { 18, 6, 4, 6 }),
+                new DoubleCollection(new double[] { 2, 6 })
             };
             double[] durations = { 9.0, -6.0, 4.0 };
 
@@ -1459,7 +1802,7 @@ namespace JarvisSasariSa
                     StrokeThickness = widths[i],
                     StrokeDashArray = dashes[i],
                     RenderTransformOrigin = new Point(0.5, 0.5),
-                    Opacity = 0.9 - i * 0.12
+                    Opacity = 0.85 - i * 0.14
                 };
                 RotateTransform rt = new RotateTransform(0);
                 ring.RenderTransform = rt;
@@ -1475,26 +1818,16 @@ namespace JarvisSasariSa
                 g.Children.Add(ring);
             }
 
-            double coreSize = size * 0.44;
-            RadialGradientBrush coreBrush = new RadialGradientBrush();
-            coreBrush.GradientStops.Add(new GradientStop(Colors.White, 0.0));
-            coreBrush.GradientStops.Add(new GradientStop(CyanColor, 0.48));
-            coreBrush.GradientStops.Add(new GradientStop(Color.FromArgb(0, 77, 217, 255), 1.0));
-
+            double coreSize = size * 0.34;
             Ellipse core = new Ellipse
             {
                 Width = coreSize,
                 Height = coreSize,
-                Fill = coreBrush,
-                RenderTransformOrigin = new Point(0.5, 0.5),
-                Effect = new DropShadowEffect { Color = CyanColor, BlurRadius = 18, ShadowDepth = 0 }
+                Fill = new SolidColorBrush(CyanColor),
+                Stroke = new SolidColorBrush(TextPrimary),
+                StrokeThickness = 1.2,
+                RenderTransformOrigin = new Point(0.5, 0.5)
             };
-
-            if (bindMicScale)
-            {
-                orbCoreScale = new ScaleTransform(1.0, 1.0);
-                core.RenderTransform = orbCoreScale;
-            }
             g.Children.Add(core);
 
             return g;
@@ -1503,6 +1836,23 @@ namespace JarvisSasariSa
         // =====================================================================
         // 4. CONTINUOUS KOREAN SPEECH RECOGNITION BRIDGE (Ear.swift 1:1)
         // =====================================================================
+        private static void StartSubWindowsPolling()
+        {
+            DispatcherTimer subWindowsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(650) };
+            subWindowsTimer.Tick += async (s, e) =>
+            {
+                if (subWindowsPollInFlight) return;
+                subWindowsPollInFlight = true;
+                try
+                {
+                    await PollSubWindowsAsync();
+                }
+                catch { }
+                finally { subWindowsPollInFlight = false; }
+            };
+            subWindowsTimer.Start();
+        }
+
         private static void StartContinuousMicrophoneEngine()
         {
             // Poll /api/ear/latest every 65ms for sub-1s responsiveness + live acoustic waveform + foreground window tracking
@@ -1516,26 +1866,35 @@ namespace JarvisSasariSa
             {
                 if (earPollInFlight) return;
                 earPollInFlight = true;
-                try {
                 try
                 {
                     string json = await http.GetStringAsync("http://127.0.0.1:7788/api/ear/latest");
                     if (string.IsNullOrEmpty(json)) return;
-                    if (json.Contains("\"microphone\":\"error\"") || json.Contains("\"recognition\":\"error\""))
+
+                    var ser = new System.Web.Script.Serialization.JavaScriptSerializer();
+                    var root = ser.Deserialize<System.Collections.Generic.Dictionary<string, object>>(json);
+                    if (root == null) return;
+
+                    var earHealth = JsonDict(root, "earHealth");
+                    string micStateStr = JsonStr(earHealth, "microphone");
+                    string recStateStr = JsonStr(earHealth, "recognition");
+                    if (micStateStr == "error" || recStateStr == "error")
                     {
-                        if (!earWarningVisible) statusBeforeEarWarning = txtStatus.Text;
+                        if (!earWarningVisible) statusBeforeEarWarning = cachedStatusText;
                         earWarningVisible = true;
-                        txtStatus.Text = "⚠ 마이크 또는 음성 인식 확인";
+                        SetHudAppearance(AmberColor);
+                        BroadcastStatus("마이크 또는 음성 인식 확인 필요");
                     }
-                    else if (earWarningVisible && json.Contains("\"recognition\":\"listening\""))
+                    else if (earWarningVisible && recStateStr == "listening")
                     {
-                        txtStatus.Text = string.IsNullOrEmpty(statusBeforeEarWarning) ? "○ 호출어 대기 · 음성 연결 복구" : statusBeforeEarWarning;
+                        SetHudAppearance(CyanColor);
+                        BroadcastStatus(string.IsNullOrEmpty(statusBeforeEarWarning) ? "호출어 대기 · 음성 연결 복구" : statusBeforeEarWarning);
                         earWarningVisible = false;
                     }
 
                     // 0. Check server-side Barge-In signal & Mic/TTS Mute state
-                    bool srvMicMuted = json.Contains("\"micMuted\":true");
-                    bool srvTtsMuted = json.Contains("\"ttsMuted\":true");
+                    bool srvMicMuted = JsonBool(root, "micMuted");
+                    bool srvTtsMuted = JsonBool(root, "ttsMuted");
                     if (srvMicMuted != isHudMicMuted || srvTtsMuted != isHudTtsMuted)
                     {
                         isHudMicMuted = srvMicMuted;
@@ -1547,9 +1906,8 @@ namespace JarvisSasariSa
                         }
                     }
 
-                    string bargeStr = ExtractJsonNumber(json, "bargeInSeq");
-                    int parsedBargeSeq = 0;
-                    if (!string.IsNullOrEmpty(bargeStr) && int.TryParse(bargeStr, out parsedBargeSeq) && parsedBargeSeq > lastSeenBargeInSeq)
+                    int parsedBargeSeq = JsonInt(root, "bargeInSeq", 0);
+                    if (parsedBargeSeq > lastSeenBargeInSeq)
                     {
                         lastSeenBargeInSeq = parsedBargeSeq;
                         if (isSpeaking)
@@ -1586,12 +1944,9 @@ namespace JarvisSasariSa
                                     {
                                         lastReportedForegroundHwnd = fgHwnd.ToInt64();
                                         string shortTitle = titleStr.Length > 18 ? titleStr.Substring(0, 18) + "…" : titleStr;
-                                        if (txtActiveWindowBadge != null)
-                                        {
-                                            txtActiveWindowBadge.Text = string.IsNullOrEmpty(shortTitle)
-                                                ? ("대상: " + procName)
-                                                : ("대상: " + procName + " (" + shortTitle + ")");
-                                        }
+                                        BroadcastTargetBadge(string.IsNullOrEmpty(shortTitle)
+                                            ? ("대상: " + procName)
+                                            : ("대상: " + procName + " (" + shortTitle + ")"));
                                         string fgPayload = "{\"hwnd\":" + fgHwnd.ToInt64() + ",\"processId\":" + fgPid + ",\"process\":\"" + EscapeJson(procName) + "\",\"title\":\"" + EscapeJson(titleStr) + "\"}";
                                         var _ = http.PostAsync("http://127.0.0.1:7788/api/computer/foreground", new StringContent(fgPayload, Encoding.UTF8, "application/json"));
                                     }
@@ -1601,53 +1956,43 @@ namespace JarvisSasariSa
                         catch { }
                     }
 
-                    // 1. Animate 5-bar Sovereign Acoustic Waveform from live microphone RMS
-                    int mlIdx = json.IndexOf("\"micLevel\":");
-                    if (mlIdx >= 0)
+                    // 1. Animate 5-bar Sovereign Acoustic Waveform across all monitor HUDs
+                    if (root.ContainsKey("micLevel") && root["micLevel"] != null)
                     {
-                        int start = mlIdx + 11;
-                        int end = start;
-                        while (end < json.Length && (char.IsDigit(json[end]) || json[end] == '.')) end++;
-                        double lvl = 0;
-                        if (double.TryParse(json.Substring(start, end - start), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out lvl))
+                        double lvl = JsonDouble(root, "micLevel", 0.0);
+                        double boost = isSpeaking ? 0.45 : Math.Min(1.0, lvl * 3.2);
+                        double[] minH = { 6, 10, 14, 10, 6 };
+                        double[] spanH = { 10, 14, 15, 13, 9 };
+                        double phase = (Environment.TickCount % 600) / 600.0 * Math.PI * 2.0;
+                        for (int bi = 0; bi < 5; bi++)
                         {
-                            if (orbCoreScale != null)
+                            double wave = boost > 0.04 ? (0.55 + 0.45 * Math.Abs(Math.Sin(phase + bi * 0.85))) : 0.15;
+                            double barH = minH[bi] + spanH[bi] * boost * wave;
+                            foreach (var inst in hudInstances)
                             {
-                                double scale = 1.0 + Math.Min(lvl * 0.65, 0.65);
-                                orbCoreScale.ScaleX = scale;
-                                orbCoreScale.ScaleY = scale;
-                            }
-                            double boost = isSpeaking ? 0.45 : Math.Min(1.0, lvl * 3.2);
-                            double[] minH = { 8, 13, 18, 12, 8 };
-                            double[] spanH = { 16, 22, 24, 20, 15 };
-                            double phase = (Environment.TickCount % 600) / 600.0 * Math.PI * 2.0;
-                            for (int bi = 0; bi < 5; bi++)
-                            {
-                                if (voiceEqBars[bi] != null)
-                                {
-                                    double wave = boost > 0.04 ? (0.55 + 0.45 * Math.Abs(Math.Sin(phase + bi * 0.85))) : 0.15;
-                                    voiceEqBars[bi].Height = minH[bi] + spanH[bi] * boost * wave;
-                                }
+                                if (inst.EqBars[bi] != null) inst.EqBars[bi].Height = barH;
                             }
                         }
                     }
 
-                    if (!json.Contains("\"text\":\"")) return;
+                    var latest = JsonDict(root, "latest");
+                    if (latest == null || !latest.ContainsKey("text") || latest["text"] == null) return;
 
-                    string heard = ExtractJsonField(json, "text");
-                    string spoken = ExtractJsonField(json, "spoken");
-                    string hudTitle = ExtractJsonField(json, "hudTitle");
-                    string hudSubtitle = ExtractJsonField(json, "hudSubtitle");
-                    string hudColor = ExtractJsonField(json, "hudColor");
-                    string itemTs = ExtractJsonNumber(json, "ts");
-                    bool isFinal = json.Contains("\"isFinal\":true");
-                    bool awaitingConfirm = json.Contains("\"awaitingConfirm\":true");
-                    bool showMailDraft = json.Contains("\"intent\":\"draftMailReply\"");
+                    string heard = JsonStr(latest, "text");
+                    string spoken = JsonStr(latest, "spoken");
+                    string hudTitle = JsonStr(latest, "hudTitle");
+                    string hudSubtitle = JsonStr(latest, "hudSubtitle");
+                    string hudColor = JsonStr(latest, "hudColor");
+                    string itemTs = JsonStr(latest, "ts");
+                    bool isFinal = JsonBool(latest, "isFinal");
+                    bool awaitingConfirm = JsonBool(latest, "awaitingConfirm");
+                    string intent = JsonStr(latest, "intent");
+                    bool showMailDraft = (intent == "draftMailReply");
                     string key = itemTs + "|" + heard + "|" + spoken + "|" + isFinal + "|" + hudTitle + "|" + hudSubtitle;
                     if (key == lastSyncedKey) return;
                     lastSyncedKey = key;
                     earWarningVisible = false;
-                    string researchId = ExtractJsonField(json, "researchId");
+                    string researchId = JsonStr(latest, "researchId");
                     if (!string.IsNullOrEmpty(researchId)) await ShowResearchResultAsync(researchId);
 
                     if (!string.IsNullOrWhiteSpace(heard))
@@ -1662,30 +2007,21 @@ namespace JarvisSasariSa
                             }
                             try { if (autoRecoveryTimer != null) autoRecoveryTimer.Stop(); } catch { }
                             SetHudAppearance(CyanColor);
-                            string liveTitle = !string.IsNullOrEmpty(hudTitle) ? hudTitle : "● 경청 중 · 끝까지 편하게 말씀하세요";
-                            txtStatus.Text = liveTitle;
-                            txtMainBody.Text = heard;
-                            if (secTxtStatus != null) secTxtStatus.Text = liveTitle;
-                            if (secTxtMainBody != null) secTxtMainBody.Text = heard;
-                            if (thirdTxtStatus != null) thirdTxtStatus.Text = liveTitle;
-                            if (thirdTxtMainBody != null) thirdTxtMainBody.Text = heard;
+                            BroadcastStatus(!string.IsNullOrEmpty(hudTitle) ? hudTitle : "경청 중 · 끝까지 편하게 말씀하세요");
+                            BroadcastBody(heard);
                         }
                         else
                         {
-                            if (json.Contains("\"intent\":\"hush\"") || json.Contains("\"intent\":\"bye\"") || json.Contains("\"intent\":\"processing\""))
+                            if (intent == "hush" || intent == "bye" || intent == "processing")
                             {
                                 StopAllVoicePlaybackImmediately(false);
                             }
                             Color c = hudColor == "amber" ? AmberColor : hudColor == "lime" ? LimeColor : CyanColor;
                             SetHudAppearance(c);
-                            txtStatus.Text = !string.IsNullOrEmpty(hudTitle) ? hudTitle : "✓ 실행 완료";
-                            txtMainBody.Text = (awaitingConfirm || showMailDraft) && !string.IsNullOrEmpty(hudSubtitle) ? hudSubtitle : (!string.IsNullOrEmpty(spoken) ? spoken : heard);
-                            btnYes.Visibility = awaitingConfirm ? Visibility.Visible : Visibility.Collapsed;
-                            btnNo.Visibility = awaitingConfirm ? Visibility.Visible : Visibility.Collapsed;
-                            if (secTxtStatus != null) secTxtStatus.Text = txtStatus.Text;
-                            if (secTxtMainBody != null) secTxtMainBody.Text = txtMainBody.Text;
-                            if (thirdTxtStatus != null) thirdTxtStatus.Text = txtStatus.Text;
-                            if (thirdTxtMainBody != null) thirdTxtMainBody.Text = txtMainBody.Text;
+                            BroadcastStatus(!string.IsNullOrEmpty(hudTitle) ? hudTitle : "실행 완료");
+                            string nextBody = (awaitingConfirm || showMailDraft) && !string.IsNullOrEmpty(hudSubtitle) ? hudSubtitle : (!string.IsNullOrEmpty(spoken) ? spoken : heard);
+                            BroadcastBody(nextBody);
+                            BroadcastConfirmButtons(awaitingConfirm);
 
                             if (!awaitingConfirm && !showMailDraft)
                             {
@@ -1695,25 +2031,13 @@ namespace JarvisSasariSa
                             if (!string.IsNullOrWhiteSpace(spoken) && key != lastSpokenKey)
                             {
                                 lastSpokenKey = key;
-                                if (heard.Contains("아빠 왔어") || heard.Contains("나 왔어"))
-                                {
-                                    SpeakAsync(spoken);
-                                }
-                                else
-                                {
-                                    SpeakAsync(spoken);
-                                }
+                                SpeakAsync(spoken);
                             }
                         }
                     }
                 }
                 catch { }
-                try
-                {
-                    await PollSubWindowsAsync();
-                }
-                catch { }
-                } finally { earPollInFlight = false; }
+                finally { earPollInFlight = false; }
             };
             earPollTimer.Start();
         }
@@ -1727,7 +2051,7 @@ namespace JarvisSasariSa
 
         private static TextBlock ResearchText(string text, double size, Brush color)
         {
-            return new TextBlock { Text = text ?? "", FontSize = size, Foreground = color, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12), LineHeight = size * 1.55 };
+            return new TextBlock { Text = text ?? "", FontFamily = UiFont, FontSize = size, Foreground = color, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12), LineHeight = size * 1.55 };
         }
 
         private static void DragResearchWindow(object sender, MouseButtonEventArgs e)
@@ -1788,19 +2112,19 @@ namespace JarvisSasariSa
                     researchWindow.Top = origin.Y + Math.Max(60, (extent.Y - height) / 2);
                 }
 
-                Color bgShell = Color.FromRgb(11, 15, 23);
-                Color bgCard = Color.FromRgb(17, 24, 36);
-                Color bgSubCard = Color.FromRgb(22, 31, 46);
-                Color borderCol = Color.FromRgb(40, 52, 70);
-                var muted = new SolidColorBrush(Color.FromRgb(155, 170, 190));
+                Color bgShell = Color.FromRgb(12, 16, 23);
+                Color bgCard = BgSurface;
+                Color bgSubCard = BgSubRow;
+                Color borderCol = BorderHairline;
+                var muted = new SolidColorBrush(TextSecondary);
 
                 var frame = new Border {
                     Background = new SolidColorBrush(bgShell),
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(200, 77, 217, 255)),
-                    BorderThickness = new Thickness(1.4),
-                    CornerRadius = new CornerRadius(16),
-                    Padding = new Thickness(26, 20, 26, 20),
-                    Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 32, ShadowDepth = 8, Opacity = 0.82 }
+                    BorderBrush = new SolidColorBrush(BorderHairline),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(24, 20, 24, 20),
+                    Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 24, ShadowDepth = 8, Opacity = 0.65 }
                 };
                 frame.PreviewMouseLeftButtonDown += DragResearchWindow;
 
@@ -1810,7 +2134,7 @@ namespace JarvisSasariSa
                 shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 frame.Child = shell;
 
-                // 1) Top SaaS Header Bar (Pinned)
+                // 1) Top Header Bar (Pinned)
                 var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -1820,78 +2144,62 @@ namespace JarvisSasariSa
                 var titleStack = new StackPanel();
                 var topBadgeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
                 var badgeBorder = new Border {
-                    CornerRadius = new CornerRadius(5),
-                    Background = new SolidColorBrush(Color.FromArgb(40, 77, 217, 255)),
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(120, 77, 217, 255)),
+                    CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(Color.FromArgb(24, CyanColor.R, CyanColor.G, CyanColor.B)),
+                    BorderBrush = new SolidColorBrush(BorderSubtle),
                     BorderThickness = new Thickness(1),
                     Padding = new Thickness(8, 2, 8, 2),
                     Margin = new Thickness(0, 0, 8, 0)
                 };
                 badgeBorder.Child = new TextBlock {
                     Text = "JARVIS INTELLIGENCE REPORT",
-                    FontFamily = new FontFamily("Consolas, Segoe UI"),
+                    FontFamily = MonoFont,
                     FontSize = 10.5,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(CyanColor)
                 };
                 topBadgeRow.Children.Add(badgeBorder);
-                topBadgeRow.Children.Add(new TextBlock {
-                    Text = (report.status == "ready" ? "● 분석 완료" : "● 확인 필요") + "  ·  출처 " + (report.sources == null ? 0 : report.sources.Length) + "건  ·  " + (report.provider ?? "JARVIS Engine"),
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                topBadgeRow.Children.Add(ApplyTabular(new TextBlock {
+                    Text = (report.status == "ready" ? "분석 완료" : "확인 필요") + "  ·  출처 " + (report.sources == null ? 0 : report.sources.Length) + "건  ·  " + (report.provider ?? "JARVIS Engine"),
+                    FontFamily = UiFont,
                     FontSize = 11.5,
                     Foreground = muted,
                     VerticalAlignment = VerticalAlignment.Center
-                });
+                }));
                 titleStack.Children.Add(topBadgeRow);
                 titleStack.Children.Add(new TextBlock {
                     Text = string.IsNullOrEmpty(report.title) ? report.query : report.title,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 20,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = Brushes.White,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(TextPrimary),
                     TextWrapping = TextWrapping.Wrap
                 });
                 Grid.SetColumn(titleStack, 0);
                 headerGrid.Children.Add(titleStack);
 
                 var winBtnRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-                var maxBtn = new Button {
-                    Content = researchWindow.WindowState == WindowState.Maximized ? "복원 ❐" : "최대화 □",
-                    Padding = new Thickness(10, 5, 10, 5),
-                    Margin = new Thickness(0, 0, 6, 0),
-                    Background = new SolidColorBrush(bgCard),
-                    Foreground = Brushes.White,
-                    BorderBrush = new SolidColorBrush(borderCol),
-                    BorderThickness = new Thickness(1),
-                    Cursor = Cursors.Hand
-                };
+                var maxBtn = CreatePillButton(researchWindow.WindowState == WindowState.Maximized ? "복원" : "최대화", TextSecondary);
+                maxBtn.Margin = new Thickness(0, 0, 6, 0);
                 maxBtn.Click += (s, a) => {
                     if (researchWindow == null) return;
                     researchWindow.WindowState = researchWindow.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-                    maxBtn.Content = researchWindow.WindowState == WindowState.Maximized ? "복원 ❐" : "최대화 □";
+                    maxBtn.Content = researchWindow.WindowState == WindowState.Maximized ? "복원" : "최대화";
                 };
-                var close = new Button {
-                    Content = "닫기 ✕",
-                    Padding = new Thickness(12, 5, 12, 5),
-                    Background = new SolidColorBrush(Color.FromRgb(38, 24, 32)),
-                    Foreground = new SolidColorBrush(Color.FromRgb(255, 150, 150)),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(90, 45, 55)),
-                    BorderThickness = new Thickness(1),
-                    Cursor = Cursors.Hand
-                };
+                var close = CreatePillButton("닫기", DangerColor);
                 close.Click += (sender, args) => { if (researchWindow != null) researchWindow.Close(); };
                 winBtnRow.Children.Add(maxBtn);
                 winBtnRow.Children.Add(close);
                 Grid.SetColumn(winBtnRow, 1);
                 headerGrid.Children.Add(winBtnRow);
 
-                // 2) Pinned Export Action Bar (Never scrolls out of view or clips)
+                // 2) Pinned Export Action Bar
                 var exportContainer = new Border {
-                    CornerRadius = new CornerRadius(10),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(bgCard),
                     BorderBrush = new SolidColorBrush(borderCol),
                     BorderThickness = new Thickness(1),
-                    Padding = new Thickness(14, 9, 14, 9),
+                    Padding = new Thickness(12, 8, 12, 8),
                     Margin = new Thickness(0, 0, 0, 14)
                 };
                 var exportGrid = new Grid();
@@ -1901,8 +2209,8 @@ namespace JarvisSasariSa
 
                 var exportBar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
                 var exportStatus = new TextBlock {
-                    Text = "원클릭 문서 변환: 원하는 포맷을 클릭하면 즉시 생성 후 파일이 열립니다.",
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    Text = "",
+                    FontFamily = UiFont,
                     FontSize = 11.5,
                     Foreground = muted,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -1910,36 +2218,25 @@ namespace JarvisSasariSa
                     Margin = new Thickness(10, 0, 0, 0)
                 };
                 string[][] exportButtons = new string[][] {
-                    new string[] { "md", "📝 Markdown (.md)", "#163242" },
-                    new string[] { "docx", "📘 Word (.docx)", "#1B365D" },
-                    new string[] { "pdf", "📕 PDF (.pdf)", "#4A2030" },
-                    new string[] { "pptx", "📙 PPT (.pptx)", "#4A3219" }
+                    new string[] { "md", "Markdown (.md)" },
+                    new string[] { "docx", "Word (.docx)" },
+                    new string[] { "pdf", "PDF (.pdf)" },
+                    new string[] { "pptx", "PPT (.pptx)" }
                 };
                 foreach (var eb in exportButtons) {
-                    string fmt = eb[0]; string label = eb[1]; string hexBg = eb[2];
-                    var btn = new Button {
-                        Content = label,
-                        Padding = new Thickness(11, 5, 11, 5),
-                        Margin = new Thickness(0, 2, 6, 2),
-                        FontFamily = new FontFamily("Malgun Gothic"),
-                        FontSize = 11.5,
-                        FontWeight = FontWeights.Bold,
-                        Background = (SolidColorBrush)new BrushConverter().ConvertFromString(hexBg),
-                        Foreground = Brushes.White,
-                        BorderBrush = new SolidColorBrush(Color.FromArgb(120, 77, 217, 255)),
-                        BorderThickness = new Thickness(1),
-                        Cursor = Cursors.Hand
-                    };
+                    string fmt = eb[0]; string label = eb[1];
+                    var btn = CreatePillButton(label, CyanColor);
+                    btn.Margin = new Thickness(0, 2, 6, 2);
                     btn.Click += async (s2, a2) => {
                         try {
-                            exportStatus.Text = "⏳ " + label + " 문서를 생성하고 있습니다...";
+                            exportStatus.Text = label + " 문서 생성 중…";
                             string reqJson = "{\"researchId\":\"" + EscapeJson(id) + "\",\"format\":\"" + fmt + "\",\"openFile\":true}";
                             var resp = await http.PostAsync("http://127.0.0.1:7788/api/office/create", new StringContent(reqJson, Encoding.UTF8, "application/json"));
                             string respBody = await resp.Content.ReadAsStringAsync();
-                            exportStatus.Text = resp.IsSuccessStatusCode ? ("✓ " + label + " 문서 생성 완료 (바탕화면 자동 실행)") : ("⚠ 생성 실패: " + respBody);
-                            txtStatus.Text = exportStatus.Text;
+                            exportStatus.Text = resp.IsSuccessStatusCode ? (label + " 생성 완료") : ("생성 실패: " + respBody);
+                            BroadcastStatus(exportStatus.Text);
                         } catch (Exception ex2) {
-                            exportStatus.Text = "⚠ 오류: " + ex2.Message;
+                            exportStatus.Text = "오류: " + ex2.Message;
                         }
                     };
                     exportBar.Children.Add(btn);
@@ -1956,27 +2253,27 @@ namespace JarvisSasariSa
 
                 // Executive Summary Card
                 var overview = new Border {
-                    Background = new SolidColorBrush(Color.FromRgb(15, 34, 48)),
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(140, 77, 217, 255)),
+                    Background = new SolidColorBrush(bgCard),
+                    BorderBrush = new SolidColorBrush(borderCol),
                     BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(12),
-                    Padding = new Thickness(18, 14, 18, 14),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(16, 14, 16, 14),
                     Margin = new Thickness(0, 0, 0, 14)
                 };
                 var summaryStack = new StackPanel();
                 summaryStack.Children.Add(new TextBlock {
-                    Text = "📌 핵심 요약 (Executive Summary)",
-                    FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 14,
-                    FontWeight = FontWeights.ExtraBold,
+                    Text = "핵심 요약 (Executive Summary)",
+                    FontFamily = UiFont,
+                    FontSize = 13.5,
+                    FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(CyanColor),
                     Margin = new Thickness(0, 0, 0, 6)
                 });
                 summaryStack.Children.Add(new TextBlock {
                     Text = string.IsNullOrEmpty(report.summary) ? report.note : report.summary,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 13.5,
-                    Foreground = Brushes.White,
+                    Foreground = new SolidColorBrush(TextPrimary),
                     TextWrapping = TextWrapping.Wrap,
                     LineHeight = 21
                 });
@@ -1988,40 +2285,31 @@ namespace JarvisSasariSa
                     var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
                     foreach (string keyword in report.keywords) {
                         string term = keyword;
-                        var chip = new Button {
-                            Content = "# " + term,
-                            Padding = new Thickness(10, 4, 10, 4),
-                            Margin = new Thickness(0, 0, 6, 6),
-                            FontSize = 11.5,
-                            Background = new SolidColorBrush(bgSubCard),
-                            Foreground = new SolidColorBrush(CyanColor),
-                            BorderBrush = new SolidColorBrush(borderCol),
-                            BorderThickness = new Thickness(1),
-                            Cursor = Cursors.Hand,
-                            ToolTip = "클릭 시 이 키워드로 심층 조사"
-                        };
+                        var chip = CreatePillButton("# " + term, TextSecondary);
+                        chip.Margin = new Thickness(0, 0, 6, 6);
+                        chip.ToolTip = "클릭 시 이 키워드로 심층 조사";
                         chip.Click += (sender, args) => SendCommandToButler(term + "에 대해 조사해줘");
                         chips.Children.Add(chip);
                     }
                     body.Children.Add(chips);
                 }
 
-                // Structured Sections (Splits bullet lines cleanly into visual rows)
+                // Structured Sections
                 if (report.sections != null && report.sections.Length > 0) {
-                    body.Children.Add(new TextBlock {
-                        Text = "📂 항목별 상세 브리핑 (" + report.sections.Length + "개 섹션)",
-                        FontFamily = new FontFamily("Malgun Gothic"),
-                        FontSize = 15,
+                    body.Children.Add(ApplyTabular(new TextBlock {
+                        Text = "항목별 상세 브리핑 (" + report.sections.Length + "개 섹션)",
+                        FontFamily = UiFont,
+                        FontSize = 14.5,
                         FontWeight = FontWeights.Bold,
-                        Foreground = Brushes.White,
+                        Foreground = new SolidColorBrush(TextPrimary),
                         Margin = new Thickness(2, 0, 0, 10)
-                    });
+                    }));
                     foreach (var section in report.sections) {
                         var secCard = new Border {
                             Background = new SolidColorBrush(bgCard),
                             BorderBrush = new SolidColorBrush(borderCol),
                             BorderThickness = new Thickness(1),
-                            CornerRadius = new CornerRadius(11),
+                            CornerRadius = new CornerRadius(8),
                             Padding = new Thickness(16, 13, 16, 13),
                             Margin = new Thickness(0, 0, 0, 10)
                         };
@@ -2030,26 +2318,26 @@ namespace JarvisSasariSa
 
                         var secHeader = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
                         var numBadge = new Border {
-                            CornerRadius = new CornerRadius(5),
-                            Background = new SolidColorBrush(Color.FromArgb(45, 77, 217, 255)),
+                            CornerRadius = new CornerRadius(6),
+                            Background = new SolidColorBrush(Color.FromArgb(24, CyanColor.R, CyanColor.G, CyanColor.B)),
                             Padding = new Thickness(7, 2, 7, 2),
                             Margin = new Thickness(0, 0, 8, 0),
                             VerticalAlignment = VerticalAlignment.Center
                         };
-                        numBadge.Child = new TextBlock {
+                        numBadge.Child = ApplyTabular(new TextBlock {
                             Text = "0" + section.sourceId,
-                            FontFamily = new FontFamily("Consolas"),
+                            FontFamily = MonoFont,
                             FontSize = 11,
                             FontWeight = FontWeights.Bold,
                             Foreground = new SolidColorBrush(CyanColor)
-                        };
+                        });
                         secHeader.Children.Add(numBadge);
                         secHeader.Children.Add(new TextBlock {
                             Text = section.title ?? "",
-                            FontFamily = new FontFamily("Malgun Gothic"),
-                            FontSize = 14.5,
+                            FontFamily = UiFont,
+                            FontSize = 14,
                             FontWeight = FontWeights.Bold,
-                            Foreground = Brushes.White,
+                            Foreground = new SolidColorBrush(TextPrimary),
                             VerticalAlignment = VerticalAlignment.Center,
                             TextWrapping = TextWrapping.Wrap
                         });
@@ -2067,9 +2355,9 @@ namespace JarvisSasariSa
                             };
                             lineBorder.Child = new TextBlock {
                                 Text = cleanLine,
-                                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
+                                FontFamily = UiFont,
                                 FontSize = 12.5,
-                                Foreground = new SolidColorBrush(Color.FromRgb(230, 238, 248)),
+                                Foreground = new SolidColorBrush(TextPrimary),
                                 TextWrapping = TextWrapping.Wrap,
                                 LineHeight = 18.5
                             };
@@ -2081,24 +2369,24 @@ namespace JarvisSasariSa
 
                 // Sources Grid
                 if (report.sources != null && report.sources.Length > 0) {
-                    body.Children.Add(new TextBlock {
-                        Text = "🔗 연결된 원본 문서 및 출처 (" + report.sources.Length + "건 · 클릭 시 즉시 열기)",
-                        FontFamily = new FontFamily("Malgun Gothic"),
-                        FontSize = 14.5,
+                    body.Children.Add(ApplyTabular(new TextBlock {
+                        Text = "연결된 원본 문서 및 출처 (" + report.sources.Length + "건)",
+                        FontFamily = UiFont,
+                        FontSize = 14,
                         FontWeight = FontWeights.Bold,
-                        Foreground = Brushes.White,
+                        Foreground = new SolidColorBrush(TextPrimary),
                         Margin = new Thickness(2, 6, 0, 8)
-                    });
+                    }));
                     foreach (var item in report.sources) {
                         string url = item.url;
                         var link = new Button {
-                            Content = new TextBlock {
+                            Content = ApplyTabular(new TextBlock {
                                 Text = "[" + item.id + "] " + item.title + "   (" + item.domain + " · " + item.readStatus + ")",
-                                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
+                                FontFamily = UiFont,
                                 FontSize = 12.5,
                                 Foreground = new SolidColorBrush(CyanColor),
                                 TextWrapping = TextWrapping.Wrap
-                            },
+                            }),
                             HorizontalContentAlignment = HorizontalAlignment.Left,
                             Padding = new Thickness(14, 9, 14, 9),
                             Margin = new Thickness(0, 0, 0, 6),
@@ -2106,6 +2394,7 @@ namespace JarvisSasariSa
                             BorderBrush = new SolidColorBrush(borderCol),
                             BorderThickness = new Thickness(1),
                             Cursor = Cursors.Hand,
+                            Template = BuildRoundedButtonTemplate(new CornerRadius(8)),
                             ToolTip = url
                         };
                         link.Click += (sender, args) => {
@@ -2135,10 +2424,11 @@ namespace JarvisSasariSa
                 researchWindow.Activate();
                 lastResearchId = id;
                 WriteLog("Research result window shown: " + id + "; sources=" + (report.sources == null ? 0 : report.sources.Length));
-            } catch (Exception ex) { WriteLog("Research window: " + ex.Message); txtStatus.Text = "⚠ 검색 결과 창을 열지 못했습니다"; }
+            } catch (Exception ex) { WriteLog("Research window: " + ex.Message); BroadcastStatus("검색 결과 창을 열지 못했습니다"); }
             finally { loadingResearchId = ""; }
         }
 
+        private static StackPanel liveStripsStack;
         private static Border taskDrawerBorder;
         private static StackPanel taskDrawerBody;
         private static TextBlock txtTaskDrawerTitle;
@@ -2149,33 +2439,54 @@ namespace JarvisSasariSa
 
         private static Border musicDrawerBorder;
         private static Border musicDiscBorder;
-        private static TextBlock txtMusicDiscIcon;
+        private static System.Windows.Shapes.Path musicDiscIcon;
         private static TextBlock txtMusicStateBadge;
         private static TextBlock txtMusicDrawerTitle;
         private static Border btnMusicPlayPauseCircle;
-        private static TextBlock txtMusicPlayPauseIcon;
+        private static System.Windows.Shapes.Path musicPlayPauseIcon;
 
-        private static WrapPanel quickChipsPanel;
-        private static bool isHudMenuDrawerPinned = false;
-        private static TextBlock txtTopMenuBtnLabel;
+        // Unified Hub Nested UI State
+        private static Border hubPanelBorder;
+        private static TextBlock txtHubMonitorBadge;
+        private static StackPanel[] hubTabPanes = new StackPanel[5];
+        private static System.Collections.Generic.List<Action> hubTabSyncCallbacks = new System.Collections.Generic.List<Action>();
+        private static TextBlock txtHubTaskTitle;
+        private static TextBlock txtHubTaskStep;
+        private static TextBlock txtHubTaskLogs;
+        private static TextBlock txtHubMediaState;
+        private static TextBlock txtHubMediaTrack;
+        private static TextBlock txtHubVoiceSummary;
+        private static TextBlock txtHubModelSummary;
+        private static TextBlock txtHubPlanSummary;
 
-        private static FrameworkElement BuildCollapsibleSubDrawers()
+        private const string IconPrevData = "M19 20L9 12l10-8v16z M5 19V5";
+        private const string IconNextData = "M5 4l10 8-10 8V4z M19 5v14";
+        private const string IconPlayData = "M5 3l14 9-14 9V3z";
+        private const string IconPauseData = "M6 4h4v16H6z M14 4h4v16h-4z";
+        private const string IconMusicData = "M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z";
+        private const string IconCloseData = "M18 6L6 18 M6 6l12 12";
+
+        private static void RefreshLiveStripHostVisibility()
         {
-            StackPanel drawersHost = new StackPanel
-            {
-                Width = 680,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 6, 0, 0)
-            };
+            if (hudInstances.Count == 0) return;
+            var primary = hudInstances[0];
+            if (primary.LiveStripHostContainer == null) return;
+            bool showTask = taskDrawerBorder != null && taskDrawerBorder.Visibility == Visibility.Visible;
+            bool showMusic = musicDrawerBorder != null && musicDrawerBorder.Visibility == Visibility.Visible;
+            primary.LiveStripHostContainer.Visibility = (showTask || showMusic) ? Visibility.Visible : Visibility.Collapsed;
+        }
 
-            // =====================================================================
-            // SUB-WINDOW 1: ⚡ 실시간 작업 · 터미널 진행 미니 창 (Collapsible)
-            // =====================================================================
+        private static void EnsureLiveStripsBuilt()
+        {
+            if (liveStripsStack != null) return;
+            liveStripsStack = new StackPanel { Width = 720, HorizontalAlignment = HorizontalAlignment.Center };
+
+            // 1) Active Task Terminal Strip (Only visible when activeTask is live and not dismissed)
             taskDrawerBorder = new Border
             {
-                CornerRadius = new CornerRadius(14),
-                Background = new SolidColorBrush(Color.FromArgb(245, 13, 17, 23)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(48, 54, 61)),
+                CornerRadius = new CornerRadius(12),
+                Background = new SolidColorBrush(BgOuterCard),
+                BorderBrush = new SolidColorBrush(BorderHairline),
                 BorderThickness = new Thickness(1),
                 Margin = new Thickness(0, 0, 0, 6),
                 Visibility = Visibility.Collapsed
@@ -2183,12 +2494,11 @@ namespace JarvisSasariSa
             StackPanel taskOuter = new StackPanel();
             taskDrawerBorder.Child = taskOuter;
 
-            // Header Bar (Click to Collapse / Expand)
             Border taskHeader = new Border
             {
-                CornerRadius = new CornerRadius(13, 13, 0, 0),
-                Background = new SolidColorBrush(Color.FromRgb(22, 27, 34)),
-                Padding = new Thickness(14, 7, 12, 7),
+                CornerRadius = new CornerRadius(12, 12, 0, 0),
+                Background = new SolidColorBrush(BgSurface),
+                Padding = new Thickness(12, 7, 12, 7),
                 Cursor = Cursors.Hand
             };
             Grid taskHGrid = new Grid();
@@ -2199,21 +2509,22 @@ namespace JarvisSasariSa
             taskHeader.Child = taskHGrid;
 
             StackPanel taskTitleRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            taskTitleRow.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(CyanColor), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center });
             txtTaskDrawerTitle = new TextBlock
             {
-                Text = "⚡ 실시간 터미널 · CHLGD 작업 진행 창",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "실시간 터미널 · CHLGD 작업 진행",
+                FontFamily = UiFont,
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)),
+                Foreground = new SolidColorBrush(TextPrimary),
                 Margin = new Thickness(0, 0, 10, 0)
             };
             txtTaskDrawerStep = new TextBlock
             {
                 Text = "실행 중",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(139, 148, 158)),
+                Foreground = new SolidColorBrush(TextSecondary),
                 VerticalAlignment = VerticalAlignment.Center
             };
             taskTitleRow.Children.Add(txtTaskDrawerTitle);
@@ -2221,33 +2532,33 @@ namespace JarvisSasariSa
             Grid.SetColumn(taskTitleRow, 0);
             taskHGrid.Children.Add(taskTitleRow);
 
-            // Collapse/Expand Toggle Button
             Border btnToggleTask = new Border
             {
-                CornerRadius = new CornerRadius(5),
-                Background = new SolidColorBrush(Color.FromRgb(33, 38, 45)),
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(BgHover),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
                 Padding = new Thickness(8, 3, 8, 3),
                 Margin = new Thickness(6, 0, 0, 0),
                 Cursor = Cursors.Hand
             };
             txtTaskCollapseBtn = new TextBlock
             {
-                Text = "▲ 접기",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "접기",
+                FontFamily = UiFont,
                 FontSize = 10.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(201, 209, 217))
+                Foreground = new SolidColorBrush(TextPrimary)
             };
             btnToggleTask.Child = txtTaskCollapseBtn;
             Grid.SetColumn(btnToggleTask, 1);
             taskHGrid.Children.Add(btnToggleTask);
 
-            // Stop Task Button
             Border btnStopTask = new Border
             {
-                CornerRadius = new CornerRadius(5),
-                Background = new SolidColorBrush(Color.FromArgb(45, 248, 81, 73)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(248, 81, 73)),
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(32, DangerColor.R, DangerColor.G, DangerColor.B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(120, DangerColor.R, DangerColor.G, DangerColor.B)),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(8, 3, 8, 3),
                 Margin = new Thickness(6, 0, 0, 0),
@@ -2256,10 +2567,10 @@ namespace JarvisSasariSa
             btnStopTask.Child = new TextBlock
             {
                 Text = "중단",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 10.5,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(255, 123, 114))
+                Foreground = new SolidColorBrush(DangerColor)
             };
             btnStopTask.MouseLeftButtonDown += (s, e) => e.Handled = true;
             btnStopTask.MouseLeftButtonUp += (s, e) =>
@@ -2273,27 +2584,25 @@ namespace JarvisSasariSa
             Grid.SetColumn(btnStopTask, 2);
             taskHGrid.Children.Add(btnStopTask);
 
-            // Dismiss Task Button
             Border btnCloseTask = new Border
             {
-                CornerRadius = new CornerRadius(5),
-                Background = new SolidColorBrush(Color.FromRgb(33, 38, 45)),
-                Padding = new Thickness(7, 3, 7, 3),
+                Width = 24,
+                Height = 22,
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(BgHover),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
                 Margin = new Thickness(6, 0, 0, 0),
                 Cursor = Cursors.Hand
             };
-            btnCloseTask.Child = new TextBlock
-            {
-                Text = "✕",
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
-                FontSize = 10.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(139, 148, 158))
-            };
+            btnCloseTask.Child = MakeIconPath(IconCloseData, TextSecondary, 9, true);
             btnCloseTask.MouseLeftButtonDown += (s, e) => e.Handled = true;
             btnCloseTask.MouseLeftButtonUp += (s, e) =>
             {
                 e.Handled = true;
+                dismissedTaskKey = currentTaskKey;
                 taskDrawerBorder.Visibility = Visibility.Collapsed;
+                RefreshLiveStripHostVisibility();
                 Task.Run(async () =>
                 {
                     try { await http.PostAsync("http://127.0.0.1:7788/api/tasks/dismiss", new StringContent("{}", Encoding.UTF8, "application/json")); } catch { }
@@ -2310,17 +2619,17 @@ namespace JarvisSasariSa
             Border consoleBox = new Border
             {
                 CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromRgb(9, 12, 16)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(33, 38, 45)),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10, 8, 10, 8)
             };
             txtTaskDrawerLogs = new TextBlock
             {
-                Text = "[JARVIS Sovereign Butler ↔ C:\\BeausCreators CHLGD Bridge Ready]\n• 인지된 에이전트: 26명 (소하 · 태준 · 거누 · 서진 · 유나 · 우진 · 수호 · 시안 · 재호 등)\n• 연동된 파이프라인: Start-Context.js / Verify-Code.ps1 / Finalize-Work.ps1 / .py / Git CI-CD\n> HUD에서 터미널 또는 CHLGD 오더를 내리시면 실시간 출력이 여기에 표시됩니다.",
-                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                Text = "[JARVIS Sovereign Butler <-> BeausCreators CHLGD Bridge]\n• 활성 에이전트: 30명 · 파이프라인 대기 중",
+                FontFamily = MonoFont,
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(201, 209, 217)),
+                Foreground = new SolidColorBrush(TextSecondary),
                 TextWrapping = TextWrapping.Wrap
             };
             consoleBox.Child = txtTaskDrawerLogs;
@@ -2330,34 +2639,25 @@ namespace JarvisSasariSa
             {
                 isTaskDrawerExpanded = !isTaskDrawerExpanded;
                 taskDrawerBody.Visibility = isTaskDrawerExpanded ? Visibility.Visible : Visibility.Collapsed;
-                txtTaskCollapseBtn.Text = isTaskDrawerExpanded ? "▲ 접기" : "▼ 펼치기";
+                txtTaskCollapseBtn.Text = isTaskDrawerExpanded ? "접기" : "펼치기";
             };
             taskHeader.MouseLeftButtonDown += (s, e) => e.Handled = true;
             taskHeader.MouseLeftButtonUp += (s, e) => { e.Handled = true; toggleTaskDrawer(); };
 
             taskOuter.Children.Add(taskHeader);
             taskOuter.Children.Add(taskDrawerBody);
-            drawersHost.Children.Add(taskDrawerBorder);
+            liveStripsStack.Children.Add(taskDrawerBorder);
 
-            // =====================================================================
-            // SUB-WINDOW 2: 🎵 프리미엄 뮤직 플레이어 HUD (음악 재생 시에만 자동 표시)
-            // =====================================================================
+            // 2) Active Music Strip (Neutral hairline border, zero neon glow, zero emojis)
             musicDrawerBorder = new Border
             {
-                CornerRadius = new CornerRadius(18),
-                Background = new SolidColorBrush(Color.FromArgb(245, 7, 13, 23)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(135, 52, 211, 153)),
-                BorderThickness = new Thickness(1.2),
-                Padding = new Thickness(14, 8, 14, 8),
-                Margin = new Thickness(0, 0, 0, 5),
-                Visibility = Visibility.Collapsed,
-                Effect = new DropShadowEffect
-                {
-                    Color = Color.FromRgb(16, 185, 129),
-                    BlurRadius = 18,
-                    ShadowDepth = 0,
-                    Opacity = 0.22
-                }
+                CornerRadius = new CornerRadius(12),
+                Background = new SolidColorBrush(BgOuterCard),
+                BorderBrush = new SolidColorBrush(BorderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 0, 0, 4),
+                Visibility = Visibility.Collapsed
             };
 
             Grid musicHGrid = new Grid();
@@ -2366,54 +2666,43 @@ namespace JarvisSasariSa
             musicHGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             musicDrawerBorder.Child = musicHGrid;
 
-            // Left: Album / Equalizer Disc Badge
             musicDiscBorder = new Border
             {
-                Width = 38,
-                Height = 38,
-                CornerRadius = new CornerRadius(11),
-                Background = new SolidColorBrush(Color.FromArgb(38, 52, 211, 153)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(115, 52, 211, 153)),
+                Width = 34,
+                Height = 34,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 12, 0),
+                Margin = new Thickness(0, 0, 10, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            txtMusicDiscIcon = new TextBlock
-            {
-                Text = "♫",
-                FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
-                FontSize = 16,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(110, 231, 183)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            musicDiscBorder.Child = txtMusicDiscIcon;
+            musicDiscIcon = MakeIconPath(IconMusicData, LimeColor, 15, true);
+            musicDiscBorder.Child = musicDiscIcon;
             Grid.SetColumn(musicDiscBorder, 0);
             musicHGrid.Children.Add(musicDiscBorder);
 
-            // Center: NOW PLAYING Badge + Track Title
             StackPanel musicTextCol = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0)
+                Margin = new Thickness(0, 0, 10, 0)
             };
             txtMusicStateBadge = new TextBlock
             {
-                Text = "● NOW PLAYING",
-                FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                Text = "NOW PLAYING",
+                FontFamily = MonoFont,
                 FontSize = 10,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(52, 211, 153)),
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(LimeColor),
                 Margin = new Thickness(0, 0, 0, 1)
             };
             txtMusicDrawerTitle = new TextBlock
             {
                 Text = "YouTube Music",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                FontFamily = UiFont,
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(TextPrimary),
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
             musicTextCol.Children.Add(txtMusicStateBadge);
@@ -2421,319 +2710,734 @@ namespace JarvisSasariSa
             Grid.SetColumn(musicTextCol, 1);
             musicHGrid.Children.Add(musicTextCol);
 
-            // Right: Sleek Circular Transport Controls (⏮ 이전곡 · ⏸/▶ 재생/일시정지 · ⏭ 다음곡 · ✕ 닫기)
             StackPanel transportRow = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            Func<string, string, string, int, Border> makeTransportCircleBtn = (iconText, cmdStr, tipText, sizePx) =>
+            Func<string, string, string, int, Border> makeTransportBtn = (iconData, cmdStr, tipText, sizePx) =>
             {
                 Border b = new Border
                 {
                     Width = sizePx,
                     Height = sizePx,
-                    CornerRadius = new CornerRadius(sizePx / 2.0),
-                    Background = new SolidColorBrush(Color.FromArgb(220, 22, 29, 41)),
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(140, 68, 82, 104)),
+                    CornerRadius = new CornerRadius(8),
+                    Background = new SolidColorBrush(BgSurface),
+                    BorderBrush = new SolidColorBrush(BorderHairline),
                     BorderThickness = new Thickness(1),
                     Margin = new Thickness(5, 0, 0, 0),
                     Cursor = Cursors.Hand,
                     ToolTip = tipText
                 };
-                b.Child = new TextBlock
-                {
-                    Text = iconText,
-                    FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
-                    FontSize = 12,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(230, 237, 243)),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                b.MouseEnter += (s, e) => { b.Background = new SolidColorBrush(Color.FromArgb(245, 34, 45, 62)); };
-                b.MouseLeave += (s, e) => { b.Background = new SolidColorBrush(Color.FromArgb(220, 22, 29, 41)); };
+                b.Child = MakeIconPath(iconData, TextPrimary, 12, true);
+                b.MouseEnter += (s, e) => { b.Background = new SolidColorBrush(BgHover); };
+                b.MouseLeave += (s, e) => { b.Background = new SolidColorBrush(BgSurface); };
                 b.MouseLeftButtonDown += (s, e) => e.Handled = true;
                 b.MouseLeftButtonUp += (s, e) => { e.Handled = true; SendCommandToButler(cmdStr); };
                 return b;
             };
 
-            Border btnPrevTrack = makeTransportCircleBtn("⏮", "이전 곡", "이전 곡", 34);
-            transportRow.Children.Add(btnPrevTrack);
+            transportRow.Children.Add(makeTransportBtn(IconPrevData, "이전 곡", "이전 곡", 30));
 
             btnMusicPlayPauseCircle = new Border
             {
-                Width = 38,
-                Height = 38,
-                CornerRadius = new CornerRadius(19),
-                Background = new SolidColorBrush(Color.FromArgb(55, 52, 211, 153)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(52, 211, 153)),
-                BorderThickness = new Thickness(1.3),
-                Margin = new Thickness(6, 0, 0, 0),
+                Width = 32,
+                Height = 32,
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(Color.FromArgb(30, LimeColor.R, LimeColor.G, LimeColor.B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(110, LimeColor.R, LimeColor.G, LimeColor.B)),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(5, 0, 0, 0),
                 Cursor = Cursors.Hand,
                 ToolTip = "재생 / 일시정지"
             };
-            txtMusicPlayPauseIcon = new TextBlock
-            {
-                Text = "⏸",
-                FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
-                FontSize = 13.5,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            btnMusicPlayPauseCircle.Child = txtMusicPlayPauseIcon;
+            musicPlayPauseIcon = MakeIconPath(IconPauseData, LimeColor, 12, true);
+            btnMusicPlayPauseCircle.Child = musicPlayPauseIcon;
             btnMusicPlayPauseCircle.MouseLeftButtonDown += (s, e) => e.Handled = true;
             btnMusicPlayPauseCircle.MouseLeftButtonUp += (s, e) => { e.Handled = true; SendCommandToButler("재생 일시정지 토글"); };
             transportRow.Children.Add(btnMusicPlayPauseCircle);
 
-            Border btnNextTrack = makeTransportCircleBtn("⏭", "다음 곡", "다음 곡", 34);
-            transportRow.Children.Add(btnNextTrack);
+            transportRow.Children.Add(makeTransportBtn(IconNextData, "다음 곡", "다음 곡", 30));
 
             Border btnCloseMusicHud = new Border
             {
                 Width = 28,
                 Height = 28,
-                CornerRadius = new CornerRadius(14),
-                Background = new SolidColorBrush(Color.FromArgb(35, 248, 81, 73)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(110, 248, 81, 73)),
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(26, DangerColor.R, DangerColor.G, DangerColor.B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(90, DangerColor.R, DangerColor.G, DangerColor.B)),
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(8, 0, 0, 0),
+                Margin = new Thickness(6, 0, 0, 0),
                 Cursor = Cursors.Hand,
                 ToolTip = "음악 끄기"
             };
-            btnCloseMusicHud.Child = new TextBlock
-            {
-                Text = "✕",
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
-                FontSize = 10.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(255, 139, 130)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+            btnCloseMusicHud.Child = MakeIconPath(IconCloseData, DangerColor, 10, true);
             btnCloseMusicHud.MouseLeftButtonDown += (s, e) => e.Handled = true;
             btnCloseMusicHud.MouseLeftButtonUp += (s, e) =>
             {
                 e.Handled = true;
                 musicDrawerBorder.Visibility = Visibility.Collapsed;
+                RefreshLiveStripHostVisibility();
                 SendCommandToButler("음악 꺼줘");
             };
             transportRow.Children.Add(btnCloseMusicHud);
 
             Grid.SetColumn(transportRow, 2);
             musicHGrid.Children.Add(transportRow);
-            drawersHost.Children.Add(musicDrawerBorder);
-
-            // =====================================================================
-            // SUB-WINDOW 3: 빠른 오더 칩 메뉴 바 (Quick Chips Bar — Menu Toggleable)
-            // =====================================================================
-            quickChipsPanel = new WrapPanel
-            {
-                Margin = new Thickness(2, 2, 2, 0),
-                Visibility = Visibility.Collapsed
-            };
-
-            Func<string, string, Color, Color, Border> makeQuickChip = (label, cmdToRun, borderCol, textCol) =>
-            {
-                Border chip = new Border
-                {
-                    CornerRadius = new CornerRadius(14),
-                    Background = new SolidColorBrush(Color.FromArgb(235, 16, 22, 32)),
-                    BorderBrush = new SolidColorBrush(borderCol),
-                    BorderThickness = new Thickness(1),
-                    Padding = new Thickness(10, 5, 10, 5),
-                    Margin = new Thickness(0, 0, 6, 5),
-                    Cursor = Cursors.Hand
-                };
-                chip.Child = new TextBlock
-                {
-                    Text = label,
-                    FontFamily = new FontFamily("Malgun Gothic"),
-                    FontSize = 11,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(textCol)
-                };
-                chip.MouseLeftButtonDown += (s, e) => e.Handled = true;
-                chip.MouseLeftButtonUp += (s, e) =>
-                {
-                    e.Handled = true;
-                    if (cmdToRun == "__MIC__")
-                    {
-                        PromptListenNow();
-                    }
-                    else if (cmdToRun == "__OPEN_PLAN_WIN__")
-                    {
-                        ShowPlanAndChlgdDocumentWindow("plan");
-                    }
-                    else if (cmdToRun == "__OPEN_RULES_WIN__")
-                    {
-                        ShowPlanAndChlgdDocumentWindow("rules");
-                    }
-                    else if (cmdToRun == "__OPEN_HARNESS2_WIN__")
-                    {
-                        ShowPlanAndChlgdDocumentWindow("harness2");
-                    }
-                    else if (cmdToRun == "__OPEN_REA_WIN__")
-                    {
-                        ShowPlanAndChlgdDocumentWindow("rea");
-                    }
-                    else
-                    {
-                        SendCommandToButler(cmdToRun);
-                    }
-                };
-                return chip;
-            };
-
-            quickChipsPanel.Children.Add(makeQuickChip("🎙 마이크 켜기", "__MIC__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
-            quickChipsPanel.Children.Add(makeQuickChip("📋 Plan · 문서 프리뷰 HUD 창", "__OPEN_PLAN_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(165, 214, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("📓 CHLGD · 재귀 규칙 & 오더 원장", "__OPEN_RULES_WIN__", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
-            quickChipsPanel.Children.Add(makeQuickChip("🌐 3대 생태계 · Harness² 현황", "__OPEN_HARNESS2_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🔬 REA v6.8.0 · Laya & MCP", "__OPEN_REA_WIN__", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🗂 “오늘 할 일 정리해 줘” (본사 브리핑)", "오늘 할 일 정리해 줘", Color.FromRgb(46, 160, 67), Color.FromRgb(86, 211, 100)));
-            quickChipsPanel.Children.Add(makeQuickChip("🧠 “뉴런에서 REA 검색해줘” (2-Hop 시냅스)", "뉴런에서 REA 검색해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("📚 “뷰티풀월드 출판 시스템 점검해줘”", "뷰티풀월드 출판 시스템 점검해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("📄 “방금 검색 결과 워드로 만들어줘”", "방금 검색 결과 워드로 만들어줘", Color.FromRgb(56, 139, 253), Color.FromRgb(165, 214, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🧬 “라야로 현재 프로젝트 상태 점검해줘”", "라야로 현재 프로젝트 상태 점검해줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🛡 “CHLGD 코드 검증 돌려줘” (CI/CD)", "CHLGD 코드 검증 돌려줘", Color.FromRgb(56, 139, 253), Color.FromRgb(121, 192, 255)));
-            quickChipsPanel.Children.Add(makeQuickChip("🎵 “유튜브에서 로파이 음악 틀어줘”", "유튜브에서 로파이 음악 틀어줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
-            quickChipsPanel.Children.Add(makeQuickChip("⏹ “음악 꺼줘”", "음악 꺼줘", Color.FromRgb(68, 76, 86), Color.FromRgb(201, 209, 217)));
-
-            drawersHost.Children.Add(quickChipsPanel);
-
-            return drawersHost;
+            liveStripsStack.Children.Add(musicDrawerBorder);
         }
 
-        private static void ToggleHudMenuDrawer()
+        private static void EnsureUnifiedHubBuilt()
         {
-            isHudMenuDrawerPinned = !isHudMenuDrawerPinned;
-            if (taskDrawerBorder != null)
+            if (hubPanelBorder != null) return;
+
+            hubPanelBorder = new Border
             {
-                taskDrawerBorder.Visibility = isHudMenuDrawerPinned ? Visibility.Visible : Visibility.Collapsed;
-            }
-            if (quickChipsPanel != null)
+                Width = 720,
+                CornerRadius = new CornerRadius(12),
+                Background = new SolidColorBrush(BgOuterCard),
+                BorderBrush = new SolidColorBrush(BorderHairline),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(14),
+                Visibility = Visibility.Collapsed,
+                Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 22, ShadowDepth = 6, Opacity = 0.55 }
+            };
+
+            StackPanel hubStack = new StackPanel();
+            hubPanelBorder.Child = hubStack;
+
+            // Hub Header
+            Grid hubTopGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            hubTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hubTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hubStack.Children.Add(hubTopGrid);
+
+            StackPanel hubTitleLeft = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            hubTitleLeft.Children.Add(new TextBlock
             {
-                quickChipsPanel.Visibility = isHudMenuDrawerPinned ? Visibility.Visible : Visibility.Collapsed;
-            }
-            if (txtTopMenuBtnLabel != null)
+                Text = "JARVIS 통합 제어 허브",
+                FontFamily = UiFont,
+                FontSize = 13.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(TextPrimary),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0)
+            });
+            Border hubMonBadge = new Border
             {
-                txtTopMenuBtnLabel.Text = isHudMenuDrawerPinned ? "☰ 메뉴 닫기" : "☰ 메뉴";
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(7, 2, 7, 2),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            txtHubMonitorBadge = new TextBlock
+            {
+                Text = "주 모니터",
+                FontFamily = UiFont,
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(CyanColor)
+            };
+            hubMonBadge.Child = txtHubMonitorBadge;
+            hubTitleLeft.Children.Add(hubMonBadge);
+            Grid.SetColumn(hubTitleLeft, 0);
+            hubTopGrid.Children.Add(hubTitleLeft);
+
+            StackPanel hubTopActions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            Func<string, Action, Border> makeCompactHeaderChip = (label, onClick) =>
+            {
+                Border cb = new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(BgSurface),
+                    BorderBrush = new SolidColorBrush(BorderHairline),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(9, 4, 9, 4),
+                    Margin = new Thickness(6, 0, 0, 0),
+                    Cursor = Cursors.Hand
+                };
+                cb.Child = new TextBlock
+                {
+                    Text = label,
+                    FontFamily = UiFont,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(TextSecondary)
+                };
+                cb.MouseEnter += (s, e) => cb.Background = new SolidColorBrush(BgHover);
+                cb.MouseLeave += (s, e) => cb.Background = new SolidColorBrush(BgSurface);
+                cb.MouseLeftButtonDown += (s, e) => e.Handled = true;
+                cb.MouseLeftButtonUp += (s, e) => { e.Handled = true; onClick(); };
+                return cb;
+            };
+            hubTopActions.Children.Add(makeCompactHeaderChip("미니 모드", () => ToggleMiniMode(true)));
+            hubTopActions.Children.Add(makeCompactHeaderChip("닫기", () => CloseUnifiedHub()));
+            Grid.SetColumn(hubTopActions, 1);
+            hubTopGrid.Children.Add(hubTopActions);
+
+            // Segmented Tab Bar (5 Organized Sections)
+            Border tabTrack = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(3),
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+            Grid tabGrid = new Grid();
+            string[] tabTitles = { "빠른 실행", "작업 · 미디어", "Plan · CHLGD · REA", "음성 · 성문", "시스템 · 설정" };
+            for (int i = 0; i < tabTitles.Length; i++)
+            {
+                tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             }
+            tabTrack.Child = tabGrid;
+            hubStack.Children.Add(tabTrack);
+
+            Grid hubPaneHost = new Grid();
+            hubStack.Children.Add(hubPaneHost);
+
+            for (int i = 0; i < 5; i++)
+            {
+                hubTabPanes[i] = new StackPanel { Visibility = i == 0 ? Visibility.Visible : Visibility.Collapsed };
+                hubPaneHost.Children.Add(hubTabPanes[i]);
+
+                int idx = i;
+                Border tb = new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(6, 6, 6, 6),
+                    Cursor = Cursors.Hand
+                };
+                TextBlock tt = new TextBlock
+                {
+                    Text = tabTitles[i],
+                    FontFamily = UiFont,
+                    FontSize = 11.5,
+                    FontWeight = FontWeights.SemiBold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                tb.Child = tt;
+                Grid.SetColumn(tb, i);
+                tabGrid.Children.Add(tb);
+
+                Action syncTab = () =>
+                {
+                    bool active = (activeHubTabIndex == idx);
+                    tb.Background = new SolidColorBrush(active ? BgActiveTint : Colors.Transparent);
+                    tb.BorderBrush = new SolidColorBrush(active ? Color.FromArgb(100, CyanColor.R, CyanColor.G, CyanColor.B) : Colors.Transparent);
+                    tb.BorderThickness = new Thickness(1);
+                    tt.Foreground = new SolidColorBrush(active ? TextPrimary : TextSecondary);
+                };
+                hubTabSyncCallbacks.Add(syncTab);
+                syncTab();
+
+                tb.MouseLeftButtonDown += (s, e) => e.Handled = true;
+                tb.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    SelectUnifiedHubTab(idx);
+                };
+            }
+
+            Func<string, string, Action, Border> makeHubActionTile = (title, sub, onClick) =>
+            {
+                Border card = new Border
+                {
+                    CornerRadius = new CornerRadius(8),
+                    Background = new SolidColorBrush(BgSurface),
+                    BorderBrush = new SolidColorBrush(BorderSubtle),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(11, 8, 11, 8),
+                    Margin = new Thickness(0, 0, 6, 6),
+                    Cursor = Cursors.Hand
+                };
+                StackPanel sp = new StackPanel();
+                card.Child = sp;
+                sp.Children.Add(new TextBlock
+                {
+                    Text = title,
+                    FontFamily = UiFont,
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(TextPrimary),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+                if (!string.IsNullOrEmpty(sub))
+                {
+                    sp.Children.Add(new TextBlock
+                    {
+                        Text = sub,
+                        FontFamily = UiFont,
+                        FontSize = 10.5,
+                        Foreground = new SolidColorBrush(TextMuted),
+                        Margin = new Thickness(0, 2, 0, 0),
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    });
+                }
+                card.MouseEnter += (s, e) => card.Background = new SolidColorBrush(BgHover);
+                card.MouseLeave += (s, e) => card.Background = new SolidColorBrush(BgSurface);
+                card.MouseLeftButtonDown += (s, e) => e.Handled = true;
+                card.MouseLeftButtonUp += (s, e) => { e.Handled = true; onClick(); };
+                return card;
+            };
+
+            // -----------------------------------------------------------------
+            // HUB TAB 0: 빠른 실행 + 창 위치 프리셋 / 미니 모드
+            // -----------------------------------------------------------------
+            hubTabPanes[0].Children.Add(new TextBlock
+            {
+                Text = "빠른 음성 · 시스템 명령",
+                FontFamily = UiFont,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(TextMuted),
+                Margin = new Thickness(2, 0, 0, 6)
+            });
+            var quickGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
+            quickGrid.Children.Add(makeHubActionTile("지금 바로 말하기", "상시 마이크 집중 경청", () => { CloseUnifiedHub(); PromptListenNow(); }));
+            quickGrid.Children.Add(makeHubActionTile("오늘 할 일 정리", "본사 작업일지 · 일정 브리핑", () => SendCommandToButler("오늘 할 일 정리해 줘")));
+            quickGrid.Children.Add(makeHubActionTile("뉴런 REA 검색", "Warehouse 2-Hop 지식망", () => SendCommandToButler("뉴런에서 REA 검색해줘")));
+            quickGrid.Children.Add(makeHubActionTile("뷰티풀월드 점검", "출판 시스템 · 자산 상태", () => SendCommandToButler("뷰티풀월드 출판 시스템 점검해줘")));
+            quickGrid.Children.Add(makeHubActionTile("검색 결과 워드 생성", "최근 리서치 DOCX 내보내기", () => SendCommandToButler("방금 검색 결과 워드로 만들어줘")));
+            quickGrid.Children.Add(makeHubActionTile("Laya 프로젝트 점검", "다국어 의사결정 진단", () => SendCommandToButler("라야로 현재 프로젝트 상태 점검해줘")));
+            quickGrid.Children.Add(makeHubActionTile("CHLGD 코드 검증", "CI/CD · 보안 무결성 실행", () => SendCommandToButler("CHLGD 코드 검증 돌려줘")));
+            quickGrid.Children.Add(makeHubActionTile("로파이 음악 재생", "YouTube Music 즉시 실행", () => SendCommandToButler("유튜브에서 로파이 음악 틀어줘")));
+            quickGrid.Children.Add(makeHubActionTile("오늘 날씨 브리핑", "기상청 · Open-Meteo 요약", () => SendCommandToButler("오늘 날씨 브리핑해줘")));
+            hubTabPanes[0].Children.Add(quickGrid);
+
+            hubTabPanes[0].Children.Add(new TextBlock
+            {
+                Text = "HUD 창 배치 및 화면 모드",
+                FontFamily = UiFont,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(TextMuted),
+                Margin = new Thickness(2, 6, 0, 6)
+            });
+            var winGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4 };
+            winGrid.Children.Add(makeHubActionTile("왼쪽 위 배치", "현재 모니터 상단 좌측", () => { if (activeHubOwner != null) PositionHudOnAssignedScreen(activeHubOwner, "top-left"); }));
+            winGrid.Children.Add(makeHubActionTile("가운데 위 배치", "현재 모니터 상단 중앙", () => { if (activeHubOwner != null) PositionHudOnAssignedScreen(activeHubOwner, "top-center"); }));
+            winGrid.Children.Add(makeHubActionTile("오른쪽 아래 배치", "현재 모니터 하단 우측", () => { if (activeHubOwner != null) PositionHudOnAssignedScreen(activeHubOwner, "bottom-right"); }));
+            winGrid.Children.Add(makeHubActionTile("모든 모니터 정렬", "전체 HUD 기본 위치 복귀", () => PlaceHudWindows()));
+            hubTabPanes[0].Children.Add(winGrid);
+
+            // -----------------------------------------------------------------
+            // HUB TAB 1: 실시간 작업 터미널 · 미니 뮤직 컨트롤러
+            // -----------------------------------------------------------------
+            Border hubTaskCard = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            StackPanel hubTaskStack = new StackPanel();
+            hubTaskCard.Child = hubTaskStack;
+            Grid hubTaskHeader = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            hubTaskHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hubTaskHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hubTaskStack.Children.Add(hubTaskHeader);
+
+            StackPanel hubTaskTitleRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            txtHubTaskTitle = new TextBlock { Text = "실시간 작업 터미널", FontFamily = UiFont, FontSize = 12.5, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(TextPrimary), Margin = new Thickness(0, 0, 8, 0) };
+            txtHubTaskStep = new TextBlock { Text = "대기 중", FontFamily = UiFont, FontSize = 11, Foreground = new SolidColorBrush(TextSecondary), VerticalAlignment = VerticalAlignment.Center };
+            hubTaskTitleRow.Children.Add(txtHubTaskTitle);
+            hubTaskTitleRow.Children.Add(txtHubTaskStep);
+            Grid.SetColumn(hubTaskTitleRow, 0);
+            hubTaskHeader.Children.Add(hubTaskTitleRow);
+
+            StackPanel hubTaskBtns = new StackPanel { Orientation = Orientation.Horizontal };
+            hubTaskBtns.Children.Add(makeCompactHeaderChip("작업 중단", () =>
+            {
+                Task.Run(async () => { try { await http.PostAsync("http://127.0.0.1:7788/api/tasks/stop", new StringContent("{}", Encoding.UTF8, "application/json")); } catch { } });
+            }));
+            hubTaskBtns.Children.Add(makeCompactHeaderChip("배너 숨기기", () =>
+            {
+                dismissedTaskKey = currentTaskKey;
+                if (taskDrawerBorder != null) taskDrawerBorder.Visibility = Visibility.Collapsed;
+                RefreshLiveStripHostVisibility();
+                Task.Run(async () => { try { await http.PostAsync("http://127.0.0.1:7788/api/tasks/dismiss", new StringContent("{}", Encoding.UTF8, "application/json")); } catch { } });
+            }));
+            Grid.SetColumn(hubTaskBtns, 1);
+            hubTaskHeader.Children.Add(hubTaskBtns);
+
+            Border hubConsoleBox = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(10, 7, 10, 7)
+            };
+            txtHubTaskLogs = new TextBlock
+            {
+                Text = "[BeausCreators CHLGD Bridge] 활성 에이전트 30명 · 대기 중입니다.",
+                FontFamily = MonoFont,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(TextSecondary),
+                TextWrapping = TextWrapping.Wrap
+            };
+            hubConsoleBox.Child = txtHubTaskLogs;
+            hubTaskStack.Children.Add(hubConsoleBox);
+            hubTabPanes[1].Children.Add(hubTaskCard);
+
+            Border hubMediaCard = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 10, 12, 10)
+            };
+            Grid hubMediaGrid = new Grid();
+            hubMediaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hubMediaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hubMediaCard.Child = hubMediaGrid;
+
+            StackPanel hubMediaInfo = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+            txtHubMediaState = new TextBlock { Text = "MEDIA IDLE", FontFamily = MonoFont, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(TextMuted) };
+            txtHubMediaTrack = new TextBlock { Text = "재생 중인 미디어 없음", FontFamily = UiFont, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(TextPrimary), TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2, 0, 0) };
+            hubMediaInfo.Children.Add(txtHubMediaState);
+            hubMediaInfo.Children.Add(txtHubMediaTrack);
+            Grid.SetColumn(hubMediaInfo, 0);
+            hubMediaGrid.Children.Add(hubMediaInfo);
+
+            StackPanel hubMediaCtrl = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            hubMediaCtrl.Children.Add(makeCompactHeaderChip("이전 곡", () => SendCommandToButler("이전 곡")));
+            hubMediaCtrl.Children.Add(makeCompactHeaderChip("재생/일시정지", () => SendCommandToButler("재생 일시정지 토글")));
+            hubMediaCtrl.Children.Add(makeCompactHeaderChip("다음 곡", () => SendCommandToButler("다음 곡")));
+            hubMediaCtrl.Children.Add(makeCompactHeaderChip("음악 끄기", () => SendCommandToButler("음악 꺼줘")));
+            Grid.SetColumn(hubMediaCtrl, 1);
+            hubMediaGrid.Children.Add(hubMediaCtrl);
+            hubTabPanes[1].Children.Add(hubMediaCard);
+
+            // -----------------------------------------------------------------
+            // HUB TAB 2: Plan · CHLGD · Harness² · REA 워크스페이스
+            // -----------------------------------------------------------------
+            var wsGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+            wsGrid.Children.Add(makeHubActionTile("Plan · 설계 로드맵 창", "목표 · 단계별 Plan 작성 및 동기화", () => { CloseUnifiedHub(); ShowPlanAndChlgdDocumentWindow("plan"); }));
+            wsGrid.Children.Add(makeHubActionTile("CHLGD 대화 규칙 · 오더 원장", "대화 학습 규칙 등록 및 KPI 조회", () => { CloseUnifiedHub(); ShowPlanAndChlgdDocumentWindow("rules"); }));
+            wsGrid.Children.Add(makeHubActionTile("3대 생태계 & Harness² 관제", "30명 에이전트 · 8-Surface 자가진화", () => { CloseUnifiedHub(); ShowPlanAndChlgdDocumentWindow("harness2"); }));
+            wsGrid.Children.Add(makeHubActionTile("REA v6.8.0 · Laya · MCP", "4-Stage 역공학 및 8대 도구 카탈로그", () => { CloseUnifiedHub(); ShowPlanAndChlgdDocumentWindow("rea"); }));
+            hubTabPanes[2].Children.Add(wsGrid);
+
+            Border wsPreviewCard = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 9, 12, 9),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            Grid wsPrevGrid = new Grid();
+            wsPrevGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            wsPrevGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            wsPreviewCard.Child = wsPrevGrid;
+            txtHubPlanSummary = ApplyTabular(new TextBlock
+            {
+                Text = "본사 30명 에이전트 · Harness² 8-Surface 검증 · REA v6.8.0 준비 완료",
+                FontFamily = UiFont,
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(TextSecondary),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap
+            });
+            Grid.SetColumn(txtHubPlanSummary, 0);
+            wsPrevGrid.Children.Add(txtHubPlanSummary);
+            Border btnRunH2 = makeCompactHeaderChip("Harness² 자가진화", () =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await http.PostAsync("http://127.0.0.1:7788/api/hud/harness2-evolve", new StringContent("{\"reason\":\"Hub Trigger\"}", Encoding.UTF8, "application/json"));
+                        if (hudWindow != null) hudWindow.Dispatcher.Invoke(() => BroadcastStatus("Harness² 자가진화 루프 완료"));
+                    }
+                    catch { }
+                });
+            });
+            Grid.SetColumn(btnRunH2, 1);
+            wsPrevGrid.Children.Add(btnRunH2);
+            hubTabPanes[2].Children.Add(wsPreviewCard);
+
+            // -----------------------------------------------------------------
+            // HUB TAB 3: 음성 · 성문 · 마이크 (Direct Pane 2 Routing)
+            // -----------------------------------------------------------------
+            var voiceGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+            voiceGrid.Children.Add(makeHubActionTile("성문 등록 · 내 목소리만 반응", "WeSpeaker 화자 인식 · 음성 설정 창 열기", () => { CloseUnifiedHub(); ShowHotkeySettingsWindow(2); }));
+            voiceGrid.Children.Add(makeHubActionTile("상시 음성인식 마이크 재연결", "Ear 워커 복구 및 즉시 경청 대기", () => { CloseUnifiedHub(); StartHandsFreeVoiceEar(); }));
+            voiceGrid.Children.Add(makeHubActionTile("HD 자연음성 미리 듣기", "현재 선택된 Neural 목소리 테스트", () => SpeakAsync("안녕하세요, 이건우 대표님. 선택한 목소리와 속도로 안내하고 있습니다.")));
+            voiceGrid.Children.Add(makeHubActionTile("스튜디오 음성 속도 · 목소리 변경", "현수 / 인준 / 선히 · 1.00x~1.50x", () => { CloseUnifiedHub(); ShowHotkeySettingsWindow(2); }));
+            hubTabPanes[3].Children.Add(voiceGrid);
+
+            Border voiceStatusBox = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            txtHubVoiceSummary = ApplyTabular(new TextBlock
+            {
+                Text = "현재 음성: " + currentSpeechVoice + " · 속도 " + currentSpeechSpeedRatio.ToString("0.00") + "x",
+                FontFamily = UiFont,
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(TextSecondary)
+            });
+            voiceStatusBox.Child = txtHubVoiceSummary;
+            hubTabPanes[3].Children.Add(voiceStatusBox);
+
+            // -----------------------------------------------------------------
+            // HUB TAB 4: AI 모델 · 계정 · 단축키 · 시스템
+            // -----------------------------------------------------------------
+            var sysGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+            sysGrid.Children.Add(makeHubActionTile("AI 모델 · 요금제 티어", "Ultra / Pro / Free / Local 모델 선택", () => { CloseUnifiedHub(); ShowHotkeySettingsWindow(0); }));
+            sysGrid.Children.Add(makeHubActionTile("계정 · Gemini API 키 연결", "Antigravity OAuth 및 커스텀 모델", () => { CloseUnifiedHub(); ShowHotkeySettingsWindow(1); }));
+            sysGrid.Children.Add(makeHubActionTile("호출 단축키 · 미디어 설정", "단축키 영구 저장 (" + customHotkeyLabel + ")", () => { CloseUnifiedHub(); ShowHotkeySettingsWindow(3); }));
+            sysGrid.Children.Add(makeHubActionTile("부트 시퀀스 재생 (아빠 왔어)", "전체 화면 JARVIS 부트 오버레이 실행", () => { CloseUnifiedHub(); SendCommandToButler("아빠 왔어"); }));
+            hubTabPanes[4].Children.Add(sysGrid);
+
+            Border sysFooter = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(BgSubRow),
+                BorderBrush = new SolidColorBrush(BorderSubtle),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            Grid sysFootGrid = new Grid();
+            sysFootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            sysFootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            sysFooter.Child = sysFootGrid;
+            txtHubModelSummary = ApplyTabular(new TextBlock
+            {
+                Text = "모델: " + currentBrainModel + " (" + currentBrainProvider + ") · 단축키: " + customHotkeyLabel,
+                FontFamily = MonoFont,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(TextSecondary),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            Grid.SetColumn(txtHubModelSummary, 0);
+            sysFootGrid.Children.Add(txtHubModelSummary);
+            Border btnQuitFromHub = makeCompactHeaderChip("자비스 종료", () => RequestHudShutdown("Hub system tab"));
+            Grid.SetColumn(btnQuitFromHub, 1);
+            sysFootGrid.Children.Add(btnQuitFromHub);
+            hubTabPanes[4].Children.Add(sysFooter);
+        }
+
+        private static void RefreshHubSummaries()
+        {
+            if (txtHubVoiceSummary != null)
+            {
+                txtHubVoiceSummary.Text = "현재 음성: " + currentSpeechVoice + " · 속도 " + currentSpeechSpeedRatio.ToString("0.00") + "x";
+            }
+            if (txtHubModelSummary != null)
+            {
+                txtHubModelSummary.Text = "모델: " + currentBrainModel + " (" + currentBrainProvider + ") · 단축키: " + customHotkeyLabel;
+            }
+        }
+
+        private static void SelectUnifiedHubTab(int idx)
+        {
+            if (idx < 0 || idx >= hubTabPanes.Length) idx = 0;
+            activeHubTabIndex = idx;
+            for (int i = 0; i < hubTabPanes.Length; i++)
+            {
+                if (hubTabPanes[i] != null) hubTabPanes[i].Visibility = (i == idx) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            foreach (var cb in hubTabSyncCallbacks) { try { cb(); } catch { } }
+        }
+
+        private static void CloseUnifiedHub()
+        {
+            if (activeHubOwner != null && activeHubOwner.HubHostContainer != null)
+            {
+                activeHubOwner.HubHostContainer.Child = null;
+                activeHubOwner.HubHostContainer.Visibility = Visibility.Collapsed;
+            }
+            if (hubPanelBorder != null) hubPanelBorder.Visibility = Visibility.Collapsed;
+            activeHubOwner = null;
+            SyncHubActivityIndicators();
+        }
+
+        private static void ToggleUnifiedHub(HudWindowInstance owner, int? forceTabIndex)
+        {
+            EnsureUnifiedHubBuilt();
+            if (owner == null) owner = hudInstances.Count > 0 ? hudInstances[0] : null;
+            if (owner == null || owner.HubHostContainer == null) return;
+
+            bool isSameOpen = (activeHubOwner == owner && hubPanelBorder.Visibility == Visibility.Visible && !forceTabIndex.HasValue);
+            if (isSameOpen)
+            {
+                CloseUnifiedHub();
+                return;
+            }
+
+            if (activeHubOwner != null && activeHubOwner != owner && activeHubOwner.HubHostContainer != null)
+            {
+                activeHubOwner.HubHostContainer.Child = null;
+                activeHubOwner.HubHostContainer.Visibility = Visibility.Collapsed;
+            }
+
+            activeHubOwner = owner;
+            if (txtHubMonitorBadge != null)
+            {
+                txtHubMonitorBadge.Text = owner.MonitorIndex == 0 ? "주 모니터" : ("보조 모니터 " + (owner.MonitorIndex + 1));
+            }
+            RefreshHubSummaries();
+            SelectUnifiedHubTab(forceTabIndex.HasValue ? forceTabIndex.Value : activeHubTabIndex);
+
+            owner.HubHostContainer.Child = hubPanelBorder;
+            owner.HubHostContainer.Visibility = Visibility.Visible;
+            hubPanelBorder.Visibility = Visibility.Visible;
+            SyncHubActivityIndicators();
         }
 
         private static async Task PollSubWindowsAsync()
         {
-            string json = await http.GetStringAsync("http://127.0.0.1:7788/api/hud/subwindows");
+            string json = await http.GetStringAsync("http://127.0.0.1:7788/api/hud/subwindows?lite=1");
             if (string.IsNullOrWhiteSpace(json)) return;
 
-            // 1) Task Sub-Window
-            if (json.Contains("\"activeTask\":{"))
-            {
-                int idx = json.IndexOf("\"activeTask\":{");
-                string sub = json.Substring(idx);
-                string title = ExtractJsonField(sub, "title");
-                string step = ExtractJsonField(sub, "step");
-                taskDrawerBorder.Visibility = Visibility.Visible;
-                txtTaskDrawerTitle.Text = "⚡ " + (!string.IsNullOrEmpty(title) ? title : "터미널 작업 실행 중");
-                txtTaskDrawerStep.Text = step;
+            var ser = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var root = ser.Deserialize<System.Collections.Generic.Dictionary<string, object>>(json);
+            if (root == null) return;
 
-                int linesIdx = sub.IndexOf("\"lines\":[");
-                if (linesIdx >= 0)
+            // 1) Task Sub-Window (JavaScriptSerializer, decoupled from menu pin, respects dismissal)
+            var activeTask = root.ContainsKey("activeTask") ? root["activeTask"] as System.Collections.Generic.Dictionary<string, object> : null;
+            if (activeTask != null)
+            {
+                hasActiveTaskLive = true;
+                string title = activeTask.ContainsKey("title") ? Convert.ToString(activeTask["title"]) : "터미널 작업 실행 중";
+                string step = activeTask.ContainsKey("step") ? Convert.ToString(activeTask["step"]) : "";
+                string startedAt = activeTask.ContainsKey("startedAt") ? Convert.ToString(activeTask["startedAt"]) : "";
+                currentTaskKey = title + "|" + startedAt;
+
+                var linesList = new System.Collections.Generic.List<string>();
+                var rawLines = activeTask.ContainsKey("lines") ? activeTask["lines"] as System.Collections.ArrayList : null;
+                if (rawLines != null)
                 {
-                    int endArr = sub.IndexOf("],\"startedAt\"", linesIdx);
-                    if (endArr < 0) endArr = sub.IndexOf("\"]", linesIdx);
-                    if (endArr > linesIdx)
+                    int startIdx = Math.Max(0, rawLines.Count - 5);
+                    for (int i = startIdx; i < rawLines.Count; i++)
                     {
-                        string rawArr = sub.Substring(linesIdx + 9, endArr - (linesIdx + 9));
-                        string cleaned = rawArr.Replace("\",\"", "\n").Trim('\"', '[', ']').Replace("\\\"", "\"").Replace("\\\\", "\\");
-                        string[] splitLines = cleaned.Split('\n');
-                        int startLine = Math.Max(0, splitLines.Length - 5);
-                        txtTaskDrawerLogs.Text = string.Join("\n", splitLines, startLine, splitLines.Length - startLine);
+                        linesList.Add(Convert.ToString(rawLines[i]));
                     }
                 }
+                string logsText = linesList.Count > 0 ? string.Join("\n", linesList.ToArray()) : "실행 로그 수신 중…";
+
+                if (txtTaskDrawerTitle != null) txtTaskDrawerTitle.Text = !string.IsNullOrEmpty(title) ? title : "터미널 작업 실행 중";
+                if (txtTaskDrawerStep != null) txtTaskDrawerStep.Text = step;
+                if (txtTaskDrawerLogs != null) txtTaskDrawerLogs.Text = logsText;
+                if (txtHubTaskTitle != null) txtHubTaskTitle.Text = !string.IsNullOrEmpty(title) ? title : "실시간 작업 터미널";
+                if (txtHubTaskStep != null) txtHubTaskStep.Text = string.IsNullOrEmpty(step) ? "실행 중" : step;
+                if (txtHubTaskLogs != null) txtHubTaskLogs.Text = logsText;
+
+                if (taskDrawerBorder != null && currentTaskKey != dismissedTaskKey)
+                {
+                    taskDrawerBorder.Visibility = Visibility.Visible;
+                }
             }
-            else if (!isHudMenuDrawerPinned)
+            else
             {
+                hasActiveTaskLive = false;
+                currentTaskKey = "";
+                dismissedTaskKey = "";
                 if (taskDrawerBorder != null) taskDrawerBorder.Visibility = Visibility.Collapsed;
+                if (txtHubTaskTitle != null) txtHubTaskTitle.Text = "실시간 작업 터미널";
+                if (txtHubTaskStep != null) txtHubTaskStep.Text = "대기 중";
+                if (txtHubTaskLogs != null) txtHubTaskLogs.Text = "[BeausCreators CHLGD Bridge] 활성 에이전트 30명 · 실행 중인 백그라운드 작업이 없습니다.";
             }
 
-            // 2) Music Sub-Window (Strictly visible ONLY when music is actually active)
-            if (json.Contains("\"activeMedia\":{\"active\":true"))
+            // 2) Music Sub-Window
+            var activeMedia = root.ContainsKey("activeMedia") ? root["activeMedia"] as System.Collections.Generic.Dictionary<string, object> : null;
+            bool mediaActive = activeMedia != null && activeMedia.ContainsKey("active") && Convert.ToBoolean(activeMedia["active"]);
+            if (mediaActive)
             {
-                int mIdx = json.IndexOf("\"activeMedia\":{");
-                string mSub = json.Substring(mIdx);
-                string mTitle = ExtractJsonField(mSub, "title");
-                string mArtist = ExtractJsonField(mSub, "artist");
-                string mState = ExtractJsonField(mSub, "state");
-                bool isPaused = mState == "Paused";
+                hasActiveMediaLive = true;
+                string mTitle = activeMedia.ContainsKey("title") ? Convert.ToString(activeMedia["title"]) : "";
+                string mArtist = activeMedia.ContainsKey("artist") ? Convert.ToString(activeMedia["artist"]) : "";
+                string mState = activeMedia.ContainsKey("state") ? Convert.ToString(activeMedia["state"]) : "";
+                bool isPaused = string.Equals(mState, "Paused", StringComparison.OrdinalIgnoreCase);
 
-                musicDrawerBorder.Visibility = Visibility.Visible;
                 string displayTrack = !string.IsNullOrEmpty(mTitle) ? mTitle : "YouTube Music";
                 if (!string.IsNullOrEmpty(mArtist) && !displayTrack.Contains(mArtist))
                 {
                     displayTrack = mArtist + " — " + displayTrack;
                 }
-                txtMusicDrawerTitle.Text = displayTrack;
+                if (musicDrawerBorder != null) musicDrawerBorder.Visibility = Visibility.Visible;
+                if (txtMusicDrawerTitle != null) txtMusicDrawerTitle.Text = displayTrack;
 
+                Color mediaAccent = isPaused ? AmberColor : LimeColor;
                 if (txtMusicStateBadge != null)
                 {
-                    txtMusicStateBadge.Text = isPaused ? "⏸ PAUSED" : "● NOW PLAYING";
-                    txtMusicStateBadge.Foreground = new SolidColorBrush(isPaused ? Color.FromRgb(251, 191, 36) : Color.FromRgb(52, 211, 153));
+                    txtMusicStateBadge.Text = isPaused ? "PAUSED" : "NOW PLAYING";
+                    txtMusicStateBadge.Foreground = new SolidColorBrush(mediaAccent);
                 }
-                if (txtMusicPlayPauseIcon != null)
+                if (musicPlayPauseIcon != null)
                 {
-                    txtMusicPlayPauseIcon.Text = isPaused ? "▶" : "⏸";
+                    musicPlayPauseIcon.Data = Geometry.Parse(isPaused ? IconPlayData : IconPauseData);
+                    musicPlayPauseIcon.Stroke = new SolidColorBrush(mediaAccent);
                 }
                 if (btnMusicPlayPauseCircle != null)
                 {
-                    btnMusicPlayPauseCircle.BorderBrush = new SolidColorBrush(isPaused ? Color.FromRgb(251, 191, 36) : Color.FromRgb(52, 211, 153));
-                    btnMusicPlayPauseCircle.Background = new SolidColorBrush(isPaused ? Color.FromArgb(55, 251, 191, 36) : Color.FromArgb(55, 52, 211, 153));
+                    btnMusicPlayPauseCircle.BorderBrush = new SolidColorBrush(Color.FromArgb(110, mediaAccent.R, mediaAccent.G, mediaAccent.B));
+                    btnMusicPlayPauseCircle.Background = new SolidColorBrush(Color.FromArgb(30, mediaAccent.R, mediaAccent.G, mediaAccent.B));
                 }
-                if (musicDiscBorder != null)
+                if (musicDiscIcon != null)
                 {
-                    musicDiscBorder.BorderBrush = new SolidColorBrush(isPaused ? Color.FromArgb(115, 251, 191, 36) : Color.FromArgb(115, 52, 211, 153));
-                    musicDiscBorder.Background = new SolidColorBrush(isPaused ? Color.FromArgb(35, 251, 191, 36) : Color.FromArgb(38, 52, 211, 153));
+                    musicDiscIcon.Stroke = new SolidColorBrush(mediaAccent);
                 }
-                if (txtMusicDiscIcon != null)
+                if (txtHubMediaState != null)
                 {
-                    txtMusicDiscIcon.Foreground = new SolidColorBrush(isPaused ? Color.FromRgb(252, 211, 77) : Color.FromRgb(110, 231, 183));
+                    txtHubMediaState.Text = isPaused ? "PAUSED" : "NOW PLAYING";
+                    txtHubMediaState.Foreground = new SolidColorBrush(mediaAccent);
                 }
-                musicDrawerBorder.BorderBrush = new SolidColorBrush(isPaused ? Color.FromArgb(135, 251, 191, 36) : Color.FromArgb(135, 52, 211, 153));
+                if (txtHubMediaTrack != null) txtHubMediaTrack.Text = displayTrack;
             }
             else
             {
+                hasActiveMediaLive = false;
                 if (musicDrawerBorder != null) musicDrawerBorder.Visibility = Visibility.Collapsed;
+                if (txtHubMediaState != null)
+                {
+                    txtHubMediaState.Text = "MEDIA IDLE";
+                    txtHubMediaState.Foreground = new SolidColorBrush(TextMuted);
+                }
+                if (txtHubMediaTrack != null) txtHubMediaTrack.Text = "재생 중인 미디어 없음";
             }
 
+            RefreshLiveStripHostVisibility();
+            SyncHubActivityIndicators();
+
             // 3) Auto-Pop Plan / CHLGD Document HUD Window when openWindowSeq increments
-            int seqIdx = json.IndexOf("\"openWindowSeq\":");
-            if (seqIdx >= 0)
+            var planSig = root.ContainsKey("planWindowSignal") ? root["planWindowSignal"] as System.Collections.Generic.Dictionary<string, object> : null;
+            if (planSig != null && planSig.ContainsKey("openWindowSeq"))
             {
-                int start = seqIdx + 16;
-                int end = start;
-                while (end < json.Length && char.IsDigit(json[end])) end++;
-                int seqVal = 1;
-                if (int.TryParse(json.Substring(start, end - start), out seqVal))
+                int seqVal = Convert.ToInt32(planSig["openWindowSeq"]);
+                if (lastSeenPlanWindowSeq < 0) lastSeenPlanWindowSeq = seqVal;
+                else if (seqVal > lastSeenPlanWindowSeq)
                 {
-                    if (lastSeenPlanWindowSeq < 0) lastSeenPlanWindowSeq = seqVal;
-                    else if (seqVal > lastSeenPlanWindowSeq)
-                    {
-                        lastSeenPlanWindowSeq = seqVal;
-                        string tab = ExtractJsonField(json, "activeTab");
-                        ShowPlanAndChlgdDocumentWindow(!string.IsNullOrEmpty(tab) ? tab : "plan");
-                    }
+                    lastSeenPlanWindowSeq = seqVal;
+                    string tab = planSig.ContainsKey("activeTab") ? Convert.ToString(planSig["activeTab"]) : "plan";
+                    ShowPlanAndChlgdDocumentWindow(!string.IsNullOrEmpty(tab) ? tab : "plan");
                 }
             }
         }
 
         private static void StartHandsFreeVoiceEar()
         {
-            StartInvisibleChromeEarWorker();
-            txtStatus.Text = "○ 받아 적는 중";
-            SpeakAsync("네, 대표님. 말씀하세요.");
+            PromptListenNow();
         }
 
         private static void SetSettingsFeedback(string message, bool error = false)
@@ -2771,12 +3475,60 @@ namespace JarvisSasariSa
         {
             try
             {
+                if (!File.Exists("C:\\자비스\\data\\config.json")) return;
                 var cfg = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(File.ReadAllText("C:\\자비스\\data\\config.json", Encoding.UTF8));
-                if (cfg.ContainsKey("brainProvider")) currentBrainProvider = Convert.ToString(cfg["brainProvider"]);
-                if (cfg.ContainsKey("brainModel")) currentBrainModel = Convert.ToString(cfg["brainModel"]);
-                if (cfg.ContainsKey("sayVoice")) currentSpeechVoice = Convert.ToString(cfg["sayVoice"]);
-                if (cfg.ContainsKey("ttsSpeed")) currentSpeechSpeedRatio = Convert.ToDouble(cfg["ttsSpeed"]);
-                if (cfg.ContainsKey("userPlanTier")) currentUserPlanTier = Convert.ToString(cfg["userPlanTier"]);
+                if (cfg == null) return;
+                if (cfg.ContainsKey("brainProvider") && cfg["brainProvider"] != null)
+                {
+                    string bp = Convert.ToString(cfg["brainProvider"]);
+                    if (!string.IsNullOrWhiteSpace(bp)) currentBrainProvider = bp;
+                }
+                if (cfg.ContainsKey("brainModel") && cfg["brainModel"] != null)
+                {
+                    string bm = Convert.ToString(cfg["brainModel"]);
+                    if (!string.IsNullOrWhiteSpace(bm)) currentBrainModel = bm;
+                }
+                if (cfg.ContainsKey("sayVoice") && cfg["sayVoice"] != null)
+                {
+                    string sv = Convert.ToString(cfg["sayVoice"]);
+                    if (!string.IsNullOrWhiteSpace(sv)) currentSpeechVoice = sv;
+                }
+                if (cfg.ContainsKey("ttsSpeed") && cfg["ttsSpeed"] != null)
+                {
+                    double spd;
+                    if (double.TryParse(Convert.ToString(cfg["ttsSpeed"]), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out spd) && spd >= 0.7 && spd <= 2.0)
+                    {
+                        currentSpeechSpeedRatio = spd;
+                    }
+                }
+                if (cfg.ContainsKey("userPlanTier") && cfg["userPlanTier"] != null)
+                {
+                    string tier = Convert.ToString(cfg["userPlanTier"]);
+                    if (!string.IsNullOrWhiteSpace(tier)) currentUserPlanTier = tier;
+                }
+                if (cfg.ContainsKey("hudHotkeyVk") && cfg["hudHotkeyVk"] != null)
+                {
+                    int loadedVk;
+                    if (int.TryParse(Convert.ToString(cfg["hudHotkeyVk"]), out loadedVk) && loadedVk > 0) customHotkeyVk = loadedVk;
+                }
+                if (cfg.ContainsKey("hudHotkeyCtrl") && cfg["hudHotkeyCtrl"] != null)
+                {
+                    try { customNeedCtrl = Convert.ToBoolean(cfg["hudHotkeyCtrl"]); } catch { }
+                }
+                if (cfg.ContainsKey("hudHotkeyAlt") && cfg["hudHotkeyAlt"] != null)
+                {
+                    try { customNeedAlt = Convert.ToBoolean(cfg["hudHotkeyAlt"]); } catch { }
+                }
+                if (cfg.ContainsKey("hudHotkeyShift") && cfg["hudHotkeyShift"] != null)
+                {
+                    try { customNeedShift = Convert.ToBoolean(cfg["hudHotkeyShift"]); } catch { }
+                }
+                if (cfg.ContainsKey("hudHotkeyLabel") && cfg["hudHotkeyLabel"] != null)
+                {
+                    string lbl = Convert.ToString(cfg["hudHotkeyLabel"]);
+                    if (!string.IsNullOrWhiteSpace(lbl)) customHotkeyLabel = lbl;
+                }
+                RefreshHubSummaries();
             }
             catch (Exception ex) { WriteLog("Settings read failed: " + ex.GetType().Name); }
         }
@@ -2799,7 +3551,7 @@ namespace JarvisSasariSa
                     if (!result.ContainsKey("ok") || !Convert.ToBoolean(result["ok"])) throw new InvalidOperationException("설정 저장 실패");
                 }
                 RefreshStoredSettings();
-                SetSettingsFeedback("저장 완료 · 음성 설정은 다음 재생부터 적용됩니다.");
+                SetSettingsFeedback("저장 완료 · 설정이 즉시 반영되었습니다.");
                 WriteLog("Settings saved: " + string.Join(",", patch.Keys));
                 return true;
             }
@@ -2821,253 +3573,6 @@ namespace JarvisSasariSa
             return SaveSettingsPatchAsync(new System.Collections.Generic.Dictionary<string, object> { { "brainProvider", provider }, { "brainModel", model } });
         }
 
-        private static FrameworkElement CreateTopRightGearIcon()
-        {
-            StackPanel topRightBar = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Top,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(6, 0, 0, 0)
-            };
-
-            // -3) [🎙 마이크 ON / 🔇 마이크 OFF] Button — Prevents voice collision with Antigravity Voice Chat
-            Border micToggleBtn = new Border
-            {
-                Height = 28,
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(65, 239, 68, 68) : Color.FromArgb(45, 16, 185, 129)),
-                BorderBrush = new SolidColorBrush(isHudMicMuted ? Color.FromArgb(185, 248, 113, 113) : Color.FromArgb(150, 52, 211, 153)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 0, 8, 0),
-                Margin = new Thickness(0, 0, 5, 0),
-                Cursor = Cursors.Hand,
-                ToolTip = "자비스 마이크 듣기 켜기/끄기 (안티그래비티 보이스챗 등 다른 음성 대화와 충돌할 때 클릭하여 일시정지)"
-            };
-            TextBlock micToggleTxt = new TextBlock
-            {
-                Text = isHudMicMuted ? "🔇 마이크 OFF" : "🎙 마이크 ON",
-                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(isHudMicMuted ? Color.FromRgb(253, 186, 116) : Color.FromRgb(167, 243, 208)),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            micToggleBtn.Child = micToggleTxt;
-            if (btnHudMicToggle == null)
-            {
-                btnHudMicToggle = micToggleBtn;
-                txtHudMicToggle = micToggleTxt;
-            }
-            micToggleBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            micToggleBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                ToggleHudAudioControlAsync(!isHudMicMuted, null);
-            };
-            topRightBar.Children.Add(micToggleBtn);
-
-            // -2) [🔊 소리 ON / 🔕 음소거] Button — Mutes/Unmutes JARVIS TTS voice output immediately
-            Border ttsToggleBtn = new Border
-            {
-                Height = 28,
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(65, 245, 158, 11) : Color.FromArgb(40, 56, 189, 248)),
-                BorderBrush = new SolidColorBrush(isHudTtsMuted ? Color.FromArgb(185, 251, 191, 36) : Color.FromArgb(140, 56, 189, 248)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 0, 8, 0),
-                Margin = new Thickness(0, 0, 5, 0),
-                Cursor = Cursors.Hand,
-                ToolTip = "자비스 대답 음성(TTS) 켜기/음소거 전환 (클릭 시 말하던 음성 즉시 중단 · 텍스트만 표시)"
-            };
-            TextBlock ttsToggleTxt = new TextBlock
-            {
-                Text = isHudTtsMuted ? "🔕 음소거" : "🔊 소리 ON",
-                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(isHudTtsMuted ? Color.FromRgb(253, 224, 71) : Color.FromRgb(186, 230, 253)),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            ttsToggleBtn.Child = ttsToggleTxt;
-            if (btnHudTtsToggle == null)
-            {
-                btnHudTtsToggle = ttsToggleBtn;
-                txtHudTtsToggle = ttsToggleTxt;
-            }
-            ttsToggleBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            ttsToggleBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                ToggleHudAudioControlAsync(null, !isHudTtsMuted);
-            };
-            topRightBar.Children.Add(ttsToggleBtn);
-
-            // -1) [🎙 성문] Button — Opens Voiceprint & Microphone Settings Directly
-            Border voicePrintBtn = new Border
-            {
-                Height = 28,
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromArgb(40, 56, 189, 248)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(120, 56, 189, 248)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 0, 8, 0),
-                Margin = new Thickness(0, 0, 5, 0),
-                Cursor = Cursors.Hand,
-                ToolTip = "내 목소리 성문 등록 (WeSpeaker ResNet34) 및 마이크 설정 열기"
-            };
-            TextBlock voicePrintTxt = new TextBlock
-            {
-                Text = "🎙 성문",
-                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(186, 230, 253)),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            voicePrintBtn.Child = voicePrintTxt;
-            voicePrintBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            voicePrintBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                ShowHotkeySettingsWindow();
-            };
-            topRightBar.Children.Add(voicePrintBtn);
-
-            // 0) [📋 Plan · 규칙] Button — Opens Dedicated Plan & CHLGD Document Viewer HUD Window
-            Border planTopBtn = new Border
-            {
-                Height = 28,
-                CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromArgb(42, 46, 160, 67)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(150, 86, 211, 100)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 0, 8, 0),
-                Margin = new Thickness(0, 0, 5, 0),
-                Cursor = Cursors.Hand,
-                ToolTip = "📋 Plan 문서 프리뷰 & 📓 CHLGD 대화 규칙/로그 정리 창 열기"
-            };
-            TextBlock planTopTxt = new TextBlock
-            {
-                Text = "📋 Plan·규칙",
-                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(165, 245, 185)),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            planTopBtn.Child = planTopTxt;
-            planTopBtn.MouseEnter += (s, e) =>
-            {
-                planTopBtn.Background = new SolidColorBrush(Color.FromArgb(85, 46, 160, 67));
-                planTopTxt.Foreground = Brushes.White;
-            };
-            planTopBtn.MouseLeave += (s, e) =>
-            {
-                planTopBtn.Background = new SolidColorBrush(Color.FromArgb(42, 46, 160, 67));
-                planTopTxt.Foreground = new SolidColorBrush(Color.FromRgb(165, 245, 185));
-            };
-            planTopBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            planTopBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                ShowPlanAndChlgdDocumentWindow("plan");
-            };
-            topRightBar.Children.Add(planTopBtn);
-
-            // 1) [☰ 메뉴] Button — Opens/Closes the Collapsible Task & Music Sub-Windows & Quick Chips
-            Border menuBtn = new Border
-            {
-                Height = 28,
-                CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromArgb(38, 77, 217, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(140, 77, 217, 255)),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(9, 0, 9, 0),
-                Margin = new Thickness(0, 0, 5, 0),
-                Cursor = Cursors.Hand,
-                ToolTip = "실시간 작업 · 미니 뮤직 컨트롤러 · 빠른 오더 메뉴 열기/접기"
-            };
-            TextBlock menuTxt = new TextBlock
-            {
-                Text = "☰ 메뉴",
-                FontFamily = new FontFamily("Malgun Gothic, Segoe UI Symbol"),
-                FontSize = 11.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(220, 240, 255)),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            txtTopMenuBtnLabel = menuTxt;
-            menuBtn.Child = menuTxt;
-
-            menuBtn.MouseEnter += (s, e) =>
-            {
-                menuBtn.Background = new SolidColorBrush(Color.FromArgb(75, 77, 217, 255));
-                menuBtn.BorderBrush = new SolidColorBrush(CyanColor);
-                menuTxt.Foreground = Brushes.White;
-            };
-            menuBtn.MouseLeave += (s, e) =>
-            {
-                menuBtn.Background = new SolidColorBrush(Color.FromArgb(38, 77, 217, 255));
-                menuBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(140, 77, 217, 255));
-                menuTxt.Foreground = new SolidColorBrush(Color.FromRgb(220, 240, 255));
-            };
-            menuBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            menuBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                ToggleHudMenuDrawer();
-            };
-            topRightBar.Children.Add(menuBtn);
-
-            // 2) [⚙] Settings Icon Button — Opens 2-Pane Commercial System Preferences
-            Border gearBtn = new Border
-            {
-                Width = 28,
-                Height = 28,
-                CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(Color.FromArgb(38, 77, 217, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(140, 77, 217, 255)),
-                BorderThickness = new Thickness(1),
-                Cursor = Cursors.Hand,
-                ToolTip = "환경설정 (요금제 · AI 모델 · 음성 속도 · 단축키)"
-            };
-
-            TextBlock gearIcon = new TextBlock
-            {
-                Text = "⚙",
-                FontFamily = new FontFamily("Segoe UI Symbol, Segoe Fluent Icons, Malgun Gothic"),
-                FontSize = 14,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(220, 240, 255)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            gearBtn.Child = gearIcon;
-
-            gearBtn.MouseEnter += (s, e) =>
-            {
-                gearBtn.Background = new SolidColorBrush(Color.FromArgb(75, 77, 217, 255));
-                gearBtn.BorderBrush = new SolidColorBrush(CyanColor);
-                gearIcon.Foreground = Brushes.White;
-            };
-            gearBtn.MouseLeave += (s, e) =>
-            {
-                gearBtn.Background = new SolidColorBrush(Color.FromArgb(38, 77, 217, 255));
-                gearBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(140, 77, 217, 255));
-                gearIcon.Foreground = new SolidColorBrush(Color.FromRgb(220, 240, 255));
-            };
-            gearBtn.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            gearBtn.MouseLeftButtonUp += (s, e) =>
-            {
-                e.Handled = true;
-                ShowHotkeySettingsWindow();
-            };
-            topRightBar.Children.Add(gearBtn);
-
-            return topRightBar;
-        }
-
         private static Task<bool> SavePlanAndApiKeyConfig(string planTier, string apiKey)
         {
             var patch = new System.Collections.Generic.Dictionary<string, object>();
@@ -3076,7 +3581,7 @@ namespace JarvisSasariSa
             return SaveSettingsPatchAsync(patch);
         }
 
-        private static void ShowHotkeySettingsWindow()
+        private static void ShowHotkeySettingsWindow(int initialPaneIndex = 0)
         {
             RefreshStoredSettings();
             if (settingsWindow != null)
@@ -3116,16 +3621,16 @@ namespace JarvisSasariSa
 
             Border outerFrame = new Border
             {
-                CornerRadius = new CornerRadius(14),
+                CornerRadius = new CornerRadius(12),
                 Background = new SolidColorBrush(bgShell),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
                 Effect = new DropShadowEffect
                 {
                     Color = Colors.Black,
-                    BlurRadius = 32,
-                    ShadowDepth = 10,
-                    Opacity = 0.72
+                    BlurRadius = 26,
+                    ShadowDepth = 8,
+                    Opacity = 0.65
                 }
             };
             outerFrame.MouseLeftButtonDown += (s, e) =>
@@ -3147,7 +3652,7 @@ namespace JarvisSasariSa
             // =========================================================================
             Border sidebarBorder = new Border
             {
-                CornerRadius = new CornerRadius(14, 0, 0, 14),
+                CornerRadius = new CornerRadius(12, 0, 0, 12),
                 Background = new SolidColorBrush(bgSidebar),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(0, 0, 1, 0),
@@ -3167,7 +3672,7 @@ namespace JarvisSasariSa
             brandStack.Children.Add(new TextBlock
             {
                 Text = "JARVIS OS",
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 10.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textMuted)
@@ -3175,7 +3680,7 @@ namespace JarvisSasariSa
             brandStack.Children.Add(new TextBlock
             {
                 Text = "시스템 환경설정",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary),
@@ -3193,7 +3698,7 @@ namespace JarvisSasariSa
             };
             TextBlock txtSidebarPlan = new TextBlock
             {
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255))
@@ -3232,14 +3737,14 @@ namespace JarvisSasariSa
             bottomSumStack.Children.Add(new TextBlock
             {
                 Text = "저장된 모델 · 연결 별도 확인",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(textMuted)
             });
             TextBlock txtSidebarActiveModel = new TextBlock
             {
                 Text = currentBrainModel,
-                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                FontFamily = MonoFont,
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(textPrimary),
@@ -3247,14 +3752,14 @@ namespace JarvisSasariSa
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
             bottomSumStack.Children.Add(txtSidebarActiveModel);
-            TextBlock txtSidebarActiveProvider = new TextBlock
+            TextBlock txtSidebarActiveProvider = ApplyTabular(new TextBlock
             {
                 Text = currentBrainProvider + " · " + currentSpeechSpeedRatio.ToString("0.00") + "x",
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 10.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 Margin = new Thickness(0, 1, 0, 0)
-            };
+            });
             bottomSumStack.Children.Add(txtSidebarActiveProvider);
             Grid.SetRow(bottomSummary, 2);
             sidebarGrid.Children.Add(bottomSummary);
@@ -3280,7 +3785,7 @@ namespace JarvisSasariSa
             TextBlock txtPaneTitle = new TextBlock
             {
                 Text = "요금제 및 AI 모델",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 17,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
@@ -3289,7 +3794,7 @@ namespace JarvisSasariSa
             {
                 TextWrapping = TextWrapping.Wrap,
                 Text = "모델 연결 방식을 선택합니다. 분류는 참고용이며 실제 구독·할당량을 조회한 결과가 아닙니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(textSecondary),
                 Margin = new Thickness(0, 3, 0, 0)
@@ -3303,7 +3808,7 @@ namespace JarvisSasariSa
             {
                 Width = 28,
                 Height = 28,
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -3313,7 +3818,7 @@ namespace JarvisSasariSa
             TextBlock closeGlyph = new TextBlock
             {
                 Text = "\uE711",
-                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"),
+                FontFamily = GlyphFont,
                 FontSize = 11,
                 Foreground = new SolidColorBrush(textSecondary),
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -3364,7 +3869,7 @@ namespace JarvisSasariSa
                 Color baseBorder = isPrimary ? accentBlue : borderHairline;
                 Border b = new Border
                 {
-                    CornerRadius = new CornerRadius(7),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(baseBg),
                     BorderBrush = new SolidColorBrush(baseBorder),
                     BorderThickness = new Thickness(1),
@@ -3375,7 +3880,7 @@ namespace JarvisSasariSa
                 b.Child = new TextBlock
                 {
                     Text = label,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 12,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = new SolidColorBrush(textPrimary)
@@ -3392,7 +3897,7 @@ namespace JarvisSasariSa
             // =========================================================================
             Border tierTrack = new Border
             {
-                CornerRadius = new CornerRadius(9),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSidebar),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -3422,7 +3927,7 @@ namespace JarvisSasariSa
                 Foreground = new SolidColorBrush(textPrimary),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
-                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                FontFamily = MonoFont,
                 FontSize = 12.5,
                 Padding = new Thickness(9, 0, 9, 0),
                 Text = currentBrainModel
@@ -3434,10 +3939,7 @@ namespace JarvisSasariSa
                 customModelBox.Text = mod;
                 txtSidebarActiveModel.Text = mod;
                 txtSidebarActiveProvider.Text = prov + " · " + currentSpeechSpeedRatio.ToString("0.00") + "x";
-                if (txtMainBody != null)
-                {
-                    txtMainBody.Text = displayTitle + " 모델을 저장했습니다. 환경설정 하단에서 연결 검사 결과를 확인하세요.";
-                }
+                BroadcastBody(displayTitle + " 모델을 저장했습니다. 환경설정 하단에서 연결 검사 결과를 확인하세요.");
                 foreach (var cb in modelVisualCallbacks) { try { cb(); } catch { } }
                 await VerifySelectedBrainAsync();
             };
@@ -3446,7 +3948,7 @@ namespace JarvisSasariSa
             {
                 Border card = new Border
                 {
-                    CornerRadius = new CornerRadius(9),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(bgSurface),
                     BorderBrush = new SolidColorBrush(borderSubtle),
                     BorderThickness = new Thickness(1),
@@ -3467,7 +3969,7 @@ namespace JarvisSasariSa
                 {
                     Text = title,
                     TextWrapping = TextWrapping.Wrap,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 13,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(textPrimary),
@@ -3478,7 +3980,7 @@ namespace JarvisSasariSa
 
                 Border codePill = new Border
                 {
-                    CornerRadius = new CornerRadius(4),
+                    CornerRadius = new CornerRadius(6),
                     Background = new SolidColorBrush(bgSidebar),
                     BorderBrush = new SolidColorBrush(borderHairline),
                     BorderThickness = new Thickness(1),
@@ -3489,7 +3991,7 @@ namespace JarvisSasariSa
                 codePill.Child = new TextBlock
                 {
                     Text = modelId,
-                    FontFamily = new FontFamily("Consolas, Segoe UI"),
+                    FontFamily = MonoFont,
                     FontSize = 11,
                     Foreground = new SolidColorBrush(Color.FromRgb(165, 214, 255))
                 };
@@ -3497,7 +3999,7 @@ namespace JarvisSasariSa
 
                 Border tierPill = new Border
                 {
-                    CornerRadius = new CornerRadius(4),
+                    CornerRadius = new CornerRadius(6),
                     Background = new SolidColorBrush(Color.FromArgb(30, 46, 160, 67)),
                     Padding = new Thickness(6, 1, 6, 1),
                     VerticalAlignment = VerticalAlignment.Center
@@ -3505,7 +4007,7 @@ namespace JarvisSasariSa
                 tierPill.Child = new TextBlock
                 {
                     Text = badgeText,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 10.5,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100))
@@ -3517,7 +4019,7 @@ namespace JarvisSasariSa
                 {
                     Text = descText,
                     TextWrapping = TextWrapping.Wrap,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 11.5,
                     Foreground = new SolidColorBrush(textSecondary)
                 });
@@ -3533,7 +4035,7 @@ namespace JarvisSasariSa
                 };
                 TextBlock statusTxt = new TextBlock
                 {
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold
                 };
@@ -3735,7 +4237,7 @@ namespace JarvisSasariSa
                 TextBlock tabTxt = new TextBlock
                 {
                     Text = tLabel,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 12,
                     FontWeight = FontWeights.SemiBold,
                     HorizontalAlignment = HorizontalAlignment.Center
@@ -3773,7 +4275,7 @@ namespace JarvisSasariSa
             // =========================================================================
             Border oauthCard = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -3785,7 +4287,7 @@ namespace JarvisSasariSa
             oauthStack.Children.Add(new TextBlock
             {
                 Text = "Google 계정 로그인 · Antigravity CLI",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
@@ -3793,7 +4295,7 @@ namespace JarvisSasariSa
             oauthStack.Children.Add(new TextBlock
             {
                 Text = "개인 Google 계정은 Antigravity CLI로 연결합니다. Gemini CLI의 개인 로그인 지원은 종료되었습니다. 모델 선택 후 실제 연결을 검사하며, 구독 등급과 API 키의 사용 한도는 별개입니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 TextWrapping = TextWrapping.Wrap,
@@ -3819,7 +4321,7 @@ namespace JarvisSasariSa
             // API Key Card
             Border apiCard = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -3831,7 +4333,7 @@ namespace JarvisSasariSa
             apiStack.Children.Add(new TextBlock
             {
                 Text = "Google Gemini API 키 등록",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
@@ -3839,7 +4341,7 @@ namespace JarvisSasariSa
             apiStack.Children.Add(new TextBlock
             {
                 Text = "API 키를 직접 사용하는 경우 아래에 입력 후 저장하세요. 이 PC의 자비스 설정 파일에 저장됩니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 Margin = new Thickness(0, 4, 0, 10)
@@ -3854,7 +4356,7 @@ namespace JarvisSasariSa
                 Foreground = new SolidColorBrush(textPrimary),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
-                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                FontFamily = MonoFont,
                 FontSize = 12,
                 Padding = new Thickness(9, 0, 9, 0),
                 Password = ""
@@ -3863,7 +4365,7 @@ namespace JarvisSasariSa
             TextBlock txtApiSaved = new TextBlock
             {
                 Text = "",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -3886,7 +4388,7 @@ namespace JarvisSasariSa
             // Custom Model ID Card
             Border customModelCard = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -3897,7 +4399,7 @@ namespace JarvisSasariSa
             customStack.Children.Add(new TextBlock
             {
                 Text = "모델 ID 직접 지정",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary),
@@ -3923,7 +4425,7 @@ namespace JarvisSasariSa
             // =========================================================================
             Border voiceCard = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -3935,19 +4437,19 @@ namespace JarvisSasariSa
             voiceStack.Children.Add(new TextBlock
             {
                 Text = "답변 목소리와 말하기 속도",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
             });
-            TextBlock txtSpeedDesc = new TextBlock
+            TextBlock txtSpeedDesc = ApplyTabular(new TextBlock
             {
                 Text = "현재 배속: " + currentSpeechSpeedRatio.ToString("0.00") + "x · 저장된 속도는 다음 음성부터 적용됩니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(textSecondary),
                 Margin = new Thickness(0, 4, 0, 14)
-            };
+            });
             voiceStack.Children.Add(txtSpeedDesc);
             voiceStack.Children.Add(new TextBlock { Text = "24kHz 스튜디오 Neural 자연 음성 전용입니다 (여성 Windows 기본 기계음 SAPI 폴백 영구 차단 · 대화 중 끼어들기 Barge-In 활성).", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 12) });
             WrapPanel voiceRow = new WrapPanel();
@@ -3986,19 +4488,19 @@ namespace JarvisSasariSa
 
                 Border spdBtn = new Border
                 {
-                    CornerRadius = new CornerRadius(7),
+                    CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(6, 9, 6, 9),
                     Margin = new Thickness(i == 0 ? 0 : 5, 0, 0, 0),
                     Cursor = Cursors.Hand
                 };
-                TextBlock spdTxt = new TextBlock
+                TextBlock spdTxt = ApplyTabular(new TextBlock
                 {
                     Text = spdLabel,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
                     HorizontalAlignment = HorizontalAlignment.Center
-                };
+                });
                 spdBtn.Child = spdTxt;
                 Grid.SetColumn(spdBtn, i);
                 speedGrid.Children.Add(spdBtn);
@@ -4029,14 +4531,14 @@ namespace JarvisSasariSa
             paneVoice.Children.Add(voiceCard);
 
             // Speaker comparison is opt-in and remains off until real enrollment succeeds.
-            Border speakerCard = new Border { Background = new SolidColorBrush(bgSurface), CornerRadius = new CornerRadius(10), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 12) };
+            Border speakerCard = new Border { Background = new SolidColorBrush(bgSurface), BorderBrush = new SolidColorBrush(borderSubtle), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 12) };
             StackPanel speakerStack = new StackPanel();
             speakerCard.Child = speakerStack;
-            speakerStack.Children.Add(new TextBlock { Text = "내 목소리만 반응", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(textPrimary) });
-            speakerStack.Children.Add(new TextBlock { Text = "영상·음악을 끄고 혼자 말할 수 있을 때 등록하세요. 5초 준비 후 화면의 세 문장을 24초 동안 읽습니다. 등록용 녹음은 파일로 남기지 않고 비교용 특징만 이 PC에 저장합니다. 기존 Chrome 음성 인식은 인터넷을 사용합니다.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 8) });
-            speakerStack.Children.Add(new TextBlock { Text = "비슷한 목소리·겹친 말소리·본인 녹음 재생까지 완전히 차단하는 인증 기능은 아닙니다. 너무 짧은 명령은 길게 다시 말하거나 직접 입력하세요.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) });
-            TextBlock speakerStateText = new TextBlock { Text = "목소리 등록 상태 확인 중…", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)), Margin = new Thickness(0, 0, 0, 8) };
-            TextBlock enrollmentPrompt = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, Foreground = new SolidColorBrush(textPrimary), Margin = new Thickness(0, 0, 0, 10) };
+            speakerStack.Children.Add(new TextBlock { Text = "내 목소리만 반응", FontFamily = UiFont, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(textPrimary) });
+            speakerStack.Children.Add(new TextBlock { Text = "영상·음악을 끄고 혼자 말할 수 있을 때 등록하세요. 5초 준비 후 화면의 세 문장을 24초 동안 읽습니다. 등록용 녹음은 파일로 남기지 않고 비교용 특징만 이 PC에 저장합니다. 기존 Chrome 음성 인식은 인터넷을 사용합니다.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 8) });
+            speakerStack.Children.Add(new TextBlock { Text = "비슷한 목소리·겹친 말소리·본인 녹음 재생까지 완전히 차단하는 인증 기능은 아닙니다. 너무 짧은 명령은 길게 다시 말하거나 직접 입력하세요.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) });
+            TextBlock speakerStateText = ApplyTabular(new TextBlock { Text = "목소리 등록 상태 확인 중…", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Color.FromRgb(121, 192, 255)), Margin = new Thickness(0, 0, 0, 8) });
+            TextBlock enrollmentPrompt = ApplyTabular(new TextBlock { FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, FontSize = 14, Foreground = new SolidColorBrush(textPrimary), Margin = new Thickness(0, 0, 0, 10) });
             speakerStack.Children.Add(speakerStateText); speakerStack.Children.Add(enrollmentPrompt);
             bool speakerRefreshBusy = false;
             string speakerActionError = "";
@@ -4080,7 +4582,17 @@ namespace JarvisSasariSa
                     using (var response = await http.PostAsync("http://127.0.0.1:7788/api/speaker/" + endpoint, new StringContent(payload, Encoding.UTF8, "application/json")))
                     {
                         string raw = await response.Content.ReadAsStringAsync();
-                        if (!response.IsSuccessStatusCode) { speakerActionError = ExtractJsonField(raw, "error"); enrollmentPrompt.Text = speakerActionError; return; }
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            try
+                            {
+                                var errDict = new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<System.Collections.Generic.Dictionary<string, object>>(raw);
+                                speakerActionError = JsonStr(errDict, "error");
+                            }
+                            catch { speakerActionError = ""; }
+                            enrollmentPrompt.Text = speakerActionError;
+                            return;
+                        }
                     }
                     await refreshSpeakerState();
                 }
@@ -4100,12 +4612,12 @@ namespace JarvisSasariSa
             settingsWindow.Closed += (sender, args) => speakerSettingsTimer.Stop();
             speakerSettingsTimer.Start();
 
-            Border microphoneCard = new Border { Background = new SolidColorBrush(bgSurface), CornerRadius = new CornerRadius(10), Padding = new Thickness(16) };
+            Border microphoneCard = new Border { Background = new SolidColorBrush(bgSurface), BorderBrush = new SolidColorBrush(borderSubtle), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16) };
             StackPanel microphoneStack = new StackPanel();
             microphoneCard.Child = microphoneStack;
-            microphoneStack.Children.Add(new TextBlock { Text = "마이크 연결 상태", Foreground = new SolidColorBrush(textPrimary), FontWeight = FontWeights.Bold, FontSize = 14 });
-            microphoneStack.Children.Add(new TextBlock { Text = "입력 음량과 연결 상태를 확인합니다. 현재 입력 필터는 화자 본인 인증이나 타인 음성의 완전 차단을 보장하지 않습니다.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 10) });
-            TextBlock micState = new TextBlock { Text = "아래 버튼으로 현재 상태를 확인하세요.", TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) };
+            microphoneStack.Children.Add(new TextBlock { Text = "마이크 연결 상태", FontFamily = UiFont, Foreground = new SolidColorBrush(textPrimary), FontWeight = FontWeights.Bold, FontSize = 14 });
+            microphoneStack.Children.Add(new TextBlock { Text = "입력 음량과 연결 상태를 확인합니다. 현재 입력 필터는 화자 본인 인증이나 타인 음성의 완전 차단을 보장하지 않습니다.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 7, 0, 10) });
+            TextBlock micState = ApplyTabular(new TextBlock { Text = "아래 버튼으로 현재 상태를 확인하세요.", FontFamily = UiFont, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(textSecondary), Margin = new Thickness(0, 0, 0, 10) });
             microphoneStack.Children.Add(micState);
             microphoneStack.Children.Add(createActionBtn("마이크 상태 확인", false, async () => {
                 micState.Text = "확인 중…";
@@ -4130,7 +4642,7 @@ namespace JarvisSasariSa
             // =========================================================================
             Border mediaCtrlCard = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -4142,7 +4654,7 @@ namespace JarvisSasariSa
             mediaCtrlStack.Children.Add(new TextBlock
             {
                 Text = "실시간 바탕화면 미디어 및 마이크 제어",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
@@ -4150,7 +4662,7 @@ namespace JarvisSasariSa
             mediaCtrlStack.Children.Add(new TextBlock
             {
                 Text = "음성으로 ‘음악 꺼줘’라고 말하거나 정지 버튼을 누르세요. 지원되는 미디어 세션을 제어하며, 실행 결과는 메인 HUD에 표시합니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textSecondary),
                 TextWrapping = TextWrapping.Wrap,
@@ -4173,7 +4685,7 @@ namespace JarvisSasariSa
 
             Border hotkeyCard = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -4184,7 +4696,7 @@ namespace JarvisSasariSa
             hotkeyStack.Children.Add(new TextBlock
             {
                 Text = "자비스 호출 단축키 설정",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary),
@@ -4200,7 +4712,7 @@ namespace JarvisSasariSa
                 Foreground = new SolidColorBrush(textPrimary),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
                 IsReadOnly = true,
@@ -4208,18 +4720,23 @@ namespace JarvisSasariSa
                 Margin = new Thickness(0, 0, 0, 10),
                 Text = "현재 단축키: " + customHotkeyLabel + "  (클릭 후 새 키 조합 입력)"
             };
-            keyCaptureBox.PreviewKeyDown += (s, e) =>
+            keyCaptureBox.PreviewKeyDown += async (s, e) =>
             {
                 e.Handled = true;
-                Key k = (e.Key == Key.System ? e.SystemKey : e.Key);
-                if (k == Key.LeftCtrl || k == Key.RightCtrl || k == Key.LeftAlt || k == Key.RightAlt || k == Key.LeftShift || k == Key.RightShift)
+                Key k = (e.Key == Key.ImeProcessed ? e.ImeProcessedKey : (e.Key == Key.System ? e.SystemKey : e.Key));
+                if (k == Key.None || k == Key.ImeProcessed ||
+                    k == Key.LeftCtrl || k == Key.RightCtrl || k == Key.LeftAlt || k == Key.RightAlt || k == Key.LeftShift || k == Key.RightShift)
+                {
+                    return;
+                }
+                int vk = KeyInterop.VirtualKeyFromKey(k);
+                if (vk == 0 || vk == 0xE5)
                 {
                     return;
                 }
                 bool c = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
                 bool a = (Keyboard.Modifiers & ModifierKeys.Alt) != 0;
                 bool sh = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
-                int vk = KeyInterop.VirtualKeyFromKey(k);
 
                 string label = "";
                 if (c) label += "Ctrl + ";
@@ -4227,27 +4744,35 @@ namespace JarvisSasariSa
                 if (sh) label += "Shift + ";
                 label += k.ToString();
 
-                ApplyCustomHotkey(vk, c, a, sh, label);
-                keyCaptureBox.Text = "적용된 단축키: " + label;
+                if (await ApplyCustomHotkeyAsync(vk, c, a, sh, label))
+                {
+                    keyCaptureBox.Text = "적용된 단축키: " + label;
+                }
             };
             hotkeyStack.Children.Add(keyCaptureBox);
 
             WrapPanel presetHkRow = new WrapPanel();
-            Border hk1 = createActionBtn("Ctrl + Space", false, () =>
+            Border hk1 = createActionBtn("Ctrl + Space", false, async () =>
             {
-                ApplyCustomHotkey(VK_SPACE, true, false, false, "Ctrl + Space");
-                keyCaptureBox.Text = "적용된 단축키: Ctrl + Space";
+                if (await ApplyCustomHotkeyAsync(VK_SPACE, true, false, false, "Ctrl + Space"))
+                {
+                    keyCaptureBox.Text = "적용된 단축키: Ctrl + Space";
+                }
             });
-            Border hk2 = createActionBtn("Alt + Space", false, () =>
+            Border hk2 = createActionBtn("Alt + Space", false, async () =>
             {
-                ApplyCustomHotkey(VK_SPACE, false, true, false, "Alt + Space");
-                keyCaptureBox.Text = "적용된 단축키: Alt + Space";
+                if (await ApplyCustomHotkeyAsync(VK_SPACE, false, true, false, "Alt + Space"))
+                {
+                    keyCaptureBox.Text = "적용된 단축키: Alt + Space";
+                }
             });
             hk2.Margin = new Thickness(8, 0, 0, 0);
-            Border hk3 = createActionBtn("F8 단독", false, () =>
+            Border hk3 = createActionBtn("F8 단독", false, async () =>
             {
-                ApplyCustomHotkey(VK_F8, false, false, false, "F8");
-                keyCaptureBox.Text = "적용된 단축키: F8";
+                if (await ApplyCustomHotkeyAsync(VK_F8, false, false, false, "F8"))
+                {
+                    keyCaptureBox.Text = "적용된 단축키: F8";
+                }
             });
             hk3.Margin = new Thickness(8, 0, 0, 0);
             presetHkRow.Children.Add(hk1);
@@ -4259,8 +4784,9 @@ namespace JarvisSasariSa
             // =========================================================================
             // SIDEBAR NAVIGATION BUILDER
             // =========================================================================
-            int activeNavIndex = 0;
+            int activeNavIndex = Math.Max(0, Math.Min(3, initialPaneIndex));
             System.Collections.Generic.List<Action> navSyncCallbacks = new System.Collections.Generic.List<Action>();
+            var navActions = new System.Collections.Generic.List<Action>();
 
             Action<int, string, string, string, StackPanel> addSidebarNav = (navIdx, iconGlyph, navTitle, navSubDesc, targetPane) =>
             {
@@ -4275,7 +4801,7 @@ namespace JarvisSasariSa
                 TextBlock navIcon = new TextBlock
                 {
                     Text = iconGlyph,
-                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"),
+                    FontFamily = GlyphFont,
                     FontSize = 13.5,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(0, 0, 10, 0)
@@ -4283,7 +4809,7 @@ namespace JarvisSasariSa
                 TextBlock navTxt = new TextBlock
                 {
                     Text = navTitle,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 12.5,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -4305,10 +4831,8 @@ namespace JarvisSasariSa
                 navSyncCallbacks.Add(syncNav);
                 syncNav();
 
-                navRow.MouseLeftButtonDown += (s, e) => e.Handled = true;
-                navRow.MouseLeftButtonUp += (s, e) =>
+                Action activateNav = () =>
                 {
-                    e.Handled = true;
                     activeNavIndex = navIdx;
                     paneModels.Visibility = Visibility.Collapsed;
                     paneAccount.Visibility = Visibility.Collapsed;
@@ -4321,12 +4845,30 @@ namespace JarvisSasariSa
                     txtPaneDesc.Text = navSubDesc;
                     foreach (var cb in navSyncCallbacks) { try { cb(); } catch { } }
                 };
+                navActions.Add(activateNav);
+
+                navRow.MouseLeftButtonDown += (s, e) => e.Handled = true;
+                navRow.MouseLeftButtonUp += (s, e) =>
+                {
+                    e.Handled = true;
+                    activateNav();
+                };
             };
 
             addSidebarNav(0, "\uE945", "요금제 및 AI 모델", "모델 연결 방식을 선택합니다. 분류는 참고용이며 실제 구독·할당량을 조회한 결과가 아닙니다.", paneModels);
             addSidebarNav(1, "\uE77B", "계정 및 API 연결", "Google 계정 OAuth 로그인 및 개인 API 키, 커스텀 모델 ID를 연결합니다.", paneAccount);
-            addSidebarNav(2, "\uE767", "음성 · 마이크", "답변 목소리와 말하기 속도를 선택하고 마이크 연결 상태를 확인합니다.", paneVoice);
+            addSidebarNav(2, "\uE767", "음성 · 성문 · 마이크", "답변 목소리와 말하기 속도, 내 목소리(성문) 등록 및 마이크 연결 상태를 관리합니다.", paneVoice);
             addSidebarNav(3, "\uE7F8", "미디어 · 단축키", "실시간 바탕화면 미디어 제어 및 글로벌 호출 단축키를 관리합니다.", paneDesktop);
+
+            if (activeNavIndex >= 0 && activeNavIndex < navActions.Count)
+            {
+                navActions[activeNavIndex]();
+            }
+            settingsWindow.Closed += (sender, args) =>
+            {
+                speakerSettingsTimer.Stop();
+                settingsWindow = null;
+            };
 
             // =========================================================================
             // RIGHT FOOTER
@@ -4346,7 +4888,7 @@ namespace JarvisSasariSa
             TextBlock footerStatus = new TextBlock
             {
                 Text = "선택값을 저장합니다. 모델 접근 권한·요금은 계정과 공급자에서 확인하세요.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(textMuted),
                 VerticalAlignment = VerticalAlignment.Center
@@ -4373,7 +4915,7 @@ namespace JarvisSasariSa
         }
 
         // =========================================================================
-        // DEDICATED COMMERCIAL SaaS HUD WINDOW: 📋 Plan 문서 뷰어 & 📓 대화 규칙/로그 & Google Harness²
+        // DEDICATED COMMERCIAL SaaS HUD WINDOW: Plan 문서 뷰어 & 대화 규칙/로그 & Google Harness²
         // =========================================================================
         private static void ShowPlanAndChlgdDocumentWindow(string initialTab = "plan")
         {
@@ -4383,24 +4925,24 @@ namespace JarvisSasariSa
                 planDocWindow = null;
             }
 
-            Color bgShell = Color.FromRgb(11, 15, 22);
-            Color bgSidebar = Color.FromRgb(8, 11, 16);
-            Color bgSurface = Color.FromRgb(17, 23, 33);
-            Color bgSurfaceHover = Color.FromRgb(25, 34, 48);
-            Color bgSubRow = Color.FromRgb(13, 18, 27);
-            Color bgActiveCard = Color.FromRgb(16, 34, 56);
-            Color borderHairline = Color.FromRgb(42, 54, 70);
-            Color borderSubtle = Color.FromRgb(28, 37, 50);
-            Color accentCyan = Color.FromRgb(77, 217, 255);
+            Color bgShell = Color.FromRgb(12, 16, 23);
+            Color bgSidebar = Color.FromRgb(9, 12, 16);
+            Color bgSurface = BgSurface;
+            Color bgSurfaceHover = BgHover;
+            Color bgSubRow = BgSubRow;
+            Color bgActiveCard = BgActiveTint;
+            Color borderHairline = BorderHairline;
+            Color borderSubtle = BorderSubtle;
+            Color accentCyan = CyanColor;
             Color accentBlue = Color.FromRgb(56, 139, 253);
             Color accentEmerald = Color.FromRgb(46, 160, 67);
-            Color accentAmber = Color.FromRgb(255, 184, 64);
-            Color textPrimary = Color.FromRgb(242, 247, 253);
-            Color textSecondary = Color.FromRgb(158, 172, 188);
-            Color textMuted = Color.FromRgb(112, 124, 140);
+            Color accentAmber = AmberColor;
+            Color textPrimary = TextPrimary;
+            Color textSecondary = TextSecondary;
+            Color textMuted = TextMuted;
 
             var workArea = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
-            var presSource = System.Windows.PresentationSource.FromVisual(hudWindow);
+            var presSource = hudWindow != null ? System.Windows.PresentationSource.FromVisual(hudWindow) : null;
             var dpiMatrix = presSource != null && presSource.CompositionTarget != null
                 ? presSource.CompositionTarget.TransformFromDevice
                 : System.Windows.Media.Matrix.Identity;
@@ -4424,19 +4966,20 @@ namespace JarvisSasariSa
                 ResizeMode = ResizeMode.CanResizeWithGrip,
                 Topmost = true
             };
+            planDocWindow.Closed += (s, e) => { planDocWindow = null; };
 
             Border outerFrame = new Border
             {
-                CornerRadius = new CornerRadius(16),
+                CornerRadius = new CornerRadius(12),
                 Background = new SolidColorBrush(bgShell),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(195, 77, 217, 255)),
-                BorderThickness = new Thickness(1.4),
+                BorderBrush = new SolidColorBrush(borderHairline),
+                BorderThickness = new Thickness(1),
                 Effect = new DropShadowEffect
                 {
                     Color = Colors.Black,
-                    BlurRadius = 36,
-                    ShadowDepth = 10,
-                    Opacity = 0.85
+                    BlurRadius = 26,
+                    ShadowDepth = 8,
+                    Opacity = 0.65
                 }
             };
             outerFrame.MouseLeftButtonDown += (s, e) =>
@@ -4463,11 +5006,11 @@ namespace JarvisSasariSa
             outerFrame.Child = splitGrid;
 
             // =====================================================================
-            // LEFT SIDEBAR (240px — Zero Horizontal Clipping, SaaS Workspace Nav)
+            // LEFT SIDEBAR (240px)
             // =====================================================================
             Border sidebarBorder = new Border
             {
-                CornerRadius = new CornerRadius(15, 0, 0, 15),
+                CornerRadius = new CornerRadius(12, 0, 0, 12),
                 Background = new SolidColorBrush(bgSidebar),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(0, 0, 1, 0),
@@ -4486,7 +5029,7 @@ namespace JarvisSasariSa
             brandStack.Children.Add(new TextBlock
             {
                 Text = "JARVIS SOVEREIGN SaaS",
-                FontFamily = new FontFamily("Consolas, Segoe UI"),
+                FontFamily = MonoFont,
                 FontSize = 10.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(accentCyan)
@@ -4494,28 +5037,28 @@ namespace JarvisSasariSa
             brandStack.Children.Add(new TextBlock
             {
                 Text = "워크스페이스 관제 센터",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 16.5,
-                FontWeight = FontWeights.ExtraBold,
+                FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary),
                 Margin = new Thickness(0, 3, 0, 8)
             });
             Border mcpBadge = new Border
             {
                 CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromArgb(40, 46, 160, 67)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(120, 86, 211, 100)),
+                Background = new SolidColorBrush(Color.FromArgb(26, 46, 160, 67)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(90, 86, 211, 100)),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(9, 3, 9, 3),
                 HorizontalAlignment = HorizontalAlignment.Left
             };
             mcpBadge.Child = new TextBlock
             {
-                Text = "● 상용 정본 · MCP & Harness² 활성",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "상용 정본 · MCP & Harness² 활성",
+                FontFamily = UiFont,
                 FontSize = 10.5,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100))
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(LimeColor)
             };
             brandStack.Children.Add(mcpBadge);
             Grid.SetRow(brandStack, 0);
@@ -4525,10 +5068,9 @@ namespace JarvisSasariSa
             Grid.SetRow(navStack, 1);
             sidebarGrid.Children.Add(navStack);
 
-            // Clean Wrapped Bottom Workspace Status Card (Never clips!)
             Border bottomSummary = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -4539,39 +5081,39 @@ namespace JarvisSasariSa
             bottomSumStack.Children.Add(new TextBlock
             {
                 Text = "연동된 지식 · 스킬 워크스페이스",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 10.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textMuted),
                 Margin = new Thickness(0, 0, 0, 5)
             });
-            TextBlock txtSideBscStatus = new TextBlock
+            TextBlock txtSideBscStatus = ApplyTabular(new TextBlock
             {
-                Text = "• 본사 (BeausCreators): 26명 활성",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "• 본사 (BeausCreators): 30명 활성",
+                FontFamily = UiFont,
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(textPrimary),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 3)
-            };
-            TextBlock txtSideWhStatus = new TextBlock
+            });
+            TextBlock txtSideWhStatus = ApplyTabular(new TextBlock
             {
                 Text = "• 스킬 창고: 663개 · 79 뉴런 시냅스",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11,
                 Foreground = new SolidColorBrush(accentCyan),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 3)
-            };
-            TextBlock txtSideBwStatus = new TextBlock
+            });
+            TextBlock txtSideBwStatus = ApplyTabular(new TextBlock
             {
                 Text = "• 출판 OS (BeautifulWorld): 673개 자산",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100)),
+                Foreground = new SolidColorBrush(LimeColor),
                 TextWrapping = TextWrapping.Wrap
-            };
+            });
             bottomSumStack.Children.Add(txtSideBscStatus);
             bottomSumStack.Children.Add(txtSideWhStatus);
             bottomSumStack.Children.Add(txtSideBwStatus);
@@ -4579,7 +5121,7 @@ namespace JarvisSasariSa
             sidebarGrid.Children.Add(bottomSummary);
 
             // =====================================================================
-            // RIGHT CONTENT AREA (Header + Scrollable Body + Pinned Footer)
+            // RIGHT CONTENT AREA
             // =====================================================================
             Grid rightGrid = new Grid { Margin = new Thickness(24, 18, 24, 16) };
             rightGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -4597,16 +5139,16 @@ namespace JarvisSasariSa
             StackPanel headerTitleStack = new StackPanel();
             TextBlock txtDocPaneTitle = new TextBlock
             {
-                Text = "📋 실시간 Plan · 설계 로드맵",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "실시간 Plan · 설계 로드맵",
+                FontFamily = UiFont,
                 FontSize = 18,
-                FontWeight = FontWeights.ExtraBold,
+                FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
             };
             TextBlock txtDocPaneDesc = new TextBlock
             {
                 Text = "프로젝트 목표와 단계별 실행 계획을 한눈에 관리하고 문서로 즉시 내보냅니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 12,
                 Foreground = new SolidColorBrush(textSecondary),
                 TextWrapping = TextWrapping.Wrap,
@@ -4617,12 +5159,11 @@ namespace JarvisSasariSa
             Grid.SetColumn(headerTitleStack, 0);
             rightHeader.Children.Add(headerTitleStack);
 
-            // Top-Right Window Control Buttons ([최대화/복원] + [닫기])
             StackPanel winCtrlRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
             Border btnMaxWin = new Border
             {
                 Height = 28,
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
@@ -4632,8 +5173,8 @@ namespace JarvisSasariSa
             };
             TextBlock txtMaxWin = new TextBlock
             {
-                Text = "최대화 □",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "최대화",
+                FontFamily = UiFont,
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(textSecondary),
@@ -4646,7 +5187,7 @@ namespace JarvisSasariSa
                 e.Handled = true;
                 if (planDocWindow == null) return;
                 planDocWindow.WindowState = planDocWindow.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-                txtMaxWin.Text = planDocWindow.WindowState == WindowState.Maximized ? "복원 ❐" : "최대화 □";
+                txtMaxWin.Text = planDocWindow.WindowState == WindowState.Maximized ? "복원" : "최대화";
             };
             winCtrlRow.Children.Add(btnMaxWin);
 
@@ -4654,21 +5195,13 @@ namespace JarvisSasariSa
             {
                 Width = 28,
                 Height = 28,
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(Color.FromRgb(38, 22, 28)),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(92, 42, 52)),
                 BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand
             };
-            btnCloseWin.Child = new TextBlock
-            {
-                Text = "✕",
-                FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
-                FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(255, 150, 150)),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
+            btnCloseWin.Child = MakeIconPath(IconCloseData, DangerColor, 10, true);
             btnCloseWin.MouseLeftButtonDown += (s, e) => e.Handled = true;
             btnCloseWin.MouseLeftButtonUp += (s, e) =>
             {
@@ -4680,7 +5213,6 @@ namespace JarvisSasariSa
             Grid.SetColumn(winCtrlRow, 1);
             rightHeader.Children.Add(winCtrlRow);
 
-            // ScrollViewer wrapping tabHost so content NEVER gets vertically clipped!
             Grid tabHost = new Grid();
             ScrollViewer mainTabScroll = new ScrollViewer
             {
@@ -4702,14 +5234,11 @@ namespace JarvisSasariSa
             tabHost.Children.Add(tabHarness2);
             tabHost.Children.Add(tabRea);
 
-            // =====================================================================
-            // SaaS UI COMPONENT BUILDERS (KPI Cards, Structured Cards, Action Buttons)
-            // =====================================================================
             Func<string, string, string, Color, Border> makeKpiMetricBox = (label, bigValue, subNote, accentCol) =>
             {
                 Border box = new Border
                 {
-                    CornerRadius = new CornerRadius(10),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(bgSurface),
                     BorderBrush = new SolidColorBrush(borderSubtle),
                     BorderThickness = new Thickness(1),
@@ -4721,33 +5250,32 @@ namespace JarvisSasariSa
                 sp.Children.Add(new TextBlock
                 {
                     Text = label,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 11,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = new SolidColorBrush(textSecondary)
                 });
-                sp.Children.Add(new TextBlock
+                sp.Children.Add(ApplyTabular(new TextBlock
                 {
                     Text = bigValue,
-                    FontFamily = new FontFamily("Segoe UI, Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 18,
-                    FontWeight = FontWeights.ExtraBold,
+                    FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(accentCol),
                     Margin = new Thickness(0, 3, 0, 2),
                     TextWrapping = TextWrapping.Wrap
-                });
-                sp.Children.Add(new TextBlock
+                }));
+                sp.Children.Add(ApplyTabular(new TextBlock
                 {
                     Text = subNote,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 10.5,
                     Foreground = new SolidColorBrush(textMuted),
                     TextWrapping = TextWrapping.Wrap
-                });
+                }));
                 return box;
             };
 
-            // Cleans raw developer log strings into structured, human-readable SaaS lines
             Func<string, string[]> splitCleanLines = (rawBody) =>
             {
                 if (string.IsNullOrWhiteSpace(rawBody)) return new string[0];
@@ -4766,7 +5294,7 @@ namespace JarvisSasariSa
             {
                 Border card = new Border
                 {
-                    CornerRadius = new CornerRadius(11),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(bgSurface),
                     BorderBrush = new SolidColorBrush(borderSubtle),
                     BorderThickness = new Thickness(1),
@@ -4786,28 +5314,28 @@ namespace JarvisSasariSa
                 {
                     Border badge = new Border
                     {
-                        CornerRadius = new CornerRadius(5),
-                        Background = new SolidColorBrush(Color.FromArgb(38, accentCol.R, accentCol.G, accentCol.B)),
-                        BorderBrush = new SolidColorBrush(Color.FromArgb(120, accentCol.R, accentCol.G, accentCol.B)),
+                        CornerRadius = new CornerRadius(6),
+                        Background = new SolidColorBrush(Color.FromArgb(26, accentCol.R, accentCol.G, accentCol.B)),
+                        BorderBrush = new SolidColorBrush(Color.FromArgb(90, accentCol.R, accentCol.G, accentCol.B)),
                         BorderThickness = new Thickness(1),
                         Padding = new Thickness(8, 2, 8, 2),
                         Margin = new Thickness(0, 0, 8, 2),
                         VerticalAlignment = VerticalAlignment.Center
                     };
-                    badge.Child = new TextBlock
+                    badge.Child = ApplyTabular(new TextBlock
                     {
                         Text = badgeText,
-                        FontFamily = new FontFamily("Malgun Gothic"),
+                        FontFamily = UiFont,
                         FontSize = 10.5,
                         FontWeight = FontWeights.Bold,
                         Foreground = new SolidColorBrush(accentCol)
-                    };
+                    });
                     leftWrap.Children.Add(badge);
                 }
                 leftWrap.Children.Add(new TextBlock
                 {
                     Text = heading,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 13.5,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(textPrimary),
@@ -4821,7 +5349,7 @@ namespace JarvisSasariSa
                 {
                     Border statusPill = new Border
                     {
-                        CornerRadius = new CornerRadius(5),
+                        CornerRadius = new CornerRadius(6),
                         Background = new SolidColorBrush(bgSubRow),
                         BorderBrush = new SolidColorBrush(borderHairline),
                         BorderThickness = new Thickness(1),
@@ -4829,14 +5357,14 @@ namespace JarvisSasariSa
                         Margin = new Thickness(8, 0, 0, 0),
                         VerticalAlignment = VerticalAlignment.Top
                     };
-                    statusPill.Child = new TextBlock
+                    statusPill.Child = ApplyTabular(new TextBlock
                     {
                         Text = statusRight,
-                        FontFamily = new FontFamily("Consolas, Malgun Gothic"),
+                        FontFamily = MonoFont,
                         FontSize = 10.5,
                         FontWeight = FontWeights.SemiBold,
                         Foreground = new SolidColorBrush(textSecondary)
-                    };
+                    });
                     Grid.SetColumn(statusPill, 1);
                     topRow.Children.Add(statusPill);
                 }
@@ -4846,7 +5374,7 @@ namespace JarvisSasariSa
                 {
                     Border itemRow = new Border
                     {
-                        CornerRadius = new CornerRadius(7),
+                        CornerRadius = new CornerRadius(6),
                         Background = new SolidColorBrush(bgSubRow),
                         BorderBrush = new SolidColorBrush(Color.FromArgb(90, accentCol.R, accentCol.G, accentCol.B)),
                         BorderThickness = new Thickness(2.5, 0, 0, 0),
@@ -4856,9 +5384,9 @@ namespace JarvisSasariSa
                     itemRow.Child = new TextBlock
                     {
                         Text = line,
-                        FontFamily = new FontFamily("Malgun Gothic"),
+                        FontFamily = UiFont,
                         FontSize = 12,
-                        Foreground = new SolidColorBrush(Color.FromRgb(224, 234, 245)),
+                        Foreground = new SolidColorBrush(textPrimary),
                         TextWrapping = TextWrapping.Wrap,
                         LineHeight = 18
                     };
@@ -4871,9 +5399,9 @@ namespace JarvisSasariSa
             {
                 Border b = new Border
                 {
-                    CornerRadius = new CornerRadius(9),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(bgCol),
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(140, 255, 255, 255)),
+                    BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
                     BorderThickness = new Thickness(1),
                     Padding = new Thickness(12, 9, 12, 9),
                     Margin = new Thickness(0, 0, 8, 8),
@@ -4884,7 +5412,7 @@ namespace JarvisSasariSa
                 sp.Children.Add(new TextBlock
                 {
                     Text = btnLabel,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 12,
                     FontWeight = FontWeights.Bold,
                     Foreground = Brushes.White,
@@ -4892,15 +5420,15 @@ namespace JarvisSasariSa
                 });
                 if (!string.IsNullOrEmpty(subHint))
                 {
-                    sp.Children.Add(new TextBlock
+                    sp.Children.Add(ApplyTabular(new TextBlock
                     {
                         Text = subHint,
-                        FontFamily = new FontFamily("Malgun Gothic"),
+                        FontFamily = UiFont,
                         FontSize = 10.5,
                         Foreground = new SolidColorBrush(Color.FromRgb(220, 235, 250)),
                         Margin = new Thickness(0, 2, 0, 0),
                         TextWrapping = TextWrapping.Wrap
-                    });
+                    }));
                 }
                 b.MouseLeftButtonDown += (s, e) => e.Handled = true;
                 b.MouseLeftButtonUp += (s, e) => { e.Handled = true; onClick(); };
@@ -4908,11 +5436,11 @@ namespace JarvisSasariSa
             };
 
             // =====================================================================
-            // TAB 1: 📋 실시간 Plan · 설계 로드맵 (Top Action Bar + Structured Step Cards)
+            // TAB 1: 실시간 Plan · 설계 로드맵
             // =====================================================================
             Border newPlanBar = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
@@ -4934,7 +5462,7 @@ namespace JarvisSasariSa
                 CaretBrush = Brushes.White,
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 12,
                 Padding = new Thickness(10, 0, 10, 0),
                 Text = ""
@@ -4944,7 +5472,7 @@ namespace JarvisSasariSa
 
             Border btnBuildPlan = new Border
             {
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(accentBlue),
                 Padding = new Thickness(14, 6, 14, 6),
                 Margin = new Thickness(8, 0, 0, 0),
@@ -4953,8 +5481,8 @@ namespace JarvisSasariSa
             };
             btnBuildPlan.Child = new TextBlock
             {
-                Text = "⚡ 새 Plan 설계 생성",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "새 Plan 설계 생성",
+                FontFamily = UiFont,
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
@@ -4964,7 +5492,7 @@ namespace JarvisSasariSa
 
             Border btnBriefingFromPlan = new Border
             {
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSubRow),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
@@ -4975,8 +5503,8 @@ namespace JarvisSasariSa
             };
             btnBriefingFromPlan.Child = new TextBlock
             {
-                Text = "📋 오늘 본사 브리핑 열기",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "오늘 본사 브리핑",
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(accentCyan)
@@ -4989,9 +5517,9 @@ namespace JarvisSasariSa
 
             Border planBanner = new Border
             {
-                CornerRadius = new CornerRadius(11),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgActiveCard),
-                BorderBrush = new SolidColorBrush(accentBlue),
+                BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(16, 12, 16, 12),
                 Margin = new Thickness(0, 0, 0, 10)
@@ -5000,22 +5528,22 @@ namespace JarvisSasariSa
             planBanner.Child = planBannerStack;
             TextBlock txtActivePlanTitle = new TextBlock
             {
-                Text = "📋 자비스 × BeausCreators 3대 생태계 통합 상용 아키텍처",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "자비스 × BeausCreators 3대 생태계 통합 상용 아키텍처",
+                FontFamily = UiFont,
                 FontSize = 14.5,
-                FontWeight = FontWeights.ExtraBold,
+                FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White,
                 TextWrapping = TextWrapping.Wrap
             };
-            TextBlock txtActivePlanSummary = new TextBlock
+            TextBlock txtActivePlanSummary = ApplyTabular(new TextBlock
             {
                 Text = "실시간 동기화 완료 · 정본 문서: JARVIS_Active_Plan.md",
-                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(accentCyan),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 4, 0, 0)
-            };
+            });
             planBannerStack.Children.Add(txtActivePlanTitle);
             planBannerStack.Children.Add(txtActivePlanSummary);
             tabPlan.Children.Add(planBanner);
@@ -5032,8 +5560,8 @@ namespace JarvisSasariSa
                 "STEP 02",
                 "3대 생태계 (본사 · 출판사 · 스킬 창고) 실시간 연동",
                 "동기화 완료",
-                "• BeausCreators(26인 에이전트), BeautifulWorld(출판 OS), Warehouse(663 스킬·79 뉴런) 데이터를 실시간 바인딩합니다.\n• 리서치 및 브리핑 결과를 Word, PDF, PPT, Markdown 4대 문서로 즉시 생성합니다.",
-                Color.FromRgb(86, 211, 100)
+                "• BeausCreators(30명 에이전트), BeautifulWorld(출판 OS), Warehouse(663 스킬·79 뉴런) 데이터를 실시간 바인딩합니다.\n• 리서치 및 브리핑 결과를 Word, PDF, PPT, Markdown 4대 문서로 즉시 생성합니다.",
+                LimeColor
             ));
             planSectionsContainer.Children.Add(makeSaaSCard(
                 "STEP 03",
@@ -5044,13 +5572,11 @@ namespace JarvisSasariSa
             ));
             tabPlan.Children.Add(planSectionsContainer);
 
-            btnBuildPlan.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            btnBuildPlan.MouseLeftButtonUp += (s, e) =>
+            Action submitNewPlan = () =>
             {
-                e.Handled = true;
                 string topic = txtNewPlanInput.Text.Trim();
                 if (string.IsNullOrEmpty(topic)) topic = "자비스 SaaS 상용화 및 3대 생태계 워크플로 자동화 계획";
-                txtActivePlanTitle.Text = "📋 [신규 Plan] " + topic;
+                txtActivePlanTitle.Text = "[신규 Plan] " + topic;
                 txtActivePlanSummary.Text = "생성 시각: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " · JARVIS_Active_Plan.md 자동 저장 완료";
                 planSectionsContainer.Children.Clear();
                 planSectionsContainer.Children.Add(makeSaaSCard(
@@ -5065,7 +5591,7 @@ namespace JarvisSasariSa
                     "실행 파이프라인 & 자동 문서화",
                     "실행 대기",
                     "• 3대 생태계 스킬 및 CHLGD 자동화 스크립트(.ps1 / .py) 연동 실행\n• 결과물을 Word(.docx) · PDF · PPT 보고서로 즉시 변환",
-                    Color.FromRgb(86, 211, 100)
+                    LimeColor
                 ));
                 planSectionsContainer.Children.Add(makeSaaSCard(
                     "PHASE 03",
@@ -5079,19 +5605,22 @@ namespace JarvisSasariSa
                 {
                     try
                     {
-                        string payload = "{\"title\":\"📋 [Plan] " + EscapeJson(topic) + "\",\"rawTopic\":\"" + EscapeJson(topic) + "\",\"openWindow\":false}";
+                        string payload = "{\"title\":\"[Plan] " + EscapeJson(topic) + "\",\"rawTopic\":\"" + EscapeJson(topic) + "\",\"openWindow\":false}";
                         await http.PostAsync("http://127.0.0.1:7788/api/hud/plan-doc", new StringContent(payload, Encoding.UTF8, "application/json"));
                     }
                     catch { }
                 });
             };
+            txtNewPlanInput.PreviewKeyDown += (s, e) => { if (e.Key == Key.Enter) { e.Handled = true; submitNewPlan(); } };
+            btnBuildPlan.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnBuildPlan.MouseLeftButtonUp += (s, e) => { e.Handled = true; submitNewPlan(); };
 
             // =====================================================================
-            // TAB 2: 📓 CHLGD 대화 규칙 · 로그 (Top Input Bar + KPI Strip + Clean Rule Cards)
+            // TAB 2: CHLGD 대화 규칙 · 로그
             // =====================================================================
             Border addRuleBar = new Border
             {
-                CornerRadius = new CornerRadius(10),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
@@ -5112,7 +5641,7 @@ namespace JarvisSasariSa
                 CaretBrush = Brushes.White,
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 12,
                 Padding = new Thickness(10, 0, 10, 0),
                 Text = ""
@@ -5122,7 +5651,7 @@ namespace JarvisSasariSa
 
             Border btnAddRule = new Border
             {
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(accentEmerald),
                 Padding = new Thickness(14, 6, 14, 6),
                 Margin = new Thickness(8, 0, 0, 0),
@@ -5131,8 +5660,8 @@ namespace JarvisSasariSa
             };
             btnAddRule.Child = new TextBlock
             {
-                Text = "＋ 새 대화 규칙 등록",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "+ 새 대화 규칙 등록",
+                FontFamily = UiFont,
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.White
@@ -5142,15 +5671,15 @@ namespace JarvisSasariSa
             tabRules.Children.Add(addRuleBar);
 
             System.Windows.Controls.Primitives.UniformGrid rulesKpiGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
-            TextBlock txtKpiOrdersVal = new TextBlock { Text = "69건", FontFamily = new FontFamily("Segoe UI, Malgun Gothic"), FontSize = 18, FontWeight = FontWeights.ExtraBold, Foreground = new SolidColorBrush(accentCyan), Margin = new Thickness(0, 2, 0, 2) };
-            TextBlock txtKpiRulesVal = new TextBlock { Text = "활성 규칙", FontFamily = new FontFamily("Segoe UI, Malgun Gothic"), FontSize = 18, FontWeight = FontWeights.ExtraBold, Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100)), Margin = new Thickness(0, 2, 0, 2) };
-            TextBlock txtKpiHarnessVal = new TextBlock { Text = "실시간 학습", FontFamily = new FontFamily("Segoe UI, Malgun Gothic"), FontSize = 18, FontWeight = FontWeights.ExtraBold, Foreground = new SolidColorBrush(accentAmber), Margin = new Thickness(0, 2, 0, 2) };
+            TextBlock txtKpiOrdersVal = ApplyTabular(new TextBlock { Text = "69건", FontFamily = UiFont, FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(accentCyan), Margin = new Thickness(0, 2, 0, 2) });
+            TextBlock txtKpiRulesVal = ApplyTabular(new TextBlock { Text = "활성 규칙", FontFamily = UiFont, FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(LimeColor), Margin = new Thickness(0, 2, 0, 2) });
+            TextBlock txtKpiHarnessVal = ApplyTabular(new TextBlock { Text = "실시간 학습", FontFamily = UiFont, FontSize = 18, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(accentAmber), Margin = new Thickness(0, 2, 0, 2) });
 
             Func<string, TextBlock, string, Border> wrapKpiBox = (lbl, valBlock, sub) =>
             {
                 Border b = new Border
                 {
-                    CornerRadius = new CornerRadius(10),
+                    CornerRadius = new CornerRadius(8),
                     Background = new SolidColorBrush(bgSurface),
                     BorderBrush = new SolidColorBrush(borderSubtle),
                     BorderThickness = new Thickness(1),
@@ -5159,9 +5688,9 @@ namespace JarvisSasariSa
                 };
                 StackPanel sp = new StackPanel();
                 b.Child = sp;
-                sp.Children.Add(new TextBlock { Text = lbl, FontFamily = new FontFamily("Malgun Gothic"), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(textSecondary) });
+                sp.Children.Add(new TextBlock { Text = lbl, FontFamily = UiFont, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(textSecondary) });
                 sp.Children.Add(valBlock);
-                sp.Children.Add(new TextBlock { Text = sub, FontFamily = new FontFamily("Malgun Gothic"), FontSize = 10.5, Foreground = new SolidColorBrush(textMuted), TextWrapping = TextWrapping.Wrap });
+                sp.Children.Add(new TextBlock { Text = sub, FontFamily = UiFont, FontSize = 10.5, Foreground = new SolidColorBrush(textMuted), TextWrapping = TextWrapping.Wrap });
                 return b;
             };
             rulesKpiGrid.Children.Add(wrapKpiBox("누적 실행 오더", txtKpiOrdersVal, "ceo-orders-log.jsonl 원장"));
@@ -5172,10 +5701,8 @@ namespace JarvisSasariSa
             StackPanel rulesListContainer = new StackPanel();
             tabRules.Children.Add(rulesListContainer);
 
-            btnAddRule.MouseLeftButtonDown += (s, e) => e.Handled = true;
-            btnAddRule.MouseLeftButtonUp += (s, e) =>
+            Action submitNewRule = () =>
             {
-                e.Handled = true;
                 string newRule = txtNewRuleInput.Text.Trim();
                 if (string.IsNullOrEmpty(newRule)) return;
                 rulesListContainer.Children.Insert(0, makeSaaSCard(
@@ -5183,7 +5710,7 @@ namespace JarvisSasariSa
                     newRule,
                     DateTime.Now.ToString("yyyy-MM-dd HH:mm") + " · 즉시 적용",
                     "• 대표님 직접 등록 규칙으로 Google Harness² 가드레일 및 대화 원장에 영구 반영되었습니다.",
-                    Color.FromRgb(86, 211, 100)
+                    LimeColor
                 ));
                 txtNewRuleInput.Text = "";
                 Task.Run(async () =>
@@ -5196,54 +5723,60 @@ namespace JarvisSasariSa
                     catch { }
                 });
             };
+            txtNewRuleInput.PreviewKeyDown += (s, e) => { if (e.Key == Key.Enter) { e.Handled = true; submitNewRule(); } };
+            btnAddRule.MouseLeftButtonDown += (s, e) => e.Handled = true;
+            btnAddRule.MouseLeftButtonUp += (s, e) => { e.Handled = true; submitNewRule(); };
 
             // =====================================================================
-            // TAB 3: 🧬 Google Harness² & 3대 생태계 (Responsive 3-Col Action Grid + KPI Cards)
+            // TAB 3: Google Harness² & 3대 생태계
             // =====================================================================
             System.Windows.Controls.Primitives.UniformGrid h2ActionGrid = new System.Windows.Controls.Primitives.UniformGrid
             {
                 Columns = 3,
                 Margin = new Thickness(0, 0, 0, 4)
             };
-            TextBlock txtH2RunResult = new TextBlock
+            TextBlock txtH2RunResult = ApplyTabular(new TextBlock
             {
-                Text = "● Google Harness² 8-Surface 검증: PASS · 경험 원장(R=4000, P=3000) 준비 완료",
-                FontFamily = new FontFamily("Malgun Gothic, Consolas"),
+                Text = "Google Harness² 8-Surface 검증: PASS · 경험 원장(R=4000, P=3000) 준비 완료",
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 Foreground = new SolidColorBrush(accentCyan),
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(2, 0, 0, 10)
-            };
+            });
             h2ActionGrid.Children.Add(makeResponsiveActionBtn(
-                "⚡ Harness² 자가진화 실행",
-                "Propose ➔ Probe ➔ Compose",
+                "Harness² 자가진화 실행",
+                "Propose -> Probe -> Compose",
                 accentBlue,
                 () =>
                 {
-                    txtH2RunResult.Text = "⏳ Google Harness² 8-Surface 검증 및 자가진화 루프 실행 중...";
+                    txtH2RunResult.Text = "Google Harness² 8-Surface 검증 및 자가진화 루프 실행 중…";
                     Task.Run(async () =>
                     {
                         try
                         {
                             await http.PostAsync("http://127.0.0.1:7788/api/hud/harness2-evolve", new StringContent("{\"reason\":\"CEO HUD Trigger\"}", Encoding.UTF8, "application/json"));
-                            hudWindow.Dispatcher.Invoke(() =>
+                            if (hudWindow != null)
                             {
-                                txtH2RunResult.Text = "✓ Google Harness² 자가진화 완료: 8-Surface PASS · 경험 원장(EXPERIENCE.md) 업데이트 완료";
-                                SpeakAsync("대표님, 구글 하네스 투 자가진화 루프를 완료하여 경험 원장에 반영했습니다.");
-                            });
+                                hudWindow.Dispatcher.Invoke(() =>
+                                {
+                                    txtH2RunResult.Text = "Google Harness² 자가진화 완료: 8-Surface PASS · 경험 원장(EXPERIENCE.md) 업데이트 완료";
+                                    SpeakAsync("대표님, 구글 하네스 투 자가진화 루프를 완료하여 경험 원장에 반영했습니다.");
+                                });
+                            }
                         }
                         catch { }
                     });
                 }
             ));
             h2ActionGrid.Children.Add(makeResponsiveActionBtn(
-                "🧠 옵시디언 뉴런 지식망 검색",
+                "옵시디언 뉴런 지식망 검색",
                 "79 Nodes · 138 Synapses 조회",
                 accentEmerald,
                 () => SendCommandToButler("뉴런에서 전체 검색해줘")
             ));
             h2ActionGrid.Children.Add(makeResponsiveActionBtn(
-                "🏛 오늘 본사 작업일지 브리핑",
+                "오늘 본사 작업일지 브리핑",
                 "작업일지 · 보고서 · 에이전트 요약",
                 Color.FromRgb(40, 54, 74),
                 () => SendCommandToButler("오늘 할 일 정리해 줘")
@@ -5252,16 +5785,16 @@ namespace JarvisSasariSa
             tabHarness2.Children.Add(txtH2RunResult);
 
             System.Windows.Controls.Primitives.UniformGrid ecoKpiGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
-            ecoKpiGrid.Children.Add(makeKpiMetricBox("🏛 BeausCreators 본사", "26명 에이전트", "CompanyOS · 90/91 칸반 가동", accentCyan));
-            ecoKpiGrid.Children.Add(makeKpiMetricBox("📚 BeautifulWorld 출판", "673개 자산", "7-Class OS · EPUB 3.0 파이프라인", Color.FromRgb(86, 211, 100)));
-            ecoKpiGrid.Children.Add(makeKpiMetricBox("🧠 Warehouse 스킬·뉴런", "663 스킬 · 79 뉴런", "138 시냅스 · 55 GitHub 레포", accentAmber));
+            ecoKpiGrid.Children.Add(makeKpiMetricBox("BeausCreators 본사", "30명 에이전트", "CompanyOS · 90/91 칸반 가동", accentCyan));
+            ecoKpiGrid.Children.Add(makeKpiMetricBox("BeautifulWorld 출판", "673개 자산", "7-Class OS · EPUB 3.0 파이프라인", LimeColor));
+            ecoKpiGrid.Children.Add(makeKpiMetricBox("Warehouse 스킬·뉴런", "663 스킬 · 79 뉴런", "138 시냅스 · 55 GitHub 레포", accentAmber));
             tabHarness2.Children.Add(ecoKpiGrid);
 
             StackPanel h2CardsContainer = new StackPanel();
             tabHarness2.Children.Add(h2CardsContainer);
 
             // =====================================================================
-            // TAB 4: 🔬 Antigravity REA v6.8.0 · Laya · 8대 MCP 도구 카탈로그
+            // TAB 4: Antigravity REA v6.8.0 · Laya · 8대 MCP 도구 카탈로그
             // =====================================================================
             System.Windows.Controls.Primitives.UniformGrid reaActionsGrid = new System.Windows.Controls.Primitives.UniformGrid
             {
@@ -5269,19 +5802,19 @@ namespace JarvisSasariSa
                 Margin = new Thickness(0, 0, 0, 6)
             };
             reaActionsGrid.Children.Add(makeResponsiveActionBtn(
-                "🔬 자비스 REA v6.8.0 진단",
+                "자비스 REA v6.8.0 진단",
                 "4-Stage 역공학 · 4분할 증거 추출",
                 accentBlue,
                 () => SendCommandToButler("자비스 REA 역공학 분석해줘")
             ));
             reaActionsGrid.Children.Add(makeResponsiveActionBtn(
-                "🏛 본사(BeausCreators) 진단",
+                "본사(BeausCreators) 진단",
                 "본사 아키텍처 · 스킬 구조 분석",
                 accentEmerald,
                 () => SendCommandToButler("뷰스크리에이터스 REA 역공학 분석해줘")
             ));
             reaActionsGrid.Children.Add(makeResponsiveActionBtn(
-                "🧬 Laya 의사결정 점검",
+                "Laya 의사결정 점검",
                 "다국어 DSL · 프로젝트 상태 진단",
                 Color.FromRgb(158, 106, 3),
                 () => SendCommandToButler("라야로 현재 프로젝트 상태 점검해줘")
@@ -5305,7 +5838,7 @@ namespace JarvisSasariSa
 
             Border mcpCatalogCard = new Border
             {
-                CornerRadius = new CornerRadius(11),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderSubtle),
                 BorderThickness = new Thickness(1),
@@ -5316,31 +5849,31 @@ namespace JarvisSasariSa
             mcpCatalogCard.Child = mcpCatStack;
             mcpCatStack.Children.Add(new TextBlock
             {
-                Text = "🔗 양방향 MCP 서버 제공 도구 카탈로그 (jarvis-sovereign-butler · 8대 도구 온라인)",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                Text = "양방향 MCP 서버 제공 도구 카탈로그 (jarvis-sovereign-butler · 8대 도구 온라인)",
+                FontFamily = UiFont,
                 FontSize = 13.5,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100)),
+                Foreground = new SolidColorBrush(LimeColor),
                 Margin = new Thickness(0, 0, 0, 8)
             });
 
             System.Windows.Controls.Primitives.UniformGrid mcpToolsGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
             string[][] mcpToolsList = new string[][]
             {
-                new string[] { "① 상태 · 프로필 조회", "jarvis_status_and_profile", "3대 생태계 · 메모리 · 대표님 프로필 조회" },
-                new string[] { "② 음성 · 시스템 오더 실행", "jarvis_execute_command", "자비스 Butler 엔진 명령 즉시 실행" },
-                new string[] { "③ Plan · 규칙 HUD 제어", "jarvis_open_plan_hud", "전용 Plan 문서 및 규칙 창 실시간 제어" },
-                new string[] { "④ 대화 규칙 · 로그 기록", "jarvis_record_rule_or_log", "새 대화 규칙 및 CHLGD 오더 원장 기록" },
-                new string[] { "⑤ Harness² 자가진화 실행", "jarvis_run_harness2_recursion", "8-Surface 검증 및 재귀 학습 루프 실행" },
-                new string[] { "⑥ 4대 오피스 문서 제작", "jarvis_create_office_doc", "Word · PDF · PPT · Markdown 즉시 생성" },
-                new string[] { "⑦ REA v6.8.0 · Laya 분석", "jarvis_run_rea_or_laya", "클린룸 역공학 및 Laya 상태 진단 실행" },
-                new string[] { "⑧ Warehouse 뉴런 검색", "jarvis_warehouse_neuron", "79 Nodes · 138 Synapses 2-Hop 탐색" }
+                new string[] { "01. 상태 · 프로필 조회", "jarvis_status_and_profile", "3대 생태계 · 메모리 · 대표님 프로필 조회" },
+                new string[] { "02. 음성 · 시스템 오더 실행", "jarvis_execute_command", "자비스 Butler 엔진 명령 즉시 실행" },
+                new string[] { "03. Plan · 규칙 HUD 제어", "jarvis_open_plan_hud", "전용 Plan 문서 및 규칙 창 실시간 제어" },
+                new string[] { "04. 대화 규칙 · 로그 기록", "jarvis_record_rule_or_log", "새 대화 규칙 및 CHLGD 오더 원장 기록" },
+                new string[] { "05. Harness² 자가진화 실행", "jarvis_run_harness2_recursion", "8-Surface 검증 및 재귀 학습 루프 실행" },
+                new string[] { "06. 4대 오피스 문서 제작", "jarvis_create_office_doc", "Word · PDF · PPT · Markdown 즉시 생성" },
+                new string[] { "07. REA v6.8.0 · Laya 분석", "jarvis_run_rea_or_laya", "클린룸 역공학 및 Laya 상태 진단 실행" },
+                new string[] { "08. Warehouse 뉴런 검색", "jarvis_warehouse_neuron", "79 Nodes · 138 Synapses 2-Hop 탐색" }
             };
             foreach (var mt in mcpToolsList)
             {
                 Border tBox = new Border
                 {
-                    CornerRadius = new CornerRadius(7),
+                    CornerRadius = new CornerRadius(6),
                     Background = new SolidColorBrush(bgSubRow),
                     BorderBrush = new SolidColorBrush(borderSubtle),
                     BorderThickness = new Thickness(1),
@@ -5352,18 +5885,18 @@ namespace JarvisSasariSa
                 Grid topT = new Grid();
                 topT.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 topT.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                topT.Children.Add(new TextBlock
+                topT.Children.Add(ApplyTabular(new TextBlock
                 {
                     Text = mt[0],
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 11.5,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(textPrimary)
-                });
+                }));
                 TextBlock codeTb = new TextBlock
                 {
                     Text = mt[1],
-                    FontFamily = new FontFamily("Consolas"),
+                    FontFamily = MonoFont,
                     FontSize = 10,
                     Foreground = new SolidColorBrush(accentCyan),
                     VerticalAlignment = VerticalAlignment.Center
@@ -5374,7 +5907,7 @@ namespace JarvisSasariSa
                 tsp.Children.Add(new TextBlock
                 {
                     Text = mt[2],
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 10.5,
                     Foreground = new SolidColorBrush(textSecondary),
                     Margin = new Thickness(0, 2, 0, 0),
@@ -5386,16 +5919,16 @@ namespace JarvisSasariSa
             tabRea.Children.Add(mcpCatalogCard);
 
             // =====================================================================
-            // SIDEBAR NAVIGATION SETUP
+            // SIDEBAR NAVIGATION SETUP (Segoe MDL2 Assets Glyphs, Zero Emojis)
             // =====================================================================
             string currentTabKey = string.IsNullOrEmpty(initialTab) ? "plan" : initialTab.ToLowerInvariant();
             System.Collections.Generic.List<Action> navSyncList = new System.Collections.Generic.List<Action>();
 
-            Action<string, string, string, string, StackPanel> addDocNav = (tabKey, iconStr, navLabel, descStr, paneTarget) =>
+            Action<string, string, string, string, StackPanel> addDocNav = (tabKey, iconGlyph, navLabel, descStr, paneTarget) =>
             {
                 Border navBtn = new Border
                 {
-                    CornerRadius = new CornerRadius(9),
+                    CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 10, 12, 10),
                     Margin = new Thickness(0, 0, 0, 6),
                     Cursor = Cursors.Hand
@@ -5403,8 +5936,8 @@ namespace JarvisSasariSa
                 StackPanel row = new StackPanel { Orientation = Orientation.Horizontal };
                 TextBlock ic = new TextBlock
                 {
-                    Text = iconStr,
-                    FontFamily = new FontFamily("Segoe UI Symbol, Malgun Gothic"),
+                    Text = iconGlyph,
+                    FontFamily = GlyphFont,
                     FontSize = 13.5,
                     Margin = new Thickness(0, 0, 9, 0),
                     VerticalAlignment = VerticalAlignment.Center
@@ -5412,7 +5945,7 @@ namespace JarvisSasariSa
                 TextBlock lb = new TextBlock
                 {
                     Text = navLabel,
-                    FontFamily = new FontFamily("Malgun Gothic"),
+                    FontFamily = UiFont,
                     FontSize = 12.5,
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -5425,7 +5958,7 @@ namespace JarvisSasariSa
                 {
                     bool active = (currentTabKey == tabKey);
                     navBtn.Background = new SolidColorBrush(active ? bgSurface : Colors.Transparent);
-                    navBtn.BorderBrush = new SolidColorBrush(active ? accentCyan : Colors.Transparent);
+                    navBtn.BorderBrush = new SolidColorBrush(active ? borderHairline : Colors.Transparent);
                     navBtn.BorderThickness = new Thickness(1);
                     ic.Foreground = new SolidColorBrush(active ? accentCyan : textSecondary);
                     lb.Foreground = new SolidColorBrush(active ? textPrimary : textSecondary);
@@ -5443,17 +5976,17 @@ namespace JarvisSasariSa
                     tabHarness2.Visibility = Visibility.Collapsed;
                     tabRea.Visibility = Visibility.Collapsed;
                     paneTarget.Visibility = Visibility.Visible;
-                    txtDocPaneTitle.Text = iconStr + " " + navLabel;
+                    txtDocPaneTitle.Text = navLabel;
                     txtDocPaneDesc.Text = descStr;
                     mainTabScroll.ScrollToTop();
                     foreach (var cb in navSyncList) { try { cb(); } catch { } }
                 };
             };
 
-            addDocNav("plan", "📋", "실시간 Plan · 로드맵", "프로젝트 목표와 단계별 실행 계획을 구조화하여 관리하고 문서로 즉시 내보냅니다.", tabPlan);
-            addDocNav("rules", "📓", "CHLGD 대화 규칙 · 로그", "대표님과의 대화에서 학습된 규칙, 선호도, 오더 실행 원장을 카드 형태로 깔끔하게 정리합니다.", tabRules);
-            addDocNav("harness2", "🧬", "3대 생태계 & Harness²", "BeausCreators · BeautifulWorld · Warehouse 실시간 지표 및 Google Harness² 자가진화 관제판입니다.", tabHarness2);
-            addDocNav("rea", "🔬", "Antigravity REA & MCP", "morluto/rea v6.8.0 클린룸 역공학, Laya 의사결정 언어 및 8대 양방향 MCP 도구 카탈로그입니다.", tabRea);
+            addDocNav("plan", "\uE8A5", "실시간 Plan · 로드맵", "프로젝트 목표와 단계별 실행 계획을 구조화하여 관리하고 문서로 즉시 내보냅니다.", tabPlan);
+            addDocNav("rules", "\uE82D", "CHLGD 대화 규칙 · 로그", "대표님과의 대화에서 학습된 규칙, 선호도, 오더 실행 원장을 카드 형태로 정리합니다.", tabRules);
+            addDocNav("harness2", "\uE9D9", "3대 생태계 & Harness²", "BeausCreators · BeautifulWorld · Warehouse 실시간 지표 및 Google Harness² 자가진화 관제판입니다.", tabHarness2);
+            addDocNav("rea", "\uE721", "Antigravity REA & MCP", "morluto/rea v6.8.0 클린룸 역공학, Laya 의사결정 언어 및 8대 양방향 MCP 도구 카탈로그입니다.", tabRea);
 
             tabPlan.Visibility = currentTabKey == "plan" ? Visibility.Visible : Visibility.Collapsed;
             tabRules.Visibility = currentTabKey == "rules" ? Visibility.Visible : Visibility.Collapsed;
@@ -5461,22 +5994,22 @@ namespace JarvisSasariSa
             tabRea.Visibility = currentTabKey == "rea" ? Visibility.Visible : Visibility.Collapsed;
             if (currentTabKey == "rules")
             {
-                txtDocPaneTitle.Text = "📓 CHLGD 대화 규칙 · 로그";
-                txtDocPaneDesc.Text = "대표님과의 대화에서 학습된 규칙, 선호도, 오더 실행 원장을 카드 형태로 깔끔하게 정리합니다.";
+                txtDocPaneTitle.Text = "CHLGD 대화 규칙 · 로그";
+                txtDocPaneDesc.Text = "대표님과의 대화에서 학습된 규칙, 선호도, 오더 실행 원장을 카드 형태로 정리합니다.";
             }
             else if (currentTabKey == "harness2")
             {
-                txtDocPaneTitle.Text = "🧬 3대 생태계 & Harness²";
+                txtDocPaneTitle.Text = "3대 생태계 & Harness²";
                 txtDocPaneDesc.Text = "BeausCreators · BeautifulWorld · Warehouse 실시간 지표 및 Google Harness² 자가진화 관제판입니다.";
             }
             else if (currentTabKey == "rea")
             {
-                txtDocPaneTitle.Text = "🔬 Antigravity REA & MCP";
+                txtDocPaneTitle.Text = "Antigravity REA & MCP";
                 txtDocPaneDesc.Text = "morluto/rea v6.8.0 클린룸 역공학, Laya 의사결정 언어 및 8대 양방향 MCP 도구 카탈로그입니다.";
             }
             foreach (var cb in navSyncList) { try { cb(); } catch { } }
 
-            // Pinned Footer
+            // Pinned Footer (Clean Close Action, Zero Redundant Hint Banner)
             Border footerBorder = new Border
             {
                 BorderBrush = new SolidColorBrush(borderSubtle),
@@ -5488,18 +6021,10 @@ namespace JarvisSasariSa
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             footerBorder.Child = footerGrid;
-            footerGrid.Children.Add(new TextBlock
-            {
-                Text = "💡 창 우측 하단 모서리를 드래그하여 크기를 자유롭게 조절하거나 상단 [최대화 □] 버튼을 누르실 수 있습니다.",
-                FontFamily = new FontFamily("Malgun Gothic"),
-                FontSize = 11,
-                Foreground = new SolidColorBrush(textMuted),
-                VerticalAlignment = VerticalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap
-            });
+
             Border btnFooterClose = new Border
             {
-                CornerRadius = new CornerRadius(7),
+                CornerRadius = new CornerRadius(8),
                 Background = new SolidColorBrush(bgSurface),
                 BorderBrush = new SolidColorBrush(borderHairline),
                 BorderThickness = new Thickness(1),
@@ -5509,7 +6034,7 @@ namespace JarvisSasariSa
             btnFooterClose.Child = new TextBlock
             {
                 Text = "닫기",
-                FontFamily = new FontFamily("Malgun Gothic"),
+                FontFamily = UiFont,
                 FontSize = 11.5,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(textPrimary)
@@ -5540,11 +6065,13 @@ namespace JarvisSasariSa
                     var root = ser.Deserialize<System.Collections.Generic.Dictionary<string, object>>(dashJson);
                     if (root == null) return;
 
-                    hudWindow.Dispatcher.Invoke(() =>
+                    if (hudWindow != null)
                     {
-                        try
+                        hudWindow.Dispatcher.Invoke(() =>
                         {
-                            // 1) Tab 1: Active Plan Document
+                            try
+                            {
+                                // 1) Tab 1: Active Plan Document
                             var planDoc = root.ContainsKey("activePlanDoc") ? root["activePlanDoc"] as System.Collections.Generic.Dictionary<string, object> : null;
                             if (planDoc != null)
                             {
@@ -5559,7 +6086,7 @@ namespace JarvisSasariSa
                                 if (sections != null && sections.Count > 0)
                                 {
                                     planSectionsContainer.Children.Clear();
-                                    Color[] cols = new Color[] { accentCyan, Color.FromRgb(86, 211, 100), accentAmber, Color.FromRgb(165, 214, 255) };
+                                    Color[] cols = new Color[] { accentCyan, LimeColor, accentAmber, Color.FromRgb(165, 214, 255) };
                                     int idx = 0;
                                     foreach (var secObj in sections)
                                     {
@@ -5585,10 +6112,20 @@ namespace JarvisSasariSa
 
                             // 2) Tab 2: Structured Rules & Orders
                             var recLearn = root.ContainsKey("recursiveLearning") ? root["recursiveLearning"] as System.Collections.Generic.Dictionary<string, object> : null;
+                            var recCounts = JsonDict(recLearn, "counts");
                             var convRules = root.ContainsKey("conversationRules") ? root["conversationRules"] as System.Collections.ArrayList : null;
-                            int totOrders = root.ContainsKey("totalOrders") ? Convert.ToInt32(root["totalOrders"]) : 0;
-                            int learnedCnt = (recLearn != null && recLearn.ContainsKey("totalLearnedRules")) ? Convert.ToInt32(recLearn["totalLearnedRules"]) : 0;
-                            int lessonCnt = (recLearn != null && recLearn.ContainsKey("totalLessons")) ? Convert.ToInt32(recLearn["totalLessons"]) : 0;
+                            int totOrders = JsonInt(root, "totalOrders", 0);
+                            int learnedCnt = 0;
+                            if (recLearn != null)
+                            {
+                                if (recLearn.ContainsKey("activeCount") && recLearn["activeCount"] != null) learnedCnt = JsonInt(recLearn, "activeCount", 0);
+                                else if (recLearn.ContainsKey("activeRulesCount") && recLearn["activeRulesCount"] != null) learnedCnt = JsonInt(recLearn, "activeRulesCount", 0);
+                                else if (recCounts != null && recCounts.ContainsKey("activeRules")) learnedCnt = JsonInt(recCounts, "activeRules", 0);
+                                else if (recLearn.ContainsKey("totalLearnedRules")) learnedCnt = JsonInt(recLearn, "totalLearnedRules", 0);
+                            }
+                            int lessonCnt = (recCounts != null && recCounts.ContainsKey("lessons"))
+                                ? JsonInt(recCounts, "lessons", 0)
+                                : JsonInt(recLearn, "totalLessons", 0);
                             int convRuleCnt = convRules != null ? convRules.Count : 0;
 
                             txtKpiOrdersVal.Text = totOrders.ToString("N0") + "건 실행";
@@ -5596,28 +6133,42 @@ namespace JarvisSasariSa
                             txtKpiHarnessVal.Text = "승격 " + learnedCnt + "건 · 교훈 " + lessonCnt + "건";
 
                             rulesListContainer.Children.Clear();
-                            if (recLearn != null && recLearn.ContainsKey("rules"))
+                            System.Collections.ArrayList rList = null;
+                            if (recLearn != null)
                             {
-                                var rList = recLearn["rules"] as System.Collections.ArrayList;
-                                if (rList != null)
+                                if (recLearn.ContainsKey("activeRules")) rList = recLearn["activeRules"] as System.Collections.ArrayList;
+                                else if (recLearn.ContainsKey("rules")) rList = recLearn["rules"] as System.Collections.ArrayList;
+                            }
+                            if (rList != null)
+                            {
+                                foreach (var rObj in rList)
                                 {
-                                    foreach (var rObj in rList)
+                                    var rDict = rObj as System.Collections.Generic.Dictionary<string, object>;
+                                    if (rDict == null) continue;
+                                    string evStr = JsonStr(rDict, "evidence");
+                                    string rTitle = JsonStr(rDict, "title");
+                                    if (string.IsNullOrEmpty(rTitle))
                                     {
-                                        var rDict = rObj as System.Collections.Generic.Dictionary<string, object>;
-                                        if (rDict == null) continue;
-                                        string rTitle = rDict.ContainsKey("title") ? Convert.ToString(rDict["title"]) : "재귀 학습 승격 규칙";
-                                        string rGuidance = rDict.ContainsKey("guidance") ? Convert.ToString(rDict["guidance"]) : (rDict.ContainsKey("rule") ? Convert.ToString(rDict["rule"]) : "");
-                                        string rDom = rDict.ContainsKey("domain") ? Convert.ToString(rDict["domain"]) : "자동 학습";
-                                        if (!string.IsNullOrEmpty(rGuidance))
-                                        {
-                                            rulesListContainer.Children.Add(makeSaaSCard(
-                                                "Harness² · " + rDom,
-                                                rTitle,
-                                                "자동 승격됨",
-                                                rGuidance,
-                                                Color.FromRgb(86, 211, 100)
-                                            ));
-                                        }
+                                        rTitle = !string.IsNullOrEmpty(evStr) ? ("근거 " + evStr + "회 검증 · 승격 규칙") : "재귀 학습 승격 규칙";
+                                    }
+                                    string rGuidance = JsonStr(rDict, "text");
+                                    if (string.IsNullOrEmpty(rGuidance)) rGuidance = JsonStr(rDict, "guidance");
+                                    if (string.IsNullOrEmpty(rGuidance)) rGuidance = JsonStr(rDict, "rule");
+                                    string rDom = JsonStr(rDict, "category");
+                                    if (string.IsNullOrEmpty(rDom)) rDom = JsonStr(rDict, "kind");
+                                    if (string.IsNullOrEmpty(rDom)) rDom = JsonStr(rDict, "domain");
+                                    if (string.IsNullOrEmpty(rDom)) rDom = "자동 학습";
+                                    string rPromotedAt = JsonStr(rDict, "promotedAt");
+                                    string rBadge = string.IsNullOrEmpty(rPromotedAt) ? "자동 승격됨" : (rPromotedAt + " · 승격됨");
+                                    if (!string.IsNullOrEmpty(rGuidance))
+                                    {
+                                        rulesListContainer.Children.Add(makeSaaSCard(
+                                            "Harness² · " + rDom,
+                                            rTitle,
+                                            rBadge,
+                                            rGuidance,
+                                            LimeColor
+                                        ));
                                     }
                                 }
                             }
@@ -5652,8 +6203,9 @@ namespace JarvisSasariSa
                             if (ecoRoot != null && ecoRoot.ContainsKey("ecosystems"))
                             {
                                 var ecoArr = ecoRoot["ecosystems"] as System.Collections.ArrayList;
-                                int totalEcoFiles = ecoRoot.ContainsKey("totalFiles") ? Convert.ToInt32(ecoRoot["totalFiles"]) : 0;
-                                int totalEcoSkills = ecoRoot.ContainsKey("totalSkills") ? Convert.ToInt32(ecoRoot["totalSkills"]) : 0;
+                                var ecoTotals = JsonDict(ecoRoot, "totals");
+                                int totalEcoFiles = (ecoTotals != null && ecoTotals.ContainsKey("totalFiles")) ? JsonInt(ecoTotals, "totalFiles", 0) : JsonInt(ecoRoot, "totalFiles", 0);
+                                int totalEcoSkills = (ecoTotals != null && ecoTotals.ContainsKey("totalSkills")) ? JsonInt(ecoTotals, "totalSkills", 0) : JsonInt(ecoRoot, "totalSkills", 0);
                                 StringBuilder ecoSb = new StringBuilder();
                                 if (ecoArr != null)
                                 {
@@ -5666,6 +6218,14 @@ namespace JarvisSasariSa
                                         int fCnt = ed.ContainsKey("fileCount") ? Convert.ToInt32(ed["fileCount"]) : 0;
                                         int sCnt = ed.ContainsKey("skillCount") ? Convert.ToInt32(ed["skillCount"]) : 0;
                                         ecoSb.AppendLine(eName + " (" + ePath + ")  —  실측 파일 " + fCnt.ToString("N0") + "개 · 스킬/모듈 " + sCnt.ToString("N0") + "개");
+                                        if (eName.Contains("BeausCreators") && sCnt > 0)
+                                        {
+                                            txtSideBscStatus.Text = "• 본사 (BeausCreators): " + sCnt + "개 스킬 · 30명 활성";
+                                        }
+                                        else if (eName.Contains("BeautifulWorld") && fCnt > 0)
+                                        {
+                                            txtSideBwStatus.Text = "• 출판 OS (BeautifulWorld): " + fCnt.ToString("N0") + "개 자산";
+                                        }
                                     }
                                 }
                                 h2CardsContainer.Children.Add(makeSaaSCard(
@@ -5673,7 +6233,7 @@ namespace JarvisSasariSa
                                     "이건우 대표님 3대 생태계 실시간 연결 현황",
                                     "총 " + totalEcoFiles.ToString("N0") + " 파일 · " + totalEcoSkills.ToString("N0") + " 스킬",
                                     ecoSb.ToString().TrimEnd(),
-                                    Color.FromRgb(86, 211, 100)
+                                    LimeColor
                                 ));
                             }
 
@@ -5687,6 +6247,7 @@ namespace JarvisSasariSa
                                     int domCnt = ng.ContainsKey("domainCount") ? Convert.ToInt32(ng["domainCount"]) : 7;
                                     int subCnt = ng.ContainsKey("subskillCount") ? Convert.ToInt32(ng["subskillCount"]) : 217;
                                     int repoCnt = ng.ContainsKey("githubRepoCount") ? Convert.ToInt32(ng["githubRepoCount"]) : 55;
+                                    txtSideWhStatus.Text = "• 스킬 창고: " + subCnt + "개 · " + nCnt + " 뉴런 (" + eCnt + " 시냅스)";
                                     h2CardsContainer.Children.Add(makeSaaSCard(
                                         "NEURON GRAPH",
                                         "Warehouse 옵시디언 뉴런 시냅스 지식망",
@@ -5707,52 +6268,49 @@ namespace JarvisSasariSa
                                     "HARNESS² ENGINE",
                                     "Google Research Harness² 8-Surface 자가진화 엔진",
                                     (sValid ? "PASS" : "CHECK") + " · " + aoBytes.ToString("N0") + " / " + aoCap.ToString("N0") + " B",
-                                    "• 8대 편집 가능 표면(c1~c8, 파일 " + fCount + "개) 무결성 및 상시 컨텍스트 용량 제한(20KB) 검증 통과\n• 재귀 루프: Observe(관찰) ➔ Propose[INV+DOM](규칙 제안) ➔ Probe(검증) ➔ Compose(원장 합성)",
+                                    "• 8대 편집 가능 표면(c1~c8, 파일 " + fCount + "개) 무결성 및 상시 컨텍스트 용량 제한(20KB) 검증 통과\n• 재귀 루프: Observe(관찰) -> Propose[INV+DOM](규칙 제안) -> Probe(검증) -> Compose(원장 합성)",
                                     accentAmber
                                 ));
                             }
                         }
                         catch { }
-                    });
+                        });
+                    }
                 }
                 catch { }
             });
         }
 
-        private static void ApplyCustomHotkey(int vk, bool ctrl, bool alt, bool shift, string label)
+        private static async Task<bool> ApplyCustomHotkeyAsync(int vk, bool ctrl, bool alt, bool shift, string label)
         {
+            var patch = new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "hudHotkeyVk", vk },
+                { "hudHotkeyCtrl", ctrl },
+                { "hudHotkeyAlt", alt },
+                { "hudHotkeyShift", shift },
+                { "hudHotkeyLabel", label }
+            };
+            bool saved = await SaveSettingsPatchAsync(patch);
+            if (!saved)
+            {
+                SetHudAppearance(AmberColor);
+                BroadcastStatus("호출 단축키 저장 실패");
+                BroadcastBody("단축키 [" + label + "] 저장에 실패했습니다. 서버 연결을 확인해 주세요.");
+                return false;
+            }
+
             customHotkeyVk = vk;
             customNeedCtrl = ctrl;
             customNeedAlt = alt;
             customNeedShift = shift;
             customHotkeyLabel = label;
 
-            if (txtStatus != null)
-            {
-                txtStatus.Text = "○ 받아 적는 중";
-            }
-            if (txtMainBody != null)
-            {
-                txtMainBody.Text = "단축키 [" + customHotkeyLabel + "] 적용 완료 — 말씀해 주세요";
-            }
-        }
-
-        private static void TriggerWindowsKoreanVoiceTyping()
-        {
-            try
-            {
-                if (isMiniMode) ToggleMiniMode(false);
-                hudWindow.Topmost = true;
-                hudWindow.Activate();
-                inputBox.Focus();
-
-                // Trigger Windows 11 Native Korean Neural Voice Typing (Win + H)
-                keybd_event(VK_LWIN, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_H, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_H, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-                keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-            }
-            catch { }
+            RefreshHubSummaries();
+            SetHudAppearance(CyanColor);
+            BroadcastStatus("호출 단축키 저장 완료");
+            BroadcastBody("단축키 [" + customHotkeyLabel + "] 적용 및 영구 저장 완료");
+            return true;
         }
 
         private static void PromptListenNow()
@@ -5763,12 +6321,8 @@ namespace JarvisSasariSa
 
             StartInvisibleChromeEarWorker();
             SetHudAppearance(CyanColor);
-            txtStatus.Text = "● 집중 듣는 중 (잠시 쉬어도 끊기지 않습니다 · 끝까지 말씀하세요)";
-            txtMainBody.Text = "지금 편하게 말씀해 주세요 (예: “오늘 할 일 정리해 줘”, “뉴런에서 REA 검색해줘”, “방금 검색 결과 워드로 만들어줘”)";
-            if (secTxtStatus != null) secTxtStatus.Text = txtStatus.Text;
-            if (secTxtMainBody != null) secTxtMainBody.Text = txtMainBody.Text;
-            if (thirdTxtStatus != null) thirdTxtStatus.Text = txtStatus.Text;
-            if (thirdTxtMainBody != null) thirdTxtMainBody.Text = txtMainBody.Text;
+            BroadcastStatus("집중 듣는 중 (잠시 쉬어도 끊기지 않습니다 · 끝까지 말씀하세요)");
+            BroadcastBody("지금 편하게 말씀해 주세요 (예: \"오늘 할 일 정리해 줘\", \"뉴런에서 REA 검색해줘\", \"방금 검색 결과 워드로 만들어줘\")");
 
             try
             {
@@ -5792,15 +6346,20 @@ namespace JarvisSasariSa
             });
         }
 
-        private static void SubmitHudInput()
+        private static void SubmitHudInput(HudWindowInstance sourceInst)
         {
-            // Typed input is submitted explicitly. Never execute display text or
-            // resubmit the previous question when Enter repeats on an empty box.
-            if (inputBox == null || string.IsNullOrWhiteSpace(inputBox.Text)) return;
-            string text = inputBox.Text.Trim();
+            TextBox srcBox = (sourceInst != null && sourceInst.InputBox != null) ? sourceInst.InputBox : inputBox;
+            if (srcBox == null || string.IsNullOrWhiteSpace(srcBox.Text)) return;
+            string text = srcBox.Text.Trim();
             suppressTextChanged = true;
-            if (inputBox != null) inputBox.Text = "";
-            suppressTextChanged = false;
+            try
+            {
+                foreach (var inst in hudInstances)
+                {
+                    if (inst.InputBox != null) inst.InputBox.Text = "";
+                }
+            }
+            finally { suppressTextChanged = false; }
             SendCommandToButler(text);
         }
 
@@ -5858,39 +6417,39 @@ namespace JarvisSasariSa
             {
                 StopAllVoicePlaybackImmediately(true);
                 SetHudAppearance(CyanColor);
-                txtStatus.Text = System.Text.RegularExpressions.Regex.IsMatch(sentence,"알아|설명|조사|검색|정리|비교") ? "○ 자료 검색·정리 중" : "○ 요청 처리 중";
-                txtMainBody.Text = sentence;
+                BroadcastStatus(System.Text.RegularExpressions.Regex.IsMatch(sentence, "알아|설명|조사|검색|정리|비교") ? "자료 검색·정리 중" : "요청 처리 중");
+                BroadcastBody(sentence);
 
                 string jsonBody = "{\"sentence\":\"" + EscapeJson(sentence) + "\",\"executeOs\":true}";
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
                 var resp = await http.PostAsync("http://127.0.0.1:7788/api/butler/command", content);
                 string raw = await resp.Content.ReadAsStringAsync();
+                var ser = new System.Web.Script.Serialization.JavaScriptSerializer();
+                var root = ser.Deserialize<System.Collections.Generic.Dictionary<string, object>>(raw);
+                var resObj = JsonDict(root, "result") ?? root;
 
-                string researchId = ExtractJsonField(raw, "researchId");
+                string researchId = JsonStr(resObj, "researchId");
+                if (string.IsNullOrEmpty(researchId)) researchId = JsonStr(root, "researchId");
                 if (!string.IsNullOrEmpty(researchId)) await ShowResearchResultAsync(researchId);
 
-                string hudTitle = ExtractJsonField(raw, "hudTitle");
-                string hudSubtitle = ExtractJsonField(raw, "hudSubtitle");
-                string spoken = ExtractJsonField(raw, "spoken");
-                string hudColor = ExtractJsonField(raw, "hudColor");
-                bool bootScene = raw.Contains("\"bootScene\":true");
-                bool awaitingConfirm = raw.Contains("\"awaitingConfirm\":true");
-                bool showMailDraft = raw.Contains("\"intent\":\"draftMailReply\"");
-                bool openPlanWin = raw.Contains("\"openPlanWindow\":true");
-                string targetPlanTab = ExtractJsonField(raw, "activeTab");
+                string hudTitle = JsonStr(resObj, "hudTitle");
+                string hudSubtitle = JsonStr(resObj, "hudSubtitle");
+                string spoken = JsonStr(resObj, "spoken");
+                string hudColor = JsonStr(resObj, "hudColor");
+                string intent = JsonStr(resObj, "intent");
+                bool bootScene = JsonBool(resObj, "bootScene");
+                bool awaitingConfirm = JsonBool(resObj, "awaitingConfirm");
+                bool showMailDraft = (intent == "draftMailReply");
+                bool openPlanWin = JsonBool(resObj, "openPlanWindow") || JsonBool(root, "openPlanWindow");
+                string targetPlanTab = JsonStr(resObj, "activeTab");
+                if (string.IsNullOrEmpty(targetPlanTab)) targetPlanTab = JsonStr(root, "activeTab");
                 if (openPlanWin)
                 {
-                    int sqIdx = raw.IndexOf("\"openWindowSeq\":");
-                    if (sqIdx >= 0)
+                    int parsedSeq = JsonInt(resObj, "openWindowSeq", -1);
+                    if (parsedSeq < 0) parsedSeq = JsonInt(root, "openWindowSeq", -1);
+                    if (parsedSeq >= 0)
                     {
-                        int sPos = sqIdx + 16;
-                        int ePos = sPos;
-                        while (ePos < raw.Length && char.IsDigit(raw[ePos])) ePos++;
-                        int parsedSeq;
-                        if (int.TryParse(raw.Substring(sPos, ePos - sPos), out parsedSeq))
-                        {
-                            lastSeenPlanWindowSeq = Math.Max(lastSeenPlanWindowSeq, parsedSeq);
-                        }
+                        lastSeenPlanWindowSeq = Math.Max(lastSeenPlanWindowSeq, parsedSeq);
                     }
                     ShowPlanAndChlgdDocumentWindow(!string.IsNullOrEmpty(targetPlanTab) ? targetPlanTab : "plan");
                 }
@@ -5898,16 +6457,12 @@ namespace JarvisSasariSa
                 Color c = hudColor == "amber" ? AmberColor : hudColor == "lime" ? LimeColor : CyanColor;
                 SetHudAppearance(c);
 
-                txtStatus.Text = !string.IsNullOrEmpty(hudTitle) ? hudTitle : "✓ 실행 완료";
-                txtHeard.Visibility = Visibility.Collapsed;
-                txtMainBody.Text = (awaitingConfirm || showMailDraft) && !string.IsNullOrEmpty(hudSubtitle) ? hudSubtitle : (!string.IsNullOrEmpty(spoken) ? spoken : (!string.IsNullOrEmpty(hudSubtitle) ? hudSubtitle : sentence));
-                if (secTxtStatus != null) secTxtStatus.Text = txtStatus.Text;
-                if (secTxtMainBody != null) secTxtMainBody.Text = txtMainBody.Text;
-                if (thirdTxtStatus != null) thirdTxtStatus.Text = txtStatus.Text;
-                if (thirdTxtMainBody != null) thirdTxtMainBody.Text = txtMainBody.Text;
-
-                btnYes.Visibility = awaitingConfirm ? Visibility.Visible : Visibility.Collapsed;
-                btnNo.Visibility = awaitingConfirm ? Visibility.Visible : Visibility.Collapsed;
+                BroadcastStatus(!string.IsNullOrEmpty(hudTitle) ? hudTitle : "실행 완료");
+                string nextBody = (awaitingConfirm || showMailDraft) && !string.IsNullOrEmpty(hudSubtitle)
+                    ? hudSubtitle
+                    : (!string.IsNullOrEmpty(spoken) ? spoken : (!string.IsNullOrEmpty(hudSubtitle) ? hudSubtitle : sentence));
+                BroadcastBody(nextBody);
+                BroadcastConfirmButtons(awaitingConfirm);
 
                 if (bootScene)
                 {
@@ -5926,8 +6481,8 @@ namespace JarvisSasariSa
             catch (Exception ex)
             {
                 SetHudAppearance(AmberColor);
-                txtStatus.Text = "⚠ 자동 복구 중 · 잠시만 기다려 주세요";
-                txtMainBody.Text = ex.Message;
+                BroadcastStatus("자동 복구 중 · 잠시만 기다려 주세요");
+                BroadcastBody(ex.Message);
                 ScheduleAutoRecovery(3200);
             }
         }
@@ -5948,39 +6503,19 @@ namespace JarvisSasariSa
 
         private static void SetHudAppearance(Color c)
         {
-            hudCardBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(185, c.R, c.G, c.B));
-            txtStatus.Foreground = new SolidColorBrush(c);
-            for (int bi = 0; bi < 5; bi++)
+            cachedAccentColor = c;
+            foreach (var inst in hudInstances)
             {
-                if (voiceEqBars[bi] != null)
+                if (inst.StatusDot != null) inst.StatusDot.Fill = new SolidColorBrush(c);
+                if (inst.TxtStatus != null) inst.TxtStatus.Foreground = new SolidColorBrush(c);
+                for (int bi = 0; bi < 5; bi++)
                 {
-                    voiceEqBars[bi].Background = new SolidColorBrush(bi == 2 ? c : Color.FromArgb(200, c.R, c.G, c.B));
+                    if (inst.EqBars[bi] != null)
+                    {
+                        inst.EqBars[bi].Background = new SolidColorBrush(bi == 2 ? c : Color.FromArgb(200, c.R, c.G, c.B));
+                    }
                 }
             }
-        }
-
-        private static string[] SplitFirstSpeechClause(string text)
-        {
-            string trimmed = (text ?? "").Trim();
-            if (trimmed.Length <= 46) return new string[] { trimmed };
-            int bestIdx = -1;
-            string[] endings = { "다. ", "요. ", "죠. ", "까? ", "네. ", ". ", "! ", "? " };
-            foreach (string endToken in endings)
-            {
-                int pos = trimmed.IndexOf(endToken, 12, StringComparison.Ordinal);
-                if (pos >= 12 && pos <= 72)
-                {
-                    int cut = pos + endToken.Length - 1;
-                    if (bestIdx < 0 || cut < bestIdx) bestIdx = cut;
-                }
-            }
-            if (bestIdx > 12 && bestIdx < trimmed.Length - 8)
-            {
-                string c1 = trimmed.Substring(0, bestIdx).Trim();
-                string c2 = trimmed.Substring(bestIdx).Trim();
-                if (!string.IsNullOrEmpty(c1) && !string.IsNullOrEmpty(c2)) return new string[] { c1, c2 };
-            }
-            return new string[] { trimmed };
         }
 
         private static async Task<byte[]> FetchTtsWavClauseAsync(string clause, System.Threading.CancellationToken token)
@@ -6086,6 +6621,12 @@ namespace JarvisSasariSa
                 {
                     WriteLog("Speech output skipped (Studio Neural voice temporarily busy)");
                 }
+
+                if (!myCts.IsCancellationRequested && mySeq == currentSpeechSeq)
+                {
+                    try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
+                    catch { }
+                }
             }
             catch (Exception ex)
             {
@@ -6094,13 +6635,8 @@ namespace JarvisSasariSa
             finally
             {
                 if (activeSpeechCts == myCts && mySeq == currentSpeechSeq) isSpeaking = false;
+                speechGate.Release();
             }
-            if (!myCts.IsCancellationRequested && mySeq == currentSpeechSeq)
-            {
-                try { await http.PostAsync("http://127.0.0.1:7788/api/ear/speaking", new StringContent("{\"speaking\":false}", Encoding.UTF8, "application/json")); }
-                catch { }
-            }
-            speechGate.Release();
         }
 
         private static Task<bool> PlayMp3OnUiThreadAsync(byte[] bytes)
@@ -6153,56 +6689,23 @@ namespace JarvisSasariSa
             }
         }
 
-        // Exact 44.1kHz BootScene.synthChime() WAV Generator in Memory
-        private static void PlaySynthChime()
+        private static ControlTemplate BuildRoundedButtonTemplate(CornerRadius radius)
         {
-            try
-            {
-                int rate = 44100;
-                double dur = 2.2;
-                int samples = (int)(rate * dur);
-                using (MemoryStream ms = new MemoryStream())
-                using (BinaryWriter bw = new BinaryWriter(ms))
-                {
-                    int byteRate = rate * 2;
-                    bw.Write(Encoding.ASCII.GetBytes("RIFF"));
-                    bw.Write(36 + samples * 2);
-                    bw.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
-                    bw.Write(16);
-                    bw.Write((short)1);
-                    bw.Write((short)1);
-                    bw.Write(rate);
-                    bw.Write(byteRate);
-                    bw.Write((short)2);
-                    bw.Write((short)16);
-                    bw.Write(Encoding.ASCII.GetBytes("data"));
-                    bw.Write(samples * 2);
+            var template = new ControlTemplate(typeof(Button));
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "bd";
+            borderFactory.SetValue(Border.CornerRadiusProperty, radius);
+            borderFactory.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Button.BackgroundProperty));
+            borderFactory.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(Button.BorderBrushProperty));
+            borderFactory.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(Button.BorderThicknessProperty));
+            borderFactory.SetValue(Border.PaddingProperty, new TemplateBindingExtension(Button.PaddingProperty));
 
-                    for (int i = 0; i < samples; i++)
-                    {
-                        double t = (double)i / rate;
-                        double sweepF = 90.0 + 520.0 * Math.Pow(Math.Min(t / 1.4, 1.0), 2.0);
-                        double env = t < 1.4 ? t / 1.4 : Math.Max(0.0, 1.0 - (t - 1.4) / 0.4);
-                        double v = 0.22 * Math.Sin(2 * Math.PI * sweepF * t) * env + 0.08 * Math.Sin(4 * Math.PI * sweepF * t) * env;
-                        if (t > 1.45)
-                        {
-                            double dt = t - 1.45;
-                            v += 0.18 * Math.Sin(2 * Math.PI * 1318.5 * dt) * Math.Exp(-dt * 4.0);
-                        }
-                        if (t > 1.70)
-                        {
-                            double dt = t - 1.70;
-                            v += 0.18 * Math.Sin(2 * Math.PI * 1975.5 * dt) * Math.Exp(-dt * 4.0);
-                        }
-                        short pcm = (short)Math.Max(-32767, Math.Min(32767, v * 32000));
-                        bw.Write(pcm);
-                    }
-                    ms.Position = 0;
-                    SoundPlayer sp = new SoundPlayer(ms);
-                    sp.Play();
-                }
-            }
-            catch { }
+            var presenterFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenterFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, new TemplateBindingExtension(Button.HorizontalContentAlignmentProperty));
+            presenterFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, new TemplateBindingExtension(Button.VerticalContentAlignmentProperty));
+            borderFactory.AppendChild(presenterFactory);
+            template.VisualTree = borderFactory;
+            return template;
         }
 
         private static Button CreatePillButton(string label, Color c)
@@ -6210,14 +6713,16 @@ namespace JarvisSasariSa
             return new Button
             {
                 Content = label,
-                Foreground = Brushes.White,
-                Background = new SolidColorBrush(Color.FromArgb(65, c.R, c.G, c.B)),
-                BorderBrush = new SolidColorBrush(c),
+                FontFamily = UiFont,
+                Foreground = new SolidColorBrush(TextPrimary),
+                Background = new SolidColorBrush(Color.FromArgb(32, c.R, c.G, c.B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(115, c.R, c.G, c.B)),
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(12, 3, 12, 3),
-                FontSize = 12.5,
-                FontWeight = FontWeights.Bold,
-                Cursor = Cursors.Hand
+                Padding = new Thickness(12, 4, 12, 4),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Cursor = Cursors.Hand,
+                Template = BuildRoundedButtonTemplate(new CornerRadius(8))
             };
         }
 
@@ -6226,14 +6731,237 @@ namespace JarvisSasariSa
             return new Button
             {
                 Content = label,
-                Foreground = new SolidColorBrush(Color.FromRgb(210, 225, 240)),
-                Background = new SolidColorBrush(Color.FromArgb(35, 255, 255, 255)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                FontFamily = UiFont,
+                Foreground = new SolidColorBrush(TextPrimary),
+                Background = new SolidColorBrush(BgSurface),
+                BorderBrush = new SolidColorBrush(BorderHairline),
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(8, 2, 8, 2),
-                FontSize = 11.5,
-                Cursor = Cursors.Hand
+                Padding = new Thickness(10, 4, 10, 4),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Cursor = Cursors.Hand,
+                Template = BuildRoundedButtonTemplate(new CornerRadius(6))
             };
+        }
+
+        // =====================================================================
+        // 7. DETERMINISTIC ISOLATED LAYOUT AUDIT (--layout-audit <outDir>)
+        // =====================================================================
+        private static void FlushWpfLayout(Window w)
+        {
+            if (w == null) return;
+            w.UpdateLayout();
+            w.Dispatcher.Invoke(DispatcherPriority.Render, new Action(() => { }));
+        }
+
+        private static System.Collections.Generic.Dictionary<string, object> MeasureElementBounds(FrameworkElement el, FrameworkElement ancestor, double usableWidth)
+        {
+            var dict = new System.Collections.Generic.Dictionary<string, object>();
+            if (el == null)
+            {
+                dict["present"] = false;
+                return dict;
+            }
+            dict["present"] = true;
+            dict["visible"] = (el.Visibility == Visibility.Visible);
+            dict["actualWidth"] = Math.Round(el.ActualWidth, 2);
+            dict["actualHeight"] = Math.Round(el.ActualHeight, 2);
+            dict["widthRatio"] = usableWidth > 0 ? Math.Round(el.ActualWidth / usableWidth, 4) : 0.0;
+            if (ancestor != null && el.IsVisible && ancestor.IsVisible)
+            {
+                try
+                {
+                    Rect r = el.TransformToAncestor(ancestor).TransformBounds(new Rect(0, 0, el.ActualWidth, el.ActualHeight));
+                    dict["left"] = Math.Round(r.Left, 2);
+                    dict["top"] = Math.Round(r.Top, 2);
+                    dict["right"] = Math.Round(r.Right, 2);
+                    dict["bottom"] = Math.Round(r.Bottom, 2);
+                    dict["withinCard"] = (r.Left >= -0.5 && r.Right <= ancestor.ActualWidth + 0.5);
+                }
+                catch { }
+            }
+            return dict;
+        }
+
+        private static System.Collections.Generic.Dictionary<string, object> CaptureHudStateMetrics(HudWindowInstance inst, string stateName)
+        {
+            var m = new System.Collections.Generic.Dictionary<string, object>();
+            m["monitorIndex"] = inst.MonitorIndex;
+            m["title"] = inst.Window.Title;
+            m["state"] = stateName;
+            double cardW = inst.CardBorder.ActualWidth;
+            double cardH = inst.CardBorder.ActualHeight;
+            double padH = inst.CardBorder.Padding.Left + inst.CardBorder.Padding.Right + inst.CardBorder.BorderThickness.Left + inst.CardBorder.BorderThickness.Right;
+            double usableW = Math.Max(1.0, cardW - padH);
+            m["cardActualWidth"] = Math.Round(cardW, 2);
+            m["cardActualHeight"] = Math.Round(cardH, 2);
+            m["usableInnerWidth"] = Math.Round(usableW, 2);
+            int visibleHeaderCtrlCount = 0;
+            bool legacyHeaderPresent = false;
+            if (inst.HeaderControlsPanel != null)
+            {
+                foreach (UIElement child in inst.HeaderControlsPanel.Children)
+                {
+                    if (child != null && child.Visibility == Visibility.Visible)
+                    {
+                        visibleHeaderCtrlCount++;
+                        if (child != inst.MicToggleBtn && child != inst.TtsToggleBtn && child != inst.HubToggleBtn)
+                        {
+                            legacyHeaderPresent = true;
+                        }
+                    }
+                }
+            }
+            m["headerRightControlCount"] = visibleHeaderCtrlCount;
+            m["legacyHeaderButtonsPresent"] = legacyHeaderPresent;
+            m["micToggle"] = MeasureElementBounds(inst.MicToggleBtn, inst.CardBorder, usableW);
+            m["ttsToggle"] = MeasureElementBounds(inst.TtsToggleBtn, inst.CardBorder, usableW);
+            m["hubToggle"] = MeasureElementBounds(inst.HubToggleBtn, inst.CardBorder, usableW);
+            m["targetBadge"] = MeasureElementBounds(inst.TargetBadgeBorder, inst.CardBorder, usableW);
+            m["clockWeatherBadge"] = MeasureElementBounds(inst.ClockWeatherBadgeBorder, inst.CardBorder, usableW);
+            m["txtMainBody"] = MeasureElementBounds(inst.TxtMainBody, inst.CardBorder, usableW);
+            m["inputBoxWrapper"] = MeasureElementBounds(inst.InputBoxWrapper, inst.CardBorder, usableW);
+            m["inputBox"] = MeasureElementBounds(inst.InputBox, inst.CardBorder, usableW);
+            m["btnSubmit"] = MeasureElementBounds(inst.BtnSubmit, inst.CardBorder, usableW);
+            m["btnYes"] = MeasureElementBounds(inst.BtnYes, inst.CardBorder, usableW);
+            m["btnNo"] = MeasureElementBounds(inst.BtnNo, inst.CardBorder, usableW);
+            m["hubOpen"] = (activeHubOwner == inst && hubPanelBorder != null && hubPanelBorder.Visibility == Visibility.Visible);
+            if (hubPanelBorder != null && activeHubOwner == inst && hubPanelBorder.Visibility == Visibility.Visible)
+            {
+                m["hubPanelWidth"] = Math.Round(hubPanelBorder.ActualWidth, 2);
+                m["hubPanelHeight"] = Math.Round(hubPanelBorder.ActualHeight, 2);
+            }
+            return m;
+        }
+
+        private static void RenderVisualToPng(FrameworkElement visual, string outPath)
+        {
+            if (visual == null) return;
+            visual.UpdateLayout();
+            int w = Math.Max(1, (int)Math.Ceiling(visual.ActualWidth));
+            int h = Math.Max(1, (int)Math.Ceiling(visual.ActualHeight));
+            var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(18, 22, 30)), null, new Rect(0, 0, w, h));
+                dc.DrawRectangle(new VisualBrush(visual), null, new Rect(0, 0, w, h));
+            }
+            rtb.Render(dv);
+            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+            using (var fs = new FileStream(outPath, FileMode.Create, FileAccess.Write))
+            {
+                enc.Save(fs);
+            }
+        }
+
+        private static void RunLayoutAudit(string outDir)
+        {
+            Directory.CreateDirectory(outDir);
+            RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+            Application app = Application.Current ?? new Application();
+            app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+            cachedLiveWeatherText = "서울 맑음 14°C";
+            cachedTargetWindowText = "대상: Antigravity (BeausCreators)";
+            BuildAllMonitorHudWindows(true);
+
+            var metricsList = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>();
+
+            foreach (var inst in hudInstances)
+            {
+                inst.Window.Left = 20 + inst.MonitorIndex * 40;
+                inst.Window.Top = 20 + inst.MonitorIndex * 40;
+                inst.Window.Show();
+                FlushWpfLayout(inst.Window);
+            }
+
+            // State 1: Idle across Primary, Secondary, Third monitors
+            BroadcastStatus("JARVIS v3.0 대기 · 자비스라고 불러 주세요");
+            BroadcastBody("무엇을 도와드릴까요?");
+            BroadcastConfirmButtons(false);
+            foreach (var inst in hudInstances) FlushWpfLayout(inst.Window);
+
+            metricsList.Add(CaptureHudStateMetrics(hudInstances[0], "idle"));
+            metricsList.Add(CaptureHudStateMetrics(hudInstances[1], "idle"));
+            metricsList.Add(CaptureHudStateMetrics(hudInstances[2], "idle"));
+
+            RenderVisualToPng(hudInstances[0].VerticalStack, System.IO.Path.Combine(outDir, "primary-idle.png"));
+            RenderVisualToPng(hudInstances[1].VerticalStack, System.IO.Path.Combine(outDir, "secondary-idle.png"));
+            RenderVisualToPng(hudInstances[2].VerticalStack, System.IO.Path.Combine(outDir, "third-idle.png"));
+
+            // State 2: Active with long multi-line Korean response + typed input + confirm buttons
+            BroadcastStatus("확인 대기 · 카카오톡 답장 전송 전 최종 확인");
+            BroadcastBody("어떤 일들을 할 수 있는데? 본사 30명 에이전트 오더 정리, Warehouse 2-Hop 뉴런 검색, 뷰티풀월드 출판 점검, Word·PDF·PPT 보고서 즉시 생성 및 유튜브 미디어 제어까지 모두 처리합니다.");
+            BroadcastConfirmButtons(true);
+            suppressTextChanged = true;
+            try
+            {
+                foreach (var inst in hudInstances)
+                {
+                    if (inst.InputBox != null) inst.InputBox.Text = "오늘 본사 브리핑 정리하고 워드로 저장해줘";
+                }
+            }
+            finally { suppressTextChanged = false; }
+            foreach (var inst in hudInstances) FlushWpfLayout(inst.Window);
+
+            metricsList.Add(CaptureHudStateMetrics(hudInstances[0], "active"));
+            metricsList.Add(CaptureHudStateMetrics(hudInstances[1], "active"));
+            RenderVisualToPng(hudInstances[0].VerticalStack, System.IO.Path.Combine(outDir, "primary-active.png"));
+
+            // State 3: Unified Hub Open on Primary
+            BroadcastConfirmButtons(false);
+            suppressTextChanged = true;
+            try { if (hudInstances[0].InputBox != null) hudInstances[0].InputBox.Text = ""; }
+            finally { suppressTextChanged = false; }
+            ToggleUnifiedHub(hudInstances[0], 0);
+            FlushWpfLayout(hudInstances[0].Window);
+            metricsList.Add(CaptureHudStateMetrics(hudInstances[0], "hub-open"));
+            RenderVisualToPng(hudInstances[0].VerticalStack, System.IO.Path.Combine(outDir, "primary-hub.png"));
+
+            var report = new System.Collections.Generic.Dictionary<string, object>();
+            report["auditedAt"] = DateTime.UtcNow.ToString("o");
+            report["windowCount"] = hudInstances.Count;
+            report["measurements"] = metricsList;
+            string jsonOut = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(report);
+            File.WriteAllText(System.IO.Path.Combine(outDir, "layout-metrics.json"), jsonOut, Encoding.UTF8);
+
+            allowShutdown = true;
+            foreach (var inst in hudInstances)
+            {
+                try { inst.Window.Close(); } catch { }
+            }
+        }
+
+        private static string JsonStr(System.Collections.Generic.Dictionary<string, object> dict, string key)
+        {
+            if (dict == null || !dict.ContainsKey(key) || dict[key] == null) return "";
+            return Convert.ToString(dict[key]) ?? "";
+        }
+
+        private static bool JsonBool(System.Collections.Generic.Dictionary<string, object> dict, string key)
+        {
+            if (dict == null || !dict.ContainsKey(key) || dict[key] == null) return false;
+            try { return Convert.ToBoolean(dict[key]); } catch { return false; }
+        }
+
+        private static int JsonInt(System.Collections.Generic.Dictionary<string, object> dict, string key, int fallback = 0)
+        {
+            if (dict == null || !dict.ContainsKey(key) || dict[key] == null) return fallback;
+            try { return Convert.ToInt32(dict[key]); } catch { return fallback; }
+        }
+
+        private static double JsonDouble(System.Collections.Generic.Dictionary<string, object> dict, string key, double fallback = 0.0)
+        {
+            if (dict == null || !dict.ContainsKey(key) || dict[key] == null) return fallback;
+            try { return Convert.ToDouble(dict[key], System.Globalization.CultureInfo.InvariantCulture); } catch { return fallback; }
+        }
+
+        private static System.Collections.Generic.Dictionary<string, object> JsonDict(System.Collections.Generic.Dictionary<string, object> dict, string key)
+        {
+            if (dict == null || !dict.ContainsKey(key)) return null;
+            return dict[key] as System.Collections.Generic.Dictionary<string, object>;
         }
 
         private static string EscapeJson(string s)

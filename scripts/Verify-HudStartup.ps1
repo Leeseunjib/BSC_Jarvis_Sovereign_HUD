@@ -42,6 +42,7 @@ $existing = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'JarvisHud%'" | W
 if ($existing.Count) {
   # Verification must not replace or terminate a live HUD, nor race its supervisor.
   & (Join-Path $PSScriptRoot 'Check-HudWindows.ps1')
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   return
 }
 if (-not $StartIfStopped) { throw 'HUD is stopped. Use -StartIfStopped to observe a new boot; installation is a separate operation.' }
@@ -58,11 +59,13 @@ while ($clock.Elapsed.TotalSeconds -lt 10) {
   if ($hud.Count -and -not $seenBoot) { $hudBeforeBoot = $true }
   if ($boot.Count -and $hud.Count) { $overlap = $true }
   if (@($boot | Where-Object { -not $_.Primary }).Count) { $bootOnPrimary = $false }
-  if (@($hud | Where-Object { -not $_.Primary }).Count) { $hudOnPrimary = $false }
+  if ($hud.Count -and @($hud | Where-Object { $_.Primary }).Count -ne 1) { $hudOnPrimary = $false }
   $maxHud = [Math]::Max($maxHud, $hud.Count)
   $finalHud = $hud; $finalBoot = $boot
   Start-Sleep -Milliseconds 100
 }
-$passed = $seenBoot -and $bootOnPrimary -and $hudOnPrimary -and -not $overlap -and -not $hudBeforeBoot -and $maxHud -eq 1 -and $finalHud.Count -eq 1 -and $finalBoot.Count -eq 0
+Add-Type -AssemblyName System.Windows.Forms
+$expectedMaxHudCount = [Math]::Max(1, [System.Windows.Forms.Screen]::AllScreens.Length)
+$passed = $seenBoot -and $bootOnPrimary -and $hudOnPrimary -and -not $overlap -and -not $hudBeforeBoot -and $maxHud -ge 1 -and $maxHud -le $expectedMaxHudCount -and $finalHud.Count -ge 1 -and $finalHud.Count -le $expectedMaxHudCount -and $finalBoot.Count -eq 0
 [pscustomobject]@{ Passed=$passed; ProcessId=$process.Id; BootObserved=$seenBoot; FirstBootMs=$firstBootMs; FirstHudMs=$firstHudMs; BootOnPrimary=$bootOnPrimary; HudOnPrimary=$hudOnPrimary; BootHudOverlap=$overlap; MaximumHudCount=$maxHud; FinalHudCount=$finalHud.Count; FinalBootCount=$finalBoot.Count } | ConvertTo-Json -Compress
 if (-not $passed) { exit 1 }

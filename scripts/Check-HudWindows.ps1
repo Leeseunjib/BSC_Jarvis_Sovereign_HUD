@@ -63,6 +63,8 @@ public static class JarvisWindowInventory {
   }
 }
 '@
+Add-Type -AssemblyName System.Windows.Forms
+$expectedMaxHudCount = [Math]::Max(1, [System.Windows.Forms.Screen]::AllScreens.Length)
 $project = Split-Path -Parent $PSScriptRoot
 $prefix = $project.TrimEnd('\') + '\'
 $items = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'JarvisHud%'" | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) })
@@ -70,6 +72,9 @@ $windows = @()
 foreach ($item in $items) { $windows += @([JarvisWindowInventory]::VisibleTitles([uint32]$item.ProcessId) | Where-Object { $_ -match 'Monitor.*HUD' }) }
 $global = @([JarvisWindowInventory]::OnscreenHudWindows())
 $placements = @($items | ForEach-Object { [JarvisWindowInventory]::Placements([uint32]$_.ProcessId) })
-$primaryTopmost = $placements.Count -eq 1 -and $placements[0].Primary -and $placements[0].Topmost
-[pscustomobject]@{ ProcessCount = $items.Count; VisibleHudCount = $windows.Count; GlobalOnscreenHudCount = $global.Count; PrimaryAndTopmost = $primaryTopmost; Titles = @($windows); OnscreenHuds = $global; Placements=$placements } | ConvertTo-Json -Depth 4 -Compress
-if ($items.Count -ne 1 -or $windows.Count -ne 1 -or $global.Count -ne 1 -or -not $primaryTopmost) { exit 1 }
+$primaryPlacements = @($placements | Where-Object { $_.Primary -and $_.Topmost })
+$allTopmost = $placements.Count -ge 1 -and @($placements | Where-Object { -not $_.Topmost }).Count -eq 0
+$uniqueTitles = @($windows | Select-Object -Unique)
+$primaryTopmost = ($primaryPlacements.Count -eq 1) -and $allTopmost
+[pscustomobject]@{ ProcessCount = $items.Count; VisibleHudCount = $windows.Count; GlobalOnscreenHudCount = $global.Count; ExpectedScreenCount = $expectedMaxHudCount; PrimaryAndTopmost = $primaryTopmost; Titles = @($windows); OnscreenHuds = $global; Placements=$placements } | ConvertTo-Json -Depth 4 -Compress
+if ($items.Count -ne 1 -or $windows.Count -lt 1 -or $windows.Count -gt $expectedMaxHudCount -or $uniqueTitles.Count -ne $windows.Count -or $global.Count -ne $windows.Count -or -not $primaryTopmost) { exit 1 }

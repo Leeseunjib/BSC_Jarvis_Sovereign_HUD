@@ -243,6 +243,7 @@ const DOC_EXT = /\.(md|txt|json|docx|pptx|xlsx|pdf|epub|html|ps1|py|js|cs|yaml|y
 const TEXT_EXT = /\.(md|txt)$/i;
 const MAX_FILES_PER_ROOT = 12000;
 let cache = null;
+let overviewCache = null;
 
 function walk(dir, depth, out, limit) {
   if (depth > 6 || out.length >= limit) return;
@@ -271,6 +272,7 @@ function buildIndex(force = false) {
     return { ...r, files };
   });
   cache = { builtAt: Date.now(), buildMs: Date.now() - started, roots };
+  overviewCache = null;
   return cache;
 }
 
@@ -288,8 +290,11 @@ function countSkills(dir) {
 }
 
 /** 3대 생태계 실측 현황 (존재 여부, 영역, 핵심 파일, 스킬 수, 인덱스 파일 수, 옵시디언 뉴런 그래프) */
-function getEcosystemOverview() {
-  const idx = buildIndex();
+function getEcosystemOverview(force = false) {
+  if (!force && overviewCache && Date.now() - overviewCache.cachedAt < 5 * 60 * 1000) {
+    return overviewCache.data;
+  }
+  const idx = buildIndex(force);
   const neuronInfo = getWarehouseNeuronGraph();
   const roots = idx.roots.map(r => {
     const skills = r.id === 'warehouse'
@@ -325,7 +330,7 @@ function getEcosystemOverview() {
   });
   const totalFiles = roots.reduce((acc, r) => acc + r.indexedFiles, 0);
   const totalSkills = roots.reduce((acc, r) => acc + r.skills, 0);
-  return {
+  const data = {
     ok: true,
     indexBuiltAt: new Date(idx.builtAt).toISOString(),
     indexBuildMs: idx.buildMs,
@@ -351,6 +356,8 @@ function getEcosystemOverview() {
       neuronSynapses: neuronInfo.edgeCount
     }
   };
+  overviewCache = { cachedAt: Date.now(), data };
+  return data;
 }
 
 function tokenize(q) {

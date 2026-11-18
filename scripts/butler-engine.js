@@ -931,7 +931,7 @@ class ButlerEngine {
     return Boolean(command && command.intent === 'stopMusic');
   }
 
-  getSubwindowsState() {
+  getSubwindowsState(options = {}) {
     const activeTask = sharedTerminalManager.getActiveState();
     this.refreshLiveGsmtcMedia();
 
@@ -970,12 +970,15 @@ class ButlerEngine {
       };
     } catch (_) {}
 
-    return {
+    const state = {
       activeTask,
       activeMedia,
-      planWindowSignal,
-      bscStatus: sharedBscBridge.getEcosystemStatus()
+      planWindowSignal
     };
+    if (!options || !options.lite) {
+      state.bscStatus = sharedBscBridge.getEcosystemStatus();
+    }
+    return state;
   }
 
   saveConfig(patch) {

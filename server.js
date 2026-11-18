@@ -654,9 +654,10 @@ const server = http.createServer(async (req, res) => {
 
   // 1-B) GET /api/hud/subwindows (Real-time Collapsible Task & Music Sub-Windows State)
   if (req.method === 'GET' && pathname === '/api/hud/subwindows') {
+    const lite = urlObj.searchParams.get('lite') === '1' || urlObj.searchParams.get('lite') === 'true';
     return sendJson(res, 200, {
       ok: true,
-      ...butler.getSubwindowsState()
+      ...butler.getSubwindowsState({ lite })
     });
   }
 
