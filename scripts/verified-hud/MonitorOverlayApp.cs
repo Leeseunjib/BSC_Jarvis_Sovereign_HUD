@@ -196,6 +196,10 @@ namespace JarvisSasariSa
         private static int fgCheckCounter = 0;
         private static bool isHudMicMuted = false;
         private static bool isHudTtsMuted = false;
+        private static bool isHudSleeping = false;
+        private static bool startInSleepMode = false;
+        private static int lastSeenShowHudSeq = 0;
+        private static int lastSeenHideHudSeq = 0;
         private static bool clockWeatherTimerStarted = false;
         private static bool hasActiveTaskLive = false;
         private static bool hasActiveMediaLive = false;
@@ -501,6 +505,11 @@ namespace JarvisSasariSa
                             RunLayoutAudit(arg.Substring("--layout-audit=".Length));
                             return;
                         }
+                        if (string.Equals(arg, "--sleep", StringComparison.OrdinalIgnoreCase))
+                        {
+                            startInSleepMode = true;
+                            isHudSleeping = true;
+                        }
                     }
                 }
 
@@ -609,7 +618,22 @@ namespace JarvisSasariSa
             StartSubWindowsPolling();
             StartGlobalRightAltHook();
             StartRuntimeTimers();
-            ShowFullMonitorBootScene("자비스", "대표님", "음성 비서를 준비하고 있습니다");
+            if (startInSleepMode)
+            {
+                initialBootComplete = true;
+                isHudSleeping = true;
+                startupGreetingSpoken = true;
+                WriteLog("Started in silent sleep standby mode (say '자비스 일어나' to show HUD)");
+                Task.Run(async () =>
+                {
+                    await Task.Delay(1200);
+                    try { await http.PostAsync("http://127.0.0.1:7788/api/hud/sleep", new StringContent("{}", Encoding.UTF8, "application/json")); } catch { }
+                });
+            }
+            else
+            {
+                ShowFullMonitorBootScene("자비스", "대표님", "음성 비서를 준비하고 있습니다");
+            }
             app.Run();
         }
 
@@ -641,6 +665,52 @@ namespace JarvisSasariSa
         {
             try { using (var stop = System.Threading.EventWaitHandle.OpenExisting("Local\\JarvisHudSupervisorStop")) stop.Set(); }
             catch (System.Threading.WaitHandleCannotBeOpenedException) { }
+        }
+
+        private static void PutHudToSleep(string reason)
+        {
+            isHudSleeping = true;
+            WriteLog("HUD put to sleep standby: " + reason);
+            try { CloseUnifiedHub(); } catch { }
+            try { StopAllVoicePlaybackImmediately(false); } catch { }
+            foreach (var inst in hudInstances)
+            {
+                try { if (inst.Window != null && inst.Window.IsVisible) inst.Window.Hide(); } catch { }
+            }
+            Task.Run(async () =>
+            {
+                try { await http.PostAsync("http://127.0.0.1:7788/api/hud/sleep", new StringContent("{}", Encoding.UTF8, "application/json")); } catch { }
+            });
+        }
+
+        private static void WakeHudFromSleep()
+        {
+            bool wasSleeping = isHudSleeping;
+            isHudSleeping = false;
+            initialBootComplete = true;
+            if (isMiniMode) ToggleMiniMode(false);
+            foreach (var inst in hudInstances)
+            {
+                try
+                {
+                    if (inst.Window != null)
+                    {
+                        inst.Window.Show();
+                        inst.Window.Activate();
+                    }
+                }
+                catch { }
+            }
+            PlaceHudWindows();
+            EnsureHudAlwaysVisibleAndTopmost();
+            if (wasSleeping)
+            {
+                WriteLog("HUD woken from sleep standby");
+                Task.Run(async () =>
+                {
+                    try { await http.PostAsync("http://127.0.0.1:7788/api/hud/wake", new StringContent("{}", Encoding.UTF8, "application/json")); } catch { }
+                });
+            }
         }
 
         private static void RequestHudShutdown(string reason)
@@ -718,7 +788,7 @@ namespace JarvisSasariSa
             var visibility = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             visibility.Tick += (sender, e) => {
                 HideChromeEarWindows(); EnsureHudAlwaysVisibleAndTopmost();
-                if (showRequest != null && showRequest.WaitOne(0) && initialBootComplete) PlaceHudWindows();
+                if (showRequest != null && showRequest.WaitOne(0) && initialBootComplete) WakeHudFromSleep();
             };
             visibility.Start();
         }
@@ -769,7 +839,7 @@ namespace JarvisSasariSa
 
         private static void EnsureHudAlwaysVisibleAndTopmost()
         {
-            if (!initialBootComplete || allowShutdown || hudInstances.Count == 0) return;
+            if (!initialBootComplete || allowShutdown || isHudSleeping || hudInstances.Count == 0) return;
             try {
                 bool checkScreen = DateTime.UtcNow >= nextScreenCheck;
                 if (checkScreen) nextScreenCheck = DateTime.UtcNow.AddSeconds(2);
@@ -1110,10 +1180,12 @@ namespace JarvisSasariSa
                     trayMenu.Items.Add("HD 자연음성 미리 듣기", null, (s, e) => SpeakAsync("안녕하세요, 이건우 대표님. 선택한 목소리와 속도로 안내하고 있습니다."));
                     trayMenu.Items.Add("깨우기 장면 (BootScene)", null, (s, e) => SendCommandToButler("아빠 왔어"));
                     trayMenu.Items.Add("단축키 및 호출 설정…", null, (s, e) => ShowHotkeySettingsWindow(0));
+                    trayMenu.Items.Add("HUD 열기 / 깨우기", null, (s, e) => WakeHudFromSleep());
+                    trayMenu.Items.Add("HUD 끄기 ('자비스 일어나'로 깨우기)", null, (s, e) => PutHudToSleep("tray sleep"));
                     trayMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-                    trayMenu.Items.Add("자비스 종료 (Quit)", null, (s, e) => { tray.Visible = false; RequestHudShutdown("tray menu"); });
+                    trayMenu.Items.Add("자비스 완전 종료 (Quit)", null, (s, e) => { tray.Visible = false; RequestHudShutdown("tray menu"); });
                     tray.ContextMenuStrip = trayMenu;
-                    tray.DoubleClick += (s, e) => { w.Show(); w.Activate(); };
+                    tray.DoubleClick += (s, e) => { WakeHudFromSleep(); };
                 }
                 catch { }
             }
@@ -1236,8 +1308,8 @@ namespace JarvisSasariSa
 
             ctx.Items.Add(new Separator());
 
-            MenuItem miQuit = new MenuItem { Header = "자비스 종료 (Quit)" };
-            miQuit.Click += (s, e) => RequestHudShutdown("HUD menu");
+            MenuItem miQuit = new MenuItem { Header = "HUD 끄기 ('자비스 일어나'로 깨우기)" };
+            miQuit.Click += (s, e) => PutHudToSleep("HUD context menu");
             ctx.Items.Add(miQuit);
 
             cardBorder.ContextMenu = ctx;
@@ -1932,6 +2004,18 @@ namespace JarvisSasariSa
                     if (root == null) return;
 
                     var earHealth = JsonDict(root, "earHealth");
+                    int srvShowHudSeq = JsonInt(root, "showHudSeq", 0);
+                    int srvHideHudSeq = JsonInt(root, "hideHudSeq", 0);
+                    if (srvShowHudSeq > lastSeenShowHudSeq)
+                    {
+                        lastSeenShowHudSeq = srvShowHudSeq;
+                        if (isHudSleeping) WakeHudFromSleep();
+                    }
+                    if (srvHideHudSeq > lastSeenHideHudSeq)
+                    {
+                        lastSeenHideHudSeq = srvHideHudSeq;
+                        if (!isHudSleeping) PutHudToSleep("voice command");
+                    }
                     string micStateStr = JsonStr(earHealth, "microphone");
                     string recStateStr = JsonStr(earHealth, "recognition");
                     if (micStateStr == "error" || recStateStr == "error")
@@ -3287,7 +3371,7 @@ namespace JarvisSasariSa
             });
             Grid.SetColumn(txtHubModelSummary, 0);
             sysFootGrid.Children.Add(txtHubModelSummary);
-            Border btnQuitFromHub = makeCompactHeaderChip("자비스 종료", () => RequestHudShutdown("Hub system tab"));
+            Border btnQuitFromHub = makeCompactHeaderChip("HUD 끄기", () => PutHudToSleep("Hub system tab"));
             Grid.SetColumn(btnQuitFromHub, 1);
             sysFootGrid.Children.Add(btnQuitFromHub);
             hubTabPanes[4].Children.Add(sysFooter);

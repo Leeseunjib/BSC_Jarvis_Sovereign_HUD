@@ -1137,6 +1137,16 @@ class ButlerEngine {
     if (mediaCommand) return mediaCommand;
 
     if (
+      /^(?:일어나|일어나라|일어나줘|허드켜|hud켜|화면켜|자비스나와)$/.test(sq2) ||
+      (/(?:자비스|사사리사)/i.test(rawSentence) && /(?:일어나|깨어나|허드\s*켜|hud\s*켜|화면\s*켜|다시\s*켜|나와)/i.test(rawSentence))
+    ) {
+      return { intent: 'wakeHud' };
+    }
+    if (/^(?:허드꺼|hud꺼|화면꺼|허드숨겨|자비스숨겨|자비스꺼|자비스꺼줘)$/.test(sq2)) {
+      return { intent: 'sleepHud' };
+    }
+
+    if (
       (cfg.greetings || []).some(g => sq2.includes(squash(g))) ||
       /^(아빠왔어|대표님왔어|대표님출근|대표님출근했어|나왔어|다녀왔어|출근했어|출근|켜|켜져|깨어나|깨어나라|시작|부트화면|부트화면켜|온라인)$/.test(sq2)
     ) {
@@ -1567,6 +1577,38 @@ class ButlerEngine {
           hudSubtitle: ord.hudSubtitle,
           heard: rawSentence,
           spoken: ord.spoken
+        };
+      }
+
+      case 'wakeHud': {
+        global.__jarvisHudVisible = true;
+        global.__jarvisShowHudSeq = (global.__jarvisShowHudSeq || 0) + 1;
+        if (executeOsActions) {
+          const hudExe = path.join(ROOT_DIR, 'bin', 'JarvisHud.exe');
+          if (fs.existsSync(hudExe)) {
+            launchOnVisibleDesktop(hudExe).catch(() => {});
+          }
+        }
+        return {
+          intent: 'wakeHud',
+          hudColor: 'lime',
+          hudTitle: 'JARVIS v3.0 HUD 활성화',
+          hudSubtitle: '네, 대표님. 자비스 HUD를 다시 켰습니다. 편하게 말씀하세요.',
+          heard: rawSentence,
+          spoken: `네, ${cfg.userName || '대표님'}. 자비스 HUD를 다시 켰습니다.`
+        };
+      }
+
+      case 'sleepHud': {
+        global.__jarvisHudVisible = false;
+        global.__jarvisHideHudSeq = (global.__jarvisHideHudSeq || 0) + 1;
+        return {
+          intent: 'sleepHud',
+          hudColor: 'cyan',
+          hudTitle: 'HUD 대기(숨김) 모드 전환',
+          hudSubtitle: '다시 켜시려면 "자비스 일어나"라고 말씀해 주세요.',
+          heard: rawSentence,
+          spoken: `네, ${cfg.userName || '대표님'}. 화면에서 숨기고 대기하겠습니다. 필요하실 때 자비스 일어나라고 불러 주세요.`
         };
       }
 

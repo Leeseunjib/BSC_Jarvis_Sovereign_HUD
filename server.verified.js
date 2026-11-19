@@ -892,6 +892,16 @@ const server = http.createServer(async (req, res) => {
     const commandStartedAt = Date.now();
     const body = await readBody(req, 2700000);
     let sentence = String(body.sentence || body.text || '').trim().slice(0, 2000);
+    if (body.source === 'voice' && global.__jarvisHudVisible === false) {
+      const normWakeHud = sentence.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+      const isHudWakePhrase = /(?:자비스|사사리사).*(?:일어나|깨어나|켜|나와)|^(?:자비스일어나|일어나자비스|허드켜|hud켜)$/.test(normWakeHud);
+      if (!isHudWakePhrase) {
+        return sendJson(res, 200, { ok: true, ignored: true, reason: 'hud-sleeping', hudVisible: false });
+      }
+      global.__jarvisHudVisible = true;
+      global.__jarvisShowHudSeq = (global.__jarvisShowHudSeq || 0) + 1;
+      global.__jarvisMicMuted = false;
+    }
     if (body.source === 'voice' && global.__jarvisMicMuted) {
       // Allow explicit voice unmute ("자비스 마이크 켜", "자비스 다시 들어") even while muted, otherwise ignore so it never collides with Antigravity Voice Chat!
       const normCheck = sentence.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
@@ -1093,6 +1103,19 @@ const server = http.createServer(async (req, res) => {
 
   // 7-A) Live Korean Speech Queue & Cross-Window Sync (/api/ear/control, /api/ear/push, /api/ear/level, /api/ear/speaking, /api/ear/poll, /api/ear/latest, /ear)
   if (!global.__jarvisEarQueue) global.__jarvisEarQueue = [];
+  if (req.method === 'POST' && pathname === '/api/hud/sleep') {
+    global.__jarvisHudVisible = false;
+    global.__jarvisHideHudSeq = (global.__jarvisHideHudSeq || 0) + 1;
+    global.__jarvisIsSpeaking = false;
+    global.__jarvisSpeakingText = '';
+    global.__jarvisBargeInSeq = (global.__jarvisBargeInSeq || 0) + 1;
+    return sendJson(res, 200, { ok: true, hudVisible: false, hideHudSeq: global.__jarvisHideHudSeq });
+  }
+  if (req.method === 'POST' && pathname === '/api/hud/wake') {
+    global.__jarvisHudVisible = true;
+    global.__jarvisShowHudSeq = (global.__jarvisShowHudSeq || 0) + 1;
+    return sendJson(res, 200, { ok: true, hudVisible: true, showHudSeq: global.__jarvisShowHudSeq });
+  }
   if (req.method === 'GET' && pathname === '/api/ear/control') {
     return sendJson(res, 200, {
       ok: true,
@@ -1367,6 +1390,9 @@ const server = http.createServer(async (req, res) => {
       micLevel: global.__jarvisMicMuted ? 0 : (global.__jarvisMicLevel || 0),
       micMuted: Boolean(global.__jarvisMicMuted),
       ttsMuted: Boolean(global.__jarvisTtsMuted),
+      hudVisible: global.__jarvisHudVisible !== false,
+      showHudSeq: global.__jarvisShowHudSeq || 0,
+      hideHudSeq: global.__jarvisHideHudSeq || 0,
       isSpeaking: Boolean(global.__jarvisIsSpeaking),
       bargeInSeq: global.__jarvisBargeInSeq || 0,
       foregroundWindow: getLastExternalWindow()
