@@ -385,7 +385,8 @@
           const clean = String(text || '').trim();
           const control = window.JarvisMediaIntents.classifyMediaControl(clean, mediaContextRef.current);
           const hasWake = [...(cfg.wakeWords || []), cfg.assistantName || '자비스', '헤이자비스'].some(w => normalize(w) && normalize(clean).includes(normalize(w)));
-          if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
+          const wakeFree = cfg.voiceRequireWake === false;
+          if (!wakeFree && Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
           setHudColor('amber'); setHudStatus('음성 확정 실패 · 다시 말씀하거나 입력해 주세요'); setHudText(clean);
           fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: clean, status: 'recognition-error' }) })
             .then(r => (r && typeof r.json === 'function') ? r.json() : null)
@@ -412,7 +413,8 @@
           if (hasWake) {
             awakeUntilRef.current = Math.max(awakeUntilRef.current || 0, Date.now() + 45000);
           }
-          if (Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
+          const wakeFree = cfg.voiceRequireWake === false;
+          if (!wakeFree && Date.now() >= awakeUntilRef.current && (!control || control.intent !== 'stopMusic') && !hasWake) return;
           setHudColor('cyan'); setHudStatus('● 경청 중 · 끝까지 편하게 말씀하세요'); setHudText(text);
           fetch('/api/ear/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, isFinal: false }) }).catch(() => {});
         }

@@ -1338,11 +1338,44 @@ class ButlerEngine {
       return { intent: 'ecosystemSearch', query: ecoSearchMatch[1].replace(/(?:좀|를|을)$/g, '').trim() };
     }
 
-    // Generic Search -> Dedicated UI Search Results Window ("파이썬 강좌 검색해줘", "~ 검색해서 보여줘", "~ 찾아서 보여줘")
-    const genericSearchMatch = s.match(/^(.+?)\s*(?:검색해서\s*보여|찾아서\s*보여|검색해|웹검색해|구글링해|찾아봐|조사해서\s*보여|조사해)(?:\s*줘|\s*봐|\s*주세요)?$/);
+    // 10-F2) Wake-word Optional Toggle ("호출어 없이 듣기", "자비스 부르지 않아도 되게 해줘", "호출어 켜줘")
+    if (/(?:호출어\s*(?:꺼|끄기|없이|안\s*불러도)|자비스.*(?:안\s*불러도|부르지\s*않아도))/.test(s)) {
+      return { intent: 'wakeMode', requireWake: false };
+    }
+    if (/(?:호출어\s*(?:켜|켜기|필요)|자비스.*불러야\s*작동)/.test(s)) {
+      return { intent: 'wakeMode', requireWake: true };
+    }
+
+    // 10-F3) Open Link(s) from Last Research / Search Results ("웹 링크 열어줘", "방금 링크 열어줘", "1번 링크 열어줘", "첫 번째 링크 열어줘", "링크 다 열어줘")
+    const openNthLinkMatch = s.match(/^(?:(?:방금|검색|웹|찾은)\s*)?(?:(\d+|첫|두|세|네|다섯)\s*(?:번|번째)\s*)?(?:웹\s*)?(?:링크|주소|사이트|결과)(?:를|을|좀|다|모두)?\s*(?:웹\s*브라우저로\s*|브라우저로\s*)?(?:열어|띄워|접속해|들어가)(?:\s*줘|\s*주세요|\s*봐)?$/i);
+    if (openNthLinkMatch) {
+      const nthLookup = { '1': 1, '첫': 1, '2': 2, '두': 2, '3': 3, '세': 3, '4': 4, '네': 4, '5': 5, '다섯': 5 };
+      const idx = openNthLinkMatch[1] ? (nthLookup[openNthLinkMatch[1]] || parseInt(openNthLinkMatch[1], 10) || 1) : 1;
+      const openAll = /(?:다|모두|전부)/.test(s);
+      return { intent: 'openResearchLink', index: idx, openAll };
+    }
+
+    // 10-F4) Explicit Web Search + Clickable Links + Optional Browser Open ("~ 검색해서 링크 줘", "웹에서 ~ 링크 제공해", "~ 웹 링크 열어줘", "웹브라우저에서 ~ 검색해서 열어줘")
+    if (
+      /(?:웹\s*링크|관련\s*링크|사이트\s*링크|링크|주소|\burl\b)/i.test(s) &&
+      /(?:제공|알려|보내|보여|열어|찾아|검색|줘|달라|띄워|가져와)/i.test(s) &&
+      !/^(?:방금|위|그)\s*링크/.test(s)
+    ) {
+      const cleanedWebQ = require('./web-research').queryFor(s);
+      const openInBrowser = /(?:열어|띄워|접속|브라우저)/.test(s);
+      if (cleanedWebQ && cleanedWebQ.length >= 2) {
+        return { intent: 'webSearchLinks', query: cleanedWebQ, openInBrowser };
+      }
+    }
+
+    // Generic Search -> Dedicated UI Search Results Window ("파이썬 강좌 검색해줘", "~ 검색해서 보여줘", "~ 찾아서 보여줘", "~ 검색해서 열어줘")
+    const genericSearchMatch = s.match(/^(.+?)\s*(?:검색해서\s*열어|검색해서\s*보여|찾아서\s*열어|찾아서\s*보여|검색해|웹검색해|구글링해|찾아봐|조사해서\s*보여|조사해)(?:\s*줘|\s*봐|\s*주세요)?$/);
     if (genericSearchMatch && !/유튜브|파일\s*목록|폴더\s*목록|터미널|깃|git/i.test(genericSearchMatch[1])) {
       const q = genericSearchMatch[1].replace(/(?:좀|를|을)$/g, '').trim();
-      if (q) return { intent: 'research', query: q };
+      if (q) {
+        if (/열어/.test(s)) return { intent: 'webSearchLinks', query: q, openInBrowser: true };
+        return { intent: 'research', query: q };
+      }
     }
 
     const mapMatch = s.match(/^(.+?)\s*(?:가는\s*길|길\s*찾기|지도\s*보여).*$/);
@@ -1947,6 +1980,92 @@ class ButlerEngine {
           hudSubtitle: pick.url,
           heard: rawSentence,
           spoken: `${parsed.index}번 영상을 재생합니다.`
+        };
+      }
+
+      case 'wakeMode': {
+        const reqWake = Boolean(parsed.requireWake);
+        this.saveConfig({ voiceRequireWake: reqWake });
+        return {
+          intent: 'wakeMode',
+          hudColor: 'lime',
+          hudTitle: reqWake ? '호출어 모드 켜짐 ("자비스" 필요)' : '호출어 없이 바로 말하기 켜짐',
+          hudSubtitle: reqWake
+            ? '이제 "자비스"라고 부르신 뒤 명령하시면 반응합니다.'
+            : '이제 "자비스"라고 부르지 않으셔도 대표님 말씀에 바로 반응합니다.',
+          heard: rawSentence,
+          spoken: reqWake
+            ? '네, 대표님. 이제 자비스라고 불러 주실 때만 반응하도록 설정했습니다.'
+            : '네, 대표님. 이제 자비스라고 부르지 않으셔도 바로 말씀하시면 즉시 실행하겠습니다.'
+        };
+      }
+
+      case 'openResearchLink': {
+        const webSources = (this.lastResearchReport && Array.isArray(this.lastResearchReport.sources))
+          ? this.lastResearchReport.sources.filter(src => src && /^https?:\/\//i.test(String(src.url || '')))
+          : [];
+        if (webSources.length === 0) {
+          return {
+            intent: 'openResearchLink',
+            hudColor: 'amber',
+            hudTitle: '열 수 있는 최근 웹 링크가 없습니다',
+            hudSubtitle: '먼저 "인공지능 뉴스 링크 찾아줘"처럼 웹 검색을 말씀해 주세요.',
+            heard: rawSentence,
+            spoken: '최근 검색에서 확보한 웹 링크가 없습니다. 찾으실 주제를 말씀해 주시면 바로 링크를 찾아 열어 드리겠습니다.'
+          };
+        }
+        const targets = parsed.openAll
+          ? webSources.slice(0, 3)
+          : [webSources[Math.max(0, Math.min(webSources.length - 1, (parsed.index || 1) - 1))]];
+        if (executeOsActions) {
+          for (const t of targets) {
+            await WindowsHands.openUrl(t.url);
+            this.openedUrls.push(t.url);
+          }
+        }
+        const first = targets[0];
+        return {
+          intent: 'openResearchLink',
+          hudColor: 'lime',
+          hudTitle: `웹 링크 열기 완료 (${targets.length}건)`,
+          hudSubtitle: targets.map((t, i) => `[${i + 1}] ${t.title} — ${t.url}`).join('\n'),
+          heard: rawSentence,
+          spoken: targets.length > 1
+            ? `네, 대표님. 최근 검색한 웹 링크 ${targets.length}개를 웹 브라우저로 바로 열어 드렸습니다.`
+            : `네, 대표님. ${first.title} 웹 링크를 브라우저로 열어 드렸습니다.`
+        };
+      }
+
+      case 'webSearchLinks': {
+        const report = await require('./web-research').research(parsed.query, { includeLocal: false });
+        this.lastResearchReport = report;
+        const webSources = Array.isArray(report.sources)
+          ? report.sources.filter(src => src && /^https?:\/\//i.test(String(src.url || '')))
+          : [];
+        const fallbackGoogleUrl = `https://www.google.com/search?q=${encodeURIComponent(parsed.query)}`;
+        if (parsed.openInBrowser && executeOsActions) {
+          const urlToOpen = webSources[0] ? webSources[0].url : fallbackGoogleUrl;
+          await WindowsHands.openUrl(urlToOpen);
+          this.openedUrls.push(urlToOpen);
+        }
+        const linkSummaryLines = webSources.slice(0, 3).map((s, i) => `[${i + 1}] ${s.title} (${s.url})`).join('\n');
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          hudColor: webSources.length > 0 ? 'lime' : 'cyan',
+          hudTitle: parsed.openInBrowser
+            ? `웹 링크 검색 및 브라우저 열기 완료 (${webSources.length}건)`
+            : `웹 링크 검색 완료 (${webSources.length}건 · 클릭하여 바로 열기)`,
+          hudSubtitle: linkSummaryLines || fallbackGoogleUrl,
+          heard: rawSentence,
+          spoken: parsed.openInBrowser
+            ? (webSources.length > 0
+              ? `네, 대표님. ${parsed.query} 관련 웹 링크 ${webSources.length}개를 찾아 링크 창에 띄우고, 첫 번째 페이지를 브라우저로 바로 열었습니다.`
+              : `네, 대표님. ${parsed.query} 구글 검색 화면을 웹 브라우저로 바로 열어 드렸습니다.`)
+            : (webSources.length > 0
+              ? `네, 대표님. ${parsed.query} 관련 웹 링크 ${webSources.length}개를 찾아 클릭 가능한 결과 창에 띄워 드렸습니다. 첫 번째 링크 열어줘라고 하시면 브라우저로 바로 엽니다.`
+              : `네, 대표님. ${parsed.query} 검색 결과를 확인해 주세요.`)
         };
       }
 

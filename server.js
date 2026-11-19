@@ -1587,10 +1587,11 @@ const server = http.createServer(async (req, res) => {
     try { options = speechOptions(butler.getConfig(), body); }
     catch (error) { return sendJson(res, 400, { ok: false, error: error.message }); }
     const { voice, speed } = options;
-    const explicitVoiceOverride = Boolean(body.voice);
-    const autoProfile = !explicitVoiceOverride ? resolvePersonaVoice(body.agent || body.persona || rawInputText) : null;
+    const freshTts = (() => { try { delete require.cache[require.resolve('./scripts/tts-audio')]; return require('./scripts/tts-audio'); } catch (_) { return { resolvePersonaVoice }; } })();
+    const autoProfile = freshTts.resolvePersonaVoice(body.agent || body.persona || rawInputText);
+    const explicitVoiceOverride = Boolean(body.voice) && !autoProfile;
     const effectiveVoice = autoProfile ? autoProfile.voice : voice;
-    const effectiveSpeed = (!body.speed && autoProfile && autoProfile.speed) ? autoProfile.speed : speed;
+    const effectiveSpeed = (autoProfile && autoProfile.speed) ? autoProfile.speed : speed;
     const effectivePitch = body.pitch || (autoProfile && autoProfile.pitch) || options.pitch || '+0Hz';
     const personaId = (autoProfile && autoProfile.id) || options.personaId || 'jarvis';
     const personaName = (autoProfile && autoProfile.name) || options.personaName || '자비스';

@@ -187,7 +187,8 @@ namespace JarvisSasariSa
         private static DateTime currentSpeechStartedAt = DateTime.MinValue;
         private static string cachedTargetWindowText = "대상 창: 자동 감지 중";
         private static string cachedLiveWeatherText = "날씨 수신 중";
-        private static string cachedStatusText = "JARVIS v3.0 대기 · 자비스라고 불러 주세요";
+        private static string cachedStatusText = "JARVIS v3.0 대기 · 호출어 없이 바로 말씀하세요";
+        private static bool currentVoiceRequireWake = false;
         private static string cachedBodyText = "무엇을 도와드릴까요?";
         private static Color cachedAccentColor = CyanColor;
         private static DateTime lastWeatherFetchAt = DateTime.MinValue;
@@ -3561,6 +3562,11 @@ namespace JarvisSasariSa
                     string tier = Convert.ToString(cfg["userPlanTier"]);
                     if (!string.IsNullOrWhiteSpace(tier)) currentUserPlanTier = tier;
                 }
+                if (cfg.ContainsKey("voiceRequireWake") && cfg["voiceRequireWake"] != null)
+                {
+                    try { currentVoiceRequireWake = Convert.ToBoolean(cfg["voiceRequireWake"]); } catch { }
+                    cachedStatusText = currentVoiceRequireWake ? "JARVIS v3.0 대기 · 자비스라고 불러 주세요" : "JARVIS v3.0 대기 · 호출어 없이 바로 말씀하세요";
+                }
                 if (cfg.ContainsKey("hudHotkeyVk") && cfg["hudHotkeyVk"] != null)
                 {
                     int loadedVk;
@@ -4584,6 +4590,47 @@ namespace JarvisSasariSa
             }
             voiceStack.Children.Add(speedGrid);
             paneVoice.Children.Add(voiceCard);
+
+            // Wake-Word Optional Mode Card ("자비스" 호출어 없이 바로 말하기)
+            Border wakeCard = new Border { Background = new SolidColorBrush(bgSurface), BorderBrush = new SolidColorBrush(borderSubtle), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 12) };
+            StackPanel wakeStack = new StackPanel();
+            wakeCard.Child = wakeStack;
+            wakeStack.Children.Add(new TextBlock { Text = "호출어('자비스') 없이 바로 말하기", FontFamily = UiFont, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(textPrimary) });
+            TextBlock wakeDesc = new TextBlock
+            {
+                Text = currentVoiceRequireWake
+                    ? "현재 상태: 호출어 필요 — '자비스'라고 불러야 반응합니다."
+                    : "현재 상태: 호출어 없이 바로 말하기 켜짐 — '자비스'라고 부르지 않아도 바로 말씀하시면 실행합니다.",
+                FontFamily = UiFont,
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new SolidColorBrush(currentVoiceRequireWake ? textSecondary : Color.FromRgb(86, 211, 100)),
+                Margin = new Thickness(0, 6, 0, 10)
+            };
+            wakeStack.Children.Add(wakeDesc);
+            WrapPanel wakeBtnRow = new WrapPanel();
+            Border btnWakeFreeOn = createActionBtn("호출어 없이 바로 말하기 (권장)", !currentVoiceRequireWake, async () =>
+            {
+                if (!await SaveSettingsPatchAsync(new System.Collections.Generic.Dictionary<string, object> { { "voiceRequireWake", false } })) return;
+                currentVoiceRequireWake = false;
+                wakeDesc.Text = "현재 상태: 호출어 없이 바로 말하기 켜짐 — '자비스'라고 부르지 않아도 바로 말씀하시면 실행합니다.";
+                wakeDesc.Foreground = new SolidColorBrush(Color.FromRgb(86, 211, 100));
+                BroadcastStatus("JARVIS v3.0 대기 · 호출어 없이 바로 말씀하세요");
+            });
+            btnWakeFreeOn.Margin = new Thickness(0, 0, 8, 4);
+            Border btnWakeRequired = createActionBtn("호출어('자비스') 부를 때만 반응", currentVoiceRequireWake, async () =>
+            {
+                if (!await SaveSettingsPatchAsync(new System.Collections.Generic.Dictionary<string, object> { { "voiceRequireWake", true } })) return;
+                currentVoiceRequireWake = true;
+                wakeDesc.Text = "현재 상태: 호출어 필요 — '자비스'라고 불러야 반응합니다.";
+                wakeDesc.Foreground = new SolidColorBrush(textSecondary);
+                BroadcastStatus("JARVIS v3.0 대기 · 자비스라고 불러 주세요");
+            });
+            btnWakeRequired.Margin = new Thickness(0, 0, 8, 4);
+            wakeBtnRow.Children.Add(btnWakeFreeOn);
+            wakeBtnRow.Children.Add(btnWakeRequired);
+            wakeStack.Children.Add(wakeBtnRow);
+            paneVoice.Children.Add(wakeCard);
 
             // Speaker comparison is opt-in and remains off until real enrollment succeeds.
             Border speakerCard = new Border { Background = new SolidColorBrush(bgSurface), BorderBrush = new SolidColorBrush(borderSubtle), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 12) };

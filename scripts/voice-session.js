@@ -29,7 +29,8 @@ class VoiceSessions {
     const wasAwake = (this.sessions.get(id) || 0) > now || (global.__jarvisForceAwakeUntil || 0) > now;
     const isWake = config.activation !== 'hold' && (this.engine.hasWakeWord(text) || isGreeting);
     const isMediaStop = (!config.voiceRequireWake || ownerVerified) && config.activation !== 'hold' && typeof this.engine.isMediaStopRequest === 'function' && this.engine.isMediaStopRequest(text);
-    if (!wasAwake && !isWake && !isMediaStop) return false;
+    const wakeFreeAllowed = config.voiceRequireWake === false && config.activation !== 'hold' && phrase.length >= 2;
+    if (!wasAwake && !isWake && !isMediaStop && !wakeFreeAllowed) return false;
     if (!commit) return true;
     const baseFollowSec = Math.max(1, Math.min(60, Number(config.followUpSec) || 15));
     const stripped = typeof this.engine.stripWake === 'function' ? this.engine.stripWake(text) : text;

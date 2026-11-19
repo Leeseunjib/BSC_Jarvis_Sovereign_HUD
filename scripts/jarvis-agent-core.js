@@ -69,7 +69,7 @@ function resolveGeminiKey(cfg = {}) {
 const FUNCTION_DECLARATIONS = [
   {
     name: 'web_search_and_extract',
-    description: '인터넷 웹 검색을 수행하여 정확한 원문·사실·최신 정보를 가져옵니다. 원문 작성(예: 중용 23장 등 고전/문서/최신 정보) 전 반드시 먼저 호출해 정확한 내용을 확보하세요. 사용자가 웹 브라우저를 열어 검색하길 원하면 openBrowser=true로 설정하세요.',
+    description: '인터넷 웹 검색을 수행하여 정확한 원문·사실·최신 정보와 클릭 가능한 실제 웹 링크(URL) 목록을 가져옵니다. 링크 목록은 자동으로 대표님 화면의 클릭 가능한 링크 창에 표시됩니다. 사용자가 웹 브라우저를 직접 열어보길 원하면 openBrowser=true로 설정하세요.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -77,6 +77,17 @@ const FUNCTION_DECLARATIONS = [
         openBrowser: { type: 'BOOLEAN', description: '실제 크롬 웹 브라우저 검색 창도 함께 띄울지 여부' }
       },
       required: ['query']
+    }
+  },
+  {
+    name: 'open_web_url',
+    description: '특정 웹사이트 URL(https://...) 또는 구글/네이버 검색 페이지를 대표님의 기본 크롬 웹 브라우저 창으로 즉시 열어 줍니다. 사용자가 "웹 링크 열어줘", "사이트 열어줘", "브라우저로 띄워줘"라고 요청할 때 호출하세요.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        url: { type: 'STRING', description: '열어줄 전체 https:// URL (모르면 query를 사용)' },
+        query: { type: 'STRING', description: 'URL 대신 구글 검색 페이지를 바로 열 때 사용할 검색어' }
+      }
     }
   },
   {
@@ -311,8 +322,55 @@ const FUNCTION_DECLARATIONS = [
 
 async function executeAgentTool(name, args = {}, cfg = {}, contextArtifacts = {}) {
   switch (name) {
-    case 'web_search_and_extract':
-      return await webSearchAndExtract(args);
+    case 'web_search_and_extract': {
+      const searchRes = await webSearchAndExtract(args);
+      if (searchRes && searchRes.ok && Array.isArray(searchRes.results) && searchRes.results.length > 0) {
+        const id = crypto.randomUUID();
+        const sources = searchRes.results.map((r, i) => ({
+          id: i + 1,
+          title: r.title || r.url,
+          url: r.url,
+          domain: (() => { try { return new URL(r.url).hostname; } catch (_) { return 'web'; } })(),
+          readStatus: '웹 링크 (클릭 시 브라우저 열림)'
+        }));
+        const sections = searchRes.results.map((r, i) => ({
+          sourceId: i + 1,
+          title: r.title || `웹 결과 ${i + 1}`,
+          text: `${r.snippet || ''}\n링크: ${r.url}`.trim()
+        }));
+        contextArtifacts.research = {
+          id,
+          query: args.query || '웹 검색',
+          title: `${args.query || '웹 검색'} · 웹 링크 및 요약`,
+          layoutSize: 'standard',
+          status: 'ready',
+          createdAt: new Date().toISOString(),
+          provider: searchRes.provider || 'Web Search',
+          note: '하단 [연결된 원본 문서 및 출처] 링크를 클릭하시면 크롬 브라우저로 즉시 열립니다.',
+          summary: sources.slice(0, 3).map(s => `[${s.id}] ${s.title} — ${s.url}`).join('\n'),
+          keywords: [],
+          sections,
+          sources
+        };
+        contextArtifacts.researchId = id;
+      }
+      return searchRes;
+    }
+    case 'open_web_url': {
+      const targetUrl = (args.url && /^https?:\/\//i.test(String(args.url).trim()))
+        ? String(args.url).trim()
+        : `https://www.google.com/search?q=${encodeURIComponent(String(args.query || '구글'))}`;
+      const { execFile } = require('child_process');
+      const launcherExe = 'C:\\자비스\\bin\\JarvisDesktopLaunch.exe';
+      await new Promise(resolve => {
+        if (fs.existsSync(launcherExe)) {
+          execFile(launcherExe, [targetUrl], { windowsHide: true, timeout: 6000 }, () => resolve());
+        } else {
+          execFile('cmd.exe', ['/c', 'start', '', targetUrl], { windowsHide: true, timeout: 6000 }, () => resolve());
+        }
+      });
+      return { ok: true, openedUrl: targetUrl };
+    }
     case 'computer_write_to_window':
       return await writeToWindow(args);
     case 'computer_read_window':

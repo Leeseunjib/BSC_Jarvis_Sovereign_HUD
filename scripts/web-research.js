@@ -10,7 +10,13 @@ function clean(html = '') {
     .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&ldquo;|&rdquo;/g,'"').replace(/&lsquo;|&rsquo;/g,"'").replace(/&mdash;|&ndash;/g,'—').replace(/&hellip;/g,'…').replace(/\s+/g, ' ').trim();
 }
 function queryFor(sentence) {
-  return String(sentence).replace(/^(?:자비스[,\s]*|(?:구글|네이버|우리\s*시스템|사내\s*문서|전체\s*시스템)(?:에서)?\s*)/i, '').replace(/(?:에?\s*대해(?:서)?\s*)?(?:알고\s*있어|알아|뭐야|무엇이야|설명해|알려줘|정리해|조사해|검색해서\s*보여|찾아서\s*보여|검색해|찾아봐|찾아|보여)(?:\s*줘|주세요|봐)?[?？.!\s]*$/i, '').replace(/[?？]+$/,'').trim().slice(0,180);
+  return String(sentence)
+    .replace(/^(?:자비스[,\s]*|(?:나에게|내게|나한테)\s*|(?:구글|네이버|웹\s*브라우저|브라우저|웹|인터넷|우리\s*시스템|사내\s*문서|전체\s*시스템)(?:에서|로|으로)?\s*)+/i, '')
+    .replace(/(?:에?\s*대해(?:서)?\s*)?(?:웹\s*링크|관련\s*링크|사이트\s*링크|링크|주소|url)(?:를|을|좀|도)?\s*(?:제공해|알려|보내|보여|열어|찾아|줘|달라|주세요|봐).*$/i, '')
+    .replace(/(?:에?\s*대해(?:서)?\s*)?(?:알고\s*있어|알아|뭐야|무엇이야|설명해|알려줘|정리해|조사해|검색해서\s*보여|검색해서\s*열어|검색해서|찾아서\s*보여|찾아서\s*열어|검색해|찾아봐|찾아|보여|열어|제공해)(?:\s*줘|주세요|봐|달라)?[?？.!\s]*$/i, '')
+    .replace(/[?？]+$/, '')
+    .trim()
+    .slice(0, 180);
 }
 function isResearchQuestion(sentence) {
   return /(?:알아|알고\s*있어|뭐야|무엇(?:이|인)|어떤\s*기술|설명해|에\s*대해|차이|비교해|장단점|조사해|정리해|최신\s*소식|어떻게\s*작동)/i.test(sentence) || /[?？]$/.test(sentence.trim());
@@ -55,8 +61,12 @@ async function articleText(url, terms) {
 async function searchWeb(query, get=boundedFetch) {
   let results=[],provider='',errors=[];
   const terms=tokens(query);
-  for(const [name,url,parse] of [['DuckDuckGo','https://html.duckduckgo.com/html/?q='+encodeURIComponent(query),parseDuck],['Bing','https://www.bing.com/search?format=rss&q='+encodeURIComponent(query),parseBing]]){
-    try{const response=await get(url);results=parse(response.text||'').map(s=>({...s,score:terms.filter(t=>(s.title+' '+s.snippet).toLowerCase().includes(t.toLowerCase())).length})).filter(s=>!terms.length||s.score>0);if(results.length){provider=name;break;}errors.push(name+': 관련 검색 결과 없음');}catch(e){errors.push(name+': '+e.message);}
+  for(const [name,url,parse] of [
+    ['DuckDuckGo','https://html.duckduckgo.com/html/?q='+encodeURIComponent(query),parseDuck],
+    ['Bing','https://www.bing.com/search?format=rss&q='+encodeURIComponent(query),parseBing],
+    ['GoogleNews','https://news.google.com/rss/search?q='+encodeURIComponent(query)+'&hl=ko&gl=KR&ceid=KR:ko',parseBing]
+  ]){
+    try{const response=await get(url);const parsed=parse(response.text||'').map(s=>({...s,score:terms.filter(t=>(s.title+' '+s.snippet).toLowerCase().includes(t.toLowerCase())).length}));const filtered=parsed.filter(s=>!terms.length||s.score>0);results=filtered.length?filtered:parsed;if(results.length){provider=name;break;}errors.push(name+': 관련 검색 결과 없음');}catch(e){errors.push(name+': '+e.message);}
   }
   const seen=new Set();
   results=results.filter(s=>{if(seen.has(s.url))return false;seen.add(s.url);return true;}).sort((a,b)=>b.score-a.score).slice(0,6);

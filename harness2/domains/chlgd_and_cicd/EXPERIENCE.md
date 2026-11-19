@@ -75,3 +75,10 @@
 ## [2026-11-18 CEO Rule Learned]
 - **Rule**: 미친 거지 그런 작업들 그 다음에 또 놀라지 마라
 - **Source**: Harness² 재귀 학습 (explicit, 근거 1회)
+
+## [2026-11-18 CEO Rule Learned]
+- **Rule**: 'agentCore' 유형 요청은 대표님이 2회 교정하셨습니다. 실행 전에 의도를 한 번 더 확인하고, 최근 교정 내용(「아니야 아니야 아니야 그냥 지금 다른 애인 태준을 불러 줘」)을 우선 반영합니다.
+- **Source**: Harness² 재귀 학습 (caution, 근거 2회)
+
+## [2026-11-18 Learned repetition]
+- 자주 하시는 요청: 「오늘 할 일 정리해 줘」 (3회)

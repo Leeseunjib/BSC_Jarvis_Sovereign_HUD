@@ -156,3 +156,69 @@
 {"ts":"2026-11-18T03:49:19.316Z","sentence":"자비스가 준비되었습니다","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
 {"ts":"2026-11-18T03:49:26.284Z","sentence":"대표님의 말씀","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
 {"ts":"2026-11-18T06:52:19.003Z","sentence":"아빠 왔어","intent":"greet","failed":false,"hudTitle":"◉ 자비스 · BSC 3대 생태계 & 26인 에이전트 ONLINE","error":"","source":"manual"}
+{"ts":"2026-11-18T08:13:25.779Z","sentence":"자비스 내 목소리를 등록해 주세요 지금은 첫 번째 문장을 천천히 읽고 있습니다 다른 사람이나 영상 소리에는 반응하지 말고 제가 부를 때 제 말을 들어라 이제 마지막 문장입니다 오늘 할 일을 차근차근 정리하고 필요한 정보를 확인하겠습니다","intent":"research","failed":false,"hudTitle":"📋 대표님 전용 3대 생태계 · 작업일지 브리핑 완료","error":"","source":"voice"}
+{"ts":"2026-11-18T08:16:05.438Z","sentence":"수아야","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:17:05.661Z","sentence":"자비스 지금 몇 시야","intent":"clock","failed":false,"hudTitle":"🕒 지금은 오후 05:17입니다.","error":"","source":"voice"}
+{"ts":"2026-11-18T08:17:27.123Z","sentence":"야 자비스 오늘 우리가 어떤 어떤 작업들을 했는지 내가 오늘 어떤 작업을 했는지 알려 줘","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (cli_execute ➔ web_search_and_extract)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:18:55.358Z","sentence":"태준아 내가 오늘 그 뭐지 오늘 안티 그래비티에서 팀워크 명령어를 가지고 작업을 했어 그런데 그거 말고 우리 뷰 시크리터스 시스템 중에 워룸 시스템이 있는데 그 둘 중에 지금 팀워크 시스템하고 워룸 시스템하고 어떤게 더 좋아","intent":"agentCore","failed":false,"hudTitle":"🗣 비서실장 태준 (남성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:23:23.020Z","sentence":"지금 자비스 시스템이 등록된 TTS 음성 모델들이 뭐 뭐 있지","intent":"agentCore","failed":false,"hudTitle":"🗣 비서실장 태준 (남성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:24:05.791Z","sentence":"수아야","intent":"agentCore","failed":false,"hudTitle":"🗣 유니티TA 수아 (여성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:24:23.577Z","sentence":"수아야","intent":"agentCore","failed":false,"hudTitle":"🗣 유니티TA 수아 (여성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:24:27.870Z","sentence":"유니티 지금","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (cli_execute ➔ cli_execute)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:24:44.260Z","sentence":"유니티 TA 수화","intent":"agentCore","failed":false,"hudTitle":"🗣 수석비서 소하 (여성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:25:13.680Z","sentence":"현재 하는 거는 내가 말을 하고자 하는 거는 바로 뭐냐면 다른 에이전트 애들을 좀 따로 물어보고 싶거든","intent":"agentCore","failed":false,"hudTitle":"🗣 수석비서 소하 (여성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:25:46.279Z","sentence":"건우를 불러 줘","intent":"agentCore","failed":false,"hudTitle":"🗣 CTO 거누 (남성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:26:13.502Z","sentence":"아니야 아니야 아니야 그냥 지금 다른 애인 태준을 불러 줘","intent":"agentCore","failed":false,"hudTitle":"🗣 비서실장 태준 (남성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:27:00.225Z","sentence":"태준아 태준아","intent":"agentCore","failed":false,"hudTitle":"🗣 비서실장 태준 (남성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:27:22.263Z","sentence":"정아야","intent":"agentCore","failed":false,"hudTitle":"🗣 수석비서 소하 (여성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:27:32.862Z","sentence":"소하야 근데 네가 대답을 했을 때 중간중간마다 기계음 여성 음성이 나올 때가 있어 확인해 봐","intent":"bscSpecialOrder","failed":false,"hudTitle":"⚡ 자비스 ↔ BSC 소하 (수석비서 (90 Order · 일정/기획 브리핑)) 수평 협력","error":"","source":"voice"}
+{"ts":"2026-11-18T08:35:52.910Z","sentence":"지금 너는 그 안티그레이비티에서 연결해 가지고 지금 사용하고 있는 중이야","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:37:16.827Z","sentence":"지금 현재 나한테 그래비티에서 지금 할당량을 다 썼다고 근데 지금 내가 너랑 대화를 하고 있잖아 맞지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:37:23.673Z","sentence":"네 맞습니다 대표님","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:37:30.678Z","sentence":"네 대표님","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:37:37.280Z","sentence":"네 대표님","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:37:44.029Z","sentence":"그러면","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:37:48.939Z","sentence":"자비스 내가 말하는 거 끝까지 듣고 대답을 해야지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:38:27.916Z","sentence":"일단 첫 번째 안티 그래비티랑 연극 연동이 되어져 있다고 했는데 그 부분에서 지금 안티 그래비티에서는 할당량이 다 끝났대 근데 너랑 대화해도 안전한 거야","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:38:38.710Z","sentence":"대표님 정말 죄송합니다","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:38:46.025Z","sentence":"대표님 거듭 사과드리며","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:39:07.533Z","sentence":"똑바로 하자","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:39:47.978Z","sentence":"첫 번째 네가 지금 나랑 대화했을 때 지금 우리 그 C 드라이브리터스 시스템 같은 경우에는 에러 로그를 통해 가지고 내가 하지 말라고 했었던 부분을 통해서 작업을 해 그래서 chlgd 작업을 통해 가지고 정말 잘 활용하고 있어 근데 너는 지금 그런 거점이 좀 필요한 거 같아","intent":"bscSpecialOrder","failed":false,"hudTitle":"⚡ CHLGD · CI/CD 무결성 및 코드 게이트 검증","error":"","source":"voice"}
+{"ts":"2026-11-18T08:40:56.136Z","sentence":"자비스 시스템에서도 그거가 있어야 될 것 같다고 판단되는게 뭐냐면 에러로그 그래서 chagd 작업들을 자비스 시스템에서도 반영하여 어 bschq 시스템에서 관리를 받도록 한다 대답해야지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:46:22.453Z","sentence":"내가 있는 거리에는 내가 할 일이 없어서 자비스 내가 오더 내렸던 거 그거 다 반영했어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:47:16.465Z","sentence":"왜 자비스","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:47:36.467Z","sentence":"지금 현재 bschq 시스템에서 반영을 해 가지고 하려고 한다고 했잖아 검토한다고 근데 절대로 내가 만든 bsccsm을 절대 건드리지 않는다 수정하거나 삭제하거나 그러지 마 알겠어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:48:12.814Z","sentence":"수호야","intent":"personaVoiceDemo","failed":false,"hudTitle":"🗣 QA 수호 (남성 Neural 음성 · ko-KR-InJoonNeural)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:48:51.440Z","sentence":"수호야 자비스가 조금 에러로그는 이제 그런 부분들을 시스템에서 자기가 실수하거나 하지 말아야 행동들을 할 때가 있어 그래서 우리 시스템을 통해 가지고 자비스 시스템을 관리하고 통제할 수 있게끔 하는 부분들을 잘 반영해 줘 알겠어","intent":"agentCore","failed":false,"hudTitle":"🗣 QA 수호 (남성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:50:16.513Z","sentence":"c 드라이브에 있는 뷰스 크리터스라고 하는 폴더는 절대 건드리지 마 알겠지 함부로 수정하거나 삭제하면 절대 안 된다","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:50:43.217Z","sentence":"지금 몇 시지","intent":"clock","failed":false,"hudTitle":"🕒 지금은 오후 05:50입니다.","error":"","source":"voice"}
+{"ts":"2026-11-18T08:51:07.179Z","sentence":"지금 부천에 비가 오나","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ web_search_and_extract)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:51:16.743Z","sentence":"잘 있어요 지금 자비스 지금 부천에 비가 와","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:51:44.420Z","sentence":"소하야","intent":"personaVoiceDemo","failed":false,"hudTitle":"🗣 수석비서 소하 (여성 Neural 음성 · ko-KR-SunHiNeural)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:52:24.212Z","sentence":"요즘 AI 안경으로 되게 많은 이슈가 있잖아 그치 대한민국에서 지금 시험이나 수능이 관련돼서 AI 안경 때문에 지금 난리가 났는데 지금 현재 AI 안경에 시스템이 어느 정도 발전이 되어져 있는 상태야","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:53:02.075Z","sentence":"지금 방금 이야기하는 애가 누구야","intent":"agentCore","failed":false,"hudTitle":"🗣 수석비서 소하 (여성 보이스) 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:53:24.181Z","sentence":"아니야 괜찮아","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:54:18.319Z","sentence":"자비스 대답을 해야지","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:54:44.067Z","sentence":"혹시 자비스 내가 조금 전에 말했던 AI 안경에 대해서 내가 설명한게 있거든","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 종합 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:55:31.541Z","sentence":"그럼 자비스 잘 들어 앞으로는 내가 너랑 대화를 하지 이렇게 대화를 하는 부분들에 대한 기록이 있어야 네가 기억이라고 하는 거를 할 수 있겠지 메모리라고 하는 건가 그 메모리를 만들어 나가는 과정들이 지금 너한테 지금 없니","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:56:11.312Z","sentence":"이런 시스템을 반영이 돼야 되니까 지금 필요한 건데 너 지금 내가 말하면 너 자비스 시스템에서 너가 지금 개선할 수 있어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:56:51.077Z","sentence":"자비스 잘 들어 지금 방금 전에 말했던 롱턴 해 가지고 지금 영구적인 기억 있지 그거를 지금 구축을 하고","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (ide_write_file)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:57:03.122Z","sentence":"그 다음에 어 내가 날짜별 날짜별로 다음에 날짜별로 내가 어떤 이야기를 했는지 그거를 체크할 수 있는 ui도 너 가지고 있어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:58:22.701Z","sentence":"자비스 네가 그 작업들을 하고 다 완료하고 그다음에 어떤 작업들을 했었는지 메모장에다가 작성해 줘","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (computer_write_to_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T08:59:54.962Z","sentence":"자비스 궁금한게 하나 있는데 오늘 네가 연구 기업 시스템을 만들었다고 했어 근데 그거를 지금 화면에 있는 UI 쪽에서 보이지 않아 자비스 오늘 네가 연구 시스템을 만들었잖아 근데 지금 화면에 보이지 않으니까 네가 잘 몰라","intent":"brain","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T08:59:56.120Z","sentence":"오늘 할 일 정리해 줘","intent":"research","failed":false,"hudTitle":"📋 대표님 전용 3대 생태계 · 작업일지 브리핑 완료","error":"","source":"manual"}
+{"ts":"2026-11-18T09:00:03.521Z","sentence":"최근 작업일지에 대해 조사해줘","intent":"research","failed":false,"hudTitle":"🔍 검색 결과 창 열기 완료 (MD·Word·PDF·PPT 저장 가능)","error":"","source":"manual"}
+{"ts":"2026-11-18T09:01:11.093Z","sentence":"오늘 작업했었던 것들이 뭐 뭐 있어","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (memo_save_file)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:01:59.228Z","sentence":"오늘 작업한 것은 날짜별 메모리 해 가지고 2번 있잖아 자비스 날짜별 메모리 그거 있었잖아 그거 그거 화면은 어디서 확인할 수 있어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T09:02:58.332Z","sentence":"자비스 둘 다","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (computer_write_to_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:03:28.229Z","sentence":"자비스 실행해","intent":"agentCore","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (cli_execute ➔ cli_execute ➔ computer_write_to_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:04:24.999Z","sentence":"존나 파인드에 지금 안 된다고 하는 거는 자비스","intent":"agentCore","failed":true,"hudTitle":"❓ 자비스 확인 질문 (이어 말씀해 주세요)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:04:34.078Z","sentence":"자비스 지금 실행할 수 없다라고 오류가 떴어 확인됐니","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T09:05:06.231Z","sentence":"지금 네가 만들었다라고 했던 웹 대시보드 있지 그거를 실행하라고 말했는데 그거를 실행하지 못 해 오류가 떴어","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T09:06:56.967Z","sentence":"애 자비스","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T09:07:21.237Z","sentence":"자비스 그 위치가 네가 지금 있는 위치랑 같은 곳에 있는 거 아니야","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
+{"ts":"2026-11-18T09:09:38.733Z","sentence":"야 자비스 네이버에서 32인치 모니터 괜찮은 거 나한테 추천 좀 해 줘","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:10:11.897Z","sentence":"가격대는 대충 20만 원 이하로","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:11:01.199Z","sentence":"대표님 자비스 그러면 지금 방금 추천드렸던 20만 원이야 32인치 모니터 있잖아 그러면은 그 네가 찾아 가지고 링크를 나한테 제공해 줄 수도 있어","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:11:48.930Z","sentence":"항목별 이제 상세 브리핑 해 가지고 나한테 제공하긴 했는데 링크를 나한테 제공한다고 했을 때는 내가 클릭할 수 있게끔 나한테 제공해 줘야 되지 않아","intent":"research","failed":false,"hudTitle":"⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)","error":"","source":"voice"}
+{"ts":"2026-11-18T09:12:18.862Z","sentence":"야 지금도 테스트지 내가 클릭할 수가 없어 내가 마우스를 클릭해 가지고 페이지 그쪽으로 웹페이지로 넘어갈 수가 없단 말이야","intent":"agentCore","failed":false,"hudTitle":"🗣 자비스 답변","error":"","source":"voice"}
