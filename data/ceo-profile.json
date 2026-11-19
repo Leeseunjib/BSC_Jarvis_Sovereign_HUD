@@ -20,18 +20,18 @@
   ],
   "systemArchitecture": "CHLGD (Context · Harness · Loop · Graph · Dynamic) + Harness² 자가성장 엔진",
   "stats": {
-    "totalOrders": 302,
+    "totalOrders": 305,
     "intentCounts": {
       "youtubeAutoPlay": 11,
       "mediaNext": 2,
       "bscSpecialOrder": 8,
-      "brain": 64,
+      "brain": 65,
       "stopMusic": 8,
       "awake": 25,
       "hush": 3,
       "resumeMusic": 2,
       "clock": 7,
-      "research": 40,
+      "research": 42,
       "greet": 2,
       "web": 11,
       "openApp": 5,
@@ -70,6 +70,24 @@
     ]
   },
   "recentOrders": [
+    {
+      "ts": "2026-11-19 08:20:09",
+      "sentence": "자비스 요즘 게임 스팀에서 인기가 많은 게임들을 알아봐 주고 왜 잘 되고 있는지 알고리즘에 관련된 부분들이나 다양한 부분들이 시각적으로 분석한지 나한테 알려 줘",
+      "intent": "research",
+      "title": "⚡ 에이전트 실행 완료 (web_search_and_extract ➔ present_dynamic_window)"
+    },
+    {
+      "ts": "2026-11-19 08:19:34",
+      "sentence": "요즘 스팀 게임에서 스팀 게임에서 요즘 가장 인기가 많은 게임들을 나한테 소개해 주고 그 게임들이 왜 잘 되고 있는지를 나한테 알려 줘",
+      "intent": "brain",
+      "title": "🗣 자비스 답변"
+    },
+    {
+      "ts": "2026-11-19 08:17:32",
+      "sentence": "최신 인공지능 뉴스 링크를 나한테 제공해 줘",
+      "intent": "research",
+      "title": "웹 링크 검색 완료 (6건 · 클릭하여 바로 열기)"
+    },
     {
       "ts": "2026-11-18 09:12:18",
       "sentence": "야 지금도 테스트지 내가 클릭할 수가 없어 내가 마우스를 클릭해 가지고 페이지 그쪽으로 웹페이지로 넘어갈 수가 없단 말이야",
@@ -231,25 +249,7 @@
       "sentence": "자비스 대답을 해야지",
       "intent": "agentCore",
       "title": "🗣 자비스 답변"
-    },
-    {
-      "ts": "2026-11-18 08:53:24",
-      "sentence": "아니야 괜찮아",
-      "intent": "agentCore",
-      "title": "🗣 자비스 답변"
-    },
-    {
-      "ts": "2026-11-18 08:53:02",
-      "sentence": "지금 방금 이야기하는 애가 누구야",
-      "intent": "agentCore",
-      "title": "🗣 수석비서 소하 (여성 보이스) 답변"
-    },
-    {
-      "ts": "2026-11-18 08:52:24",
-      "sentence": "요즘 AI 안경으로 되게 많은 이슈가 있잖아 그치 대한민국에서 지금 시험이나 수능이 관련돼서 AI 안경 때문에 지금 난리가 났는데 지금 현재 AI 안경에 시스템이 어느 정도 발전이 되어져 있는 상태야",
-      "intent": "agentCore",
-      "title": "⚡ 에이전트 실행 완료 (web_search_and_extract)"
     }
   ],
-  "updatedAt": "2026-11-18T09:12:18.860Z"
+  "updatedAt": "2026-11-19T08:20:09.882Z"
 }

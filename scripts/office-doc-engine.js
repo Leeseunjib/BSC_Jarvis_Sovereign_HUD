@@ -11,7 +11,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 
 const EXPORT_ROOT = process.env.JARVIS_EXPORT_DIR || path.join(__dirname, '..', 'docs', 'exports');
-const FORMATS = ['md', 'docx', 'pptx', 'pdf'];
+const FORMATS = ['md', 'docx', 'pptx', 'pdf', 'html'];
 
 // ---------------------------------------------------------------- ZIP (store)
 const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -46,6 +46,8 @@ function normalizeDoc(input) {
     title: String(doc.title || '자비스 문서').slice(0, 200),
     subtitle: String(doc.subtitle || `작성: 자비스 · ${new Date().toLocaleString('ko-KR')}`),
     summary: String(doc.summary || ''),
+    metrics: (Array.isArray(doc.metrics) ? doc.metrics : []).filter(m => m && m.label).map(m => ({ label: String(m.label), value: String(m.value ?? ''), sub: String(m.sub || '') })),
+    charts: (Array.isArray(doc.charts) ? doc.charts : []).filter(c => c && c.label).map(c => ({ label: String(c.label), value: Number(c.value) || 0, display: String(c.display || `${c.value || 0}`), pct: Math.max(4, Math.min(100, Number(c.pct) || 50)) })),
     sections: (Array.isArray(doc.sections) ? doc.sections : []).filter(s => s && (s.heading || s.body)).map(s => ({ heading: String(s.heading || ''), body: String(s.body || '') })),
     sources: (Array.isArray(doc.sources) ? doc.sources : []).filter(s => s && (s.title || s.url)).map(s => ({ title: String(s.title || s.url), url: String(s.url || '') }))
   };
@@ -153,6 +155,223 @@ function toPptx(doc) {
   return { buffer: zip(entries), slideCount: capped.length };
 }
 
+// ---------------------------------------------------------------- Infographic HTML (Human-Crafted, Zero AI-Slop)
+function toInfographicHtml(doc) {
+  const formatBody = t => {
+    const lines = String(t || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length <= 1) return `<p>${esc(lines[0] || '')}</p>`;
+    return `<ul>${lines.map(l => `<li>${esc(l.replace(/^[•\-*]\s*/, ''))}</li>`).join('')}</ul>`;
+  };
+  const metrics = doc.metrics && doc.metrics.length
+    ? doc.metrics
+    : [
+        { label: '분석 섹션', value: `${doc.sections.length}개`, sub: '구조화 인사이트' },
+        { label: '검증 출처', value: `${doc.sources.length}건`, sub: '클릭 가능 링크' },
+        { label: '출력 형식', value: 'DOCX + HTML', sub: 'Word · 인포그래픽' },
+        { label: '작성 기준일', value: new Date().toISOString().slice(0, 10), sub: 'BeausCreators HQ' }
+      ];
+  const chartBars = doc.charts && doc.charts.length
+    ? doc.charts
+    : doc.sections.slice(0, 6).map((s, idx) => {
+        const len = Math.max(1, (s.body || '').length);
+        const maxLen = Math.max(...doc.sections.slice(0, 6).map(x => (x.body || '').length), 1);
+        const pct = Math.max(18, Math.round((len / maxLen) * 100));
+        return { label: s.heading.slice(0, 34), value: len, display: `${len}자`, pct };
+      });
+
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(doc.title)} — Infographic Report</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-sub: #f1f5f9;
+    --ink: #0f172a;
+    --ink-2: #475569;
+    --ink-3: #64748b;
+    --border: rgba(15, 23, 42, 0.08);
+    --accent: #0f4c81;
+    --accent-2: #0284c7;
+    --emerald: #059669;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.62;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 64px; }
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+  }
+  .hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(15, 76, 129, 0.08);
+    border: 1px solid rgba(15, 76, 129, 0.16);
+    border-radius: 6px;
+    padding: 4px 10px;
+  }
+  .print-btn {
+    border: 1px solid var(--border);
+    background: var(--surface-sub);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .print-btn:hover { background: #e2e8f0; }
+  h1 { margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; color: var(--ink); }
+  .sub { color: var(--ink-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .summary-box {
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: var(--surface-sub);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .kpi-label { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+  .kpi-val { font-size: 22px; font-weight: 800; color: var(--accent); margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+  .kpi-sub { font-size: 11.5px; color: var(--ink-2); }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .panel-title { margin: 0 0 14px; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .bar-row { display: grid; grid-template-columns: 220px 1fr 72px; gap: 12px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+  .bar-label { color: var(--ink-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { height: 10px; background: var(--surface-sub); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent-2); border-radius: 6px; }
+  .bar-val { text-align: right; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .sec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .sec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .sec-num {
+    font-size: 11px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    background: rgba(15, 76, 129, 0.08);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+  .sec-card h2 { margin: 0; font-size: 15.5px; font-weight: 700; color: var(--ink); }
+  .sec-card p { margin: 0; font-size: 13.5px; color: var(--ink-2); text-wrap: pretty; }
+  .sec-card ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); }
+  .sec-card li { margin-bottom: 5px; }
+  .src-list { display: flex; flex-direction: column; gap: 8px; }
+  .src-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface-sub);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .src-item:hover { border-color: var(--accent-2); }
+  .src-url { font-size: 11.5px; color: var(--accent-2); word-break: break-all; }
+  @media print { .print-btn { display: none; } body { background: #fff; } .wrap { padding: 0; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-top">
+        <span class="badge">BEAUSCREATORS EXECUTIVE INFOGRAPHIC REPORT</span>
+        <button class="print-btn" onclick="window.print()">PDF 인쇄 / 저장</button>
+      </div>
+      <h1>${esc(doc.title)}</h1>
+      <div class="sub">${esc(doc.subtitle)}</div>
+      ${doc.summary ? `<div class="summary-box">${esc(doc.summary).replace(/\n/g, '<br>')}</div>` : ''}
+    </section>
+
+    <section class="kpi-grid">
+      ${metrics.map(m => `<div class="kpi-card"><div class="kpi-label">${esc(m.label)}</div><div class="kpi-val">${esc(m.value)}</div><div class="kpi-sub">${esc(m.sub)}</div></div>`).join('')}
+    </section>
+
+    ${chartBars.length ? `
+    <section class="panel">
+      <h3 class="panel-title">핵심 지표 및 비중 비교</h3>
+      ${chartBars.map(c => `<div class="bar-row"><div class="bar-label">${esc(c.label)}</div><div class="bar-track"><div class="bar-fill" style="width:${c.pct}%"></div></div><div class="bar-val">${esc(c.display)}</div></div>`).join('')}
+    </section>` : ''}
+
+    <section class="sec-grid">
+      ${doc.sections.map((s, i) => `
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">${String(i + 1).padStart(2, '0')}</span>
+          <h2>${esc(s.heading)}</h2>
+        </div>
+        ${formatBody(s.body)}
+      </article>`).join('')}
+    </section>
+
+    ${doc.sources.length ? `
+    <section class="panel">
+      <h3 class="panel-title">검증된 출처 및 바로가기 링크 (${doc.sources.length}건)</h3>
+      <div class="src-list">
+        ${doc.sources.map(s => s.url
+          ? `<a class="src-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span><strong>${esc(s.title)}</strong></span><span class="src-url">${esc(s.url)}</span></a>`
+          : `<div class="src-item"><span>${esc(s.title)}</span></div>`
+        ).join('')}
+      </div>
+    </section>` : ''}
+  </div>
+</body>
+</html>`;
+}
+
 // ---------------------------------------------------------------- PDF (HTML → headless browser)
 function toHtml(doc) {
   const p = t => esc(t).replace(/\n/g, '<br>');
@@ -192,8 +411,8 @@ function uniquePath(dir, base, ext) {
  * @returns {Promise<{ok, format, path, bytes, slideCount?}>}
  */
 async function createDocument(format, input, options = {}) {
-  const fmt = String(format || '').toLowerCase().replace(/^\./, '').replace('word', 'docx').replace('ppt', 'pptx').replace('pptxx', 'pptx').replace('markdown', 'md');
-  if (!FORMATS.includes(fmt)) throw new Error('지원하는 형식은 md, docx, pptx, pdf입니다.');
+  const fmt = String(format || '').toLowerCase().replace(/^\./, '').replace('word', 'docx').replace('ppt', 'pptx').replace('pptxx', 'pptx').replace('markdown', 'md').replace('infographic', 'html');
+  if (!FORMATS.includes(fmt)) throw new Error('지원하는 형식은 md, docx, pptx, pdf, html입니다.');
   const doc = normalizeDoc(input);
   const opts = typeof options === 'string' ? { outDir: options } : (options || {});
   const dir = opts.outDir || path.join(EXPORT_ROOT, new Date().toISOString().slice(0, 10));
@@ -202,6 +421,7 @@ async function createDocument(format, input, options = {}) {
   let extra = {};
   if (fmt === 'md') fs.writeFileSync(out, '\ufeff' + toMarkdown(doc), 'utf8');
   else if (fmt === 'docx') fs.writeFileSync(out, toDocx(doc));
+  else if (fmt === 'html') fs.writeFileSync(out, toInfographicHtml(doc), 'utf8');
   else if (fmt === 'pptx') { const r = toPptx(doc); fs.writeFileSync(out, r.buffer); extra.slideCount = r.slideCount; }
   else {
     const htmlPath = out.replace(/\.pdf$/, '.html');
@@ -213,16 +433,38 @@ async function createDocument(format, input, options = {}) {
   return { ok: true, format: fmt, path: out, bytes, ...extra };
 }
 
-/** 생성된 파일 무결성 검사 (ZIP/PDF 헤더 + 필수 파트) */
+/** Word(.docx) + 인포그래픽 HTML(.html) 동시 번들 생성 (보고서/조사 기본 표준) */
+async function createReportBundle(input, options = {}) {
+  const docxRes = await createDocument('docx', input, options);
+  const htmlRes = await createDocument('html', input, options);
+  const desktopCopies = [];
+  if (options.copyToDesktop !== false) {
+    for (const d of ['C:\\Users\\USER\\OneDrive\\Desktop', 'C:\\Users\\USER\\Desktop']) {
+      try {
+        if (fs.existsSync(d)) {
+          const dDocx = path.join(d, path.basename(docxRes.path));
+          const dHtml = path.join(d, path.basename(htmlRes.path));
+          fs.copyFileSync(docxRes.path, dDocx);
+          fs.copyFileSync(htmlRes.path, dHtml);
+          desktopCopies.push(dDocx, dHtml);
+        }
+      } catch (_) {}
+    }
+  }
+  return { ok: true, docx: docxRes, html: htmlRes, desktopCopies };
+}
+
+/** 생성된 파일 무결성 검사 (ZIP/PDF/HTML 헤더 + 필수 파트) */
 function verifyDocument(filePath) {
   const buf = fs.readFileSync(filePath);
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.pdf') return { ok: buf.slice(0, 5).toString() === '%PDF-', bytes: buf.length };
   if (ext === '.md') return { ok: buf.length > 10, bytes: buf.length };
+  if (ext === '.html') { const t = buf.toString('utf8'); return { ok: t.includes('<!doctype html>') && t.includes('</html>'), bytes: buf.length }; }
   const zipOk = buf.readUInt32LE(0) === 0x04034b50;
   const text = buf.toString('latin1');
   const need = ext === '.docx' ? ['word/document.xml', '[Content_Types].xml'] : ['ppt/presentation.xml', 'ppt/slides/slide1.xml', 'ppt/theme/theme1.xml'];
   return { ok: zipOk && need.every(n => text.includes(n)), bytes: buf.length };
 }
 
-module.exports = { FORMATS, EXPORT_ROOT, createDocument, verifyDocument, docFromResearch, normalizeDoc, normalizeDocSpec: normalizeDoc, toMarkdown };
+module.exports = { FORMATS, EXPORT_ROOT, createDocument, createReportBundle, verifyDocument, docFromResearch, normalizeDoc, normalizeDocSpec: normalizeDoc, toMarkdown, toInfographicHtml };

@@ -33,6 +33,7 @@ const {
   artcraftExecute
 } = require('./jarvis-ide-cli-mcp-tools');
 const { buildExecutiveNewsletter, fetchStockMarketIntelligence } = require('./jarvis-briefing-hub');
+const { createReportBundle } = require('./office-doc-engine');
 
 const conversationHistory = []; // [{ role: 'user'|'assistant', text, toolSummary, ts }]
 
@@ -271,6 +272,40 @@ const FUNCTION_DECLARATIONS = [
     }
   },
   {
+    name: 'create_report_bundle',
+    description: '조사·트렌드 분석·알고리즘 분석 결과를 Word(.docx) 파일과 인포그래픽 HTML(.html) 파일 2종으로 동시에 생성하여 바탕화면과 문서 폴더에 저장합니다.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        title: { type: 'STRING', description: '보고서 제목' },
+        summary: { type: 'STRING', description: '핵심 요약 (Executive Summary)' },
+        sections: {
+          type: 'ARRAY',
+          description: '분석 섹션 배열 [{ heading, body }]',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              heading: { type: 'STRING' },
+              body: { type: 'STRING' }
+            }
+          }
+        },
+        sources: {
+          type: 'ARRAY',
+          description: '검증 출처 배열 [{ title, url }]',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              title: { type: 'STRING' },
+              url: { type: 'STRING' }
+            }
+          }
+        }
+      },
+      required: ['title', 'summary']
+    }
+  },
+  {
     name: 'present_dynamic_window',
     description: '자비스가 수집한 정보, 표, 코드, 요약 결과물을 상황에 맞는 크기(compact / standard / wide)의 유기적 결과 창으로 대표님 화면에 띄웁니다.',
     parameters: {
@@ -408,6 +443,15 @@ async function executeAgentTool(name, args = {}, cfg = {}, contextArtifacts = {}
       contextArtifacts.research = st.report;
       contextArtifacts.researchId = st.report.id;
       return { ok: true, quotes: st.quotes, summary: st.report.summary, spokenHint: st.spoken };
+    }
+    case 'create_report_bundle': {
+      const bundle = await createReportBundle({
+        title: args.title || '자비스 조사 보고서',
+        summary: args.summary || '',
+        sections: Array.isArray(args.sections) ? args.sections : [],
+        sources: Array.isArray(args.sources) ? args.sources : []
+      }, { copyToDesktop: true });
+      return { ok: true, docxPath: bundle.docx.path, htmlPath: bundle.html.path, desktopCopies: bundle.desktopCopies };
     }
     case 'present_dynamic_window': {
       const id = crypto.randomUUID();

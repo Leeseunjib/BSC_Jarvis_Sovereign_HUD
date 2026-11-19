@@ -20,7 +20,7 @@ const { controlMedia } = require('./media-control');
 const { askVoiceBrain } = require('./voice-brain');
 const { classifyMediaControl } = require('../public/js/media-intents');
 const { sharedTerminalManager, sharedBscBridge } = require('./bsc-collaboration-bridge');
-const { createDocument, normalizeDocSpec } = require('./office-doc-engine');
+const { createDocument, createReportBundle, docFromResearch, normalizeDocSpec } = require('./office-doc-engine');
 const {
   searchEcosystems,
   toResearchReport: ecoToResearchReport,
@@ -1285,15 +1285,22 @@ class ButlerEngine {
       return { intent: 'web', label: site, query: q, url: urls[site] };
     }
 
-    // 10-B) Office Document Creation (Word .docx / Markdown .md / PDF .pdf / PPT .pptx)
-    if (/(워드|word|docx|파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx|피디에프|pdf|마크다운|markdown|\bmd\b)/i.test(s) &&
-        /(만들어|작성해|저장해|변환해|생성해|뽑아|내보내|문서화|정리해서\s*열어)/i.test(s)) {
-      let format = 'md';
-      if (/워드|word|docx/i.test(s)) format = 'docx';
+    // 10-B) Office Document Creation (Word .docx / Infographic HTML .html / Bundle / Markdown .md / PDF .pdf / PPT .pptx)
+    if (/(트렌드|트랜드|동향|시장|알고리즘).*(?:조사|분석|리서치|보고서)|(?:조사|분석|리서치).*(?:알고리즘|트렌드|트랜드|보고서|인포그래픽)/i.test(s) && !/\brea\b|라야|laya/i.test(s)) {
+      const cleanedQ = require('./web-research').queryFor(s) || s;
+      return { intent: 'researchBundle', query: cleanedQ };
+    }
+    if (/(인포그래픽|html|워드|word|docx|파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx|피디에프|pdf|마크다운|markdown|\bmd\b)/i.test(s) &&
+        /(만들어|작성해|저장해|변환해|생성해|뽑아|내보내|문서화|정리해서\s*열어|제공해)/i.test(s)) {
+      let format = 'bundle';
+      if (/(?:워드|word|docx).*(?:html|인포그래픽)|(?:html|인포그래픽).*(?:워드|word|docx)/i.test(s)) format = 'bundle';
+      else if (/인포그래픽|html/i.test(s)) format = 'html';
+      else if (/워드|word|docx/i.test(s)) format = 'docx';
       else if (/파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx/i.test(s)) format = 'pptx';
       else if (/피디에프|pdf/i.test(s)) format = 'pdf';
+      else if (/마크다운|markdown|\bmd\b/i.test(s)) format = 'md';
       const cleanedTopic = s
-        .replace(/(?:방금\s*(?:검색한|찾은|본)?\s*(?:내용|결과|자료)?(?:을|를)?\s*)?(?:워드|word|docx|파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx|피디에프|pdf|마크다운|markdown|\bmd\b)\s*(?:문서|파일|보고서|자료)?(?:로|으로)?\s*(?:만들어|작성해|저장해|변환해|생성해|뽑아|내보내|문서화해|정리해서\s*열어).*$/i, '')
+        .replace(/(?:방금\s*(?:검색한|찾은|본)?\s*(?:내용|결과|자료)?(?:을|를)?\s*)?(?:인포그래픽|html|워드|word|docx|파워포인트|powerpoint|발표\s*자료|슬라이드|ppt|pptx|피디에프|pdf|마크다운|markdown|\bmd\b)\s*(?:문서|파일|보고서|자료|형식)?(?:로|으로|와|과)?\s*(?:만들어|작성해|저장해|변환해|생성해|뽑아|내보내|문서화해|정리해서\s*열어|제공해).*$/i, '')
         .replace(/(?:을|를|에\s*대한|관한)$/g, '')
         .trim();
       return { intent: 'officeDoc', format, topic: cleanedTopic };
@@ -2208,9 +2215,35 @@ class ButlerEngine {
         };
       }
 
+      case 'researchBundle': {
+        const report = await require('./web-research').research(parsed.query, { includeLocal: false });
+        const docSpec = docFromResearch(report);
+        const bundle = await createReportBundle(docSpec, { copyToDesktop: executeOsActions });
+        const extraSources = [
+          { id: (report.sources ? report.sources.length : 0) + 1, title: `Word 보고서 (.docx): ${path.basename(bundle.docx.path)}`, url: 'file:///' + bundle.docx.path.replace(/\\/g, '/'), domain: 'Word (.docx)', readStatus: `${bundle.docx.bytes} B` },
+          { id: (report.sources ? report.sources.length : 0) + 2, title: `인포그래픽 HTML (.html): ${path.basename(bundle.html.path)}`, url: 'file:///' + bundle.html.path.replace(/\\/g, '/'), domain: 'Infographic HTML', readStatus: `${bundle.html.bytes} B` }
+        ];
+        report.sources = [...(report.sources || []), ...extraSources];
+        this.lastResearchReport = report;
+        if (executeOsActions && bundle.html && bundle.html.path) {
+          await launchOnVisibleDesktop(bundle.html.path).catch(() => {});
+        }
+        return {
+          intent: 'research',
+          research: report,
+          researchId: report.id,
+          officeBundle: bundle,
+          hudColor: 'lime',
+          hudTitle: `조사 완료 · Word(.docx) + 인포그래픽 HTML 동시 생성`,
+          hudSubtitle: `Word: ${bundle.docx.path}\nHTML: ${bundle.html.path}`,
+          heard: rawSentence,
+          spoken: `네, 대표님. ${parsed.query} 조사를 완료하여 Word 파일과 인포그래픽 HTML 파일로 동시 생성하고 바탕화면과 브라우저에 열어 드렸습니다.`
+        };
+      }
+
       case 'officeDoc': {
-        const fmt = parsed.format || 'docx';
-        const fmtLabels = { md: 'Markdown(.md)', docx: 'Word(.docx)', pptx: 'PowerPoint(.pptx)', pdf: 'PDF(.pdf)' };
+        const fmt = parsed.format || 'bundle';
+        const fmtLabels = { md: 'Markdown(.md)', docx: 'Word(.docx)', html: '인포그래픽 HTML(.html)', bundle: 'Word(.docx) + 인포그래픽 HTML(.html)', pptx: 'PowerPoint(.pptx)', pdf: 'PDF(.pdf)' };
         let spec = null;
         if (this.lastResearchReport && (!parsed.topic || /^(방금|이거|그거|검색|결과|위\s*내용|현재)/.test(parsed.topic))) {
           const r = this.lastResearchReport;
@@ -2251,6 +2284,22 @@ class ButlerEngine {
               domain: h.ecosystem
             }))
           });
+        }
+        if (fmt === 'bundle') {
+          const bundle = await createReportBundle(spec, { copyToDesktop: executeOsActions });
+          if (executeOsActions && bundle.html && bundle.html.path) {
+            await launchOnVisibleDesktop(bundle.html.path).catch(() => {});
+          }
+          return {
+            intent: 'officeDoc',
+            officeDoc: bundle.docx,
+            officeBundle: bundle,
+            hudColor: 'lime',
+            hudTitle: `Word(.docx) + 인포그래픽 HTML 동시 생성 완료`,
+            hudSubtitle: `Word: ${bundle.docx.path}\nHTML: ${bundle.html.path}`,
+            heard: rawSentence,
+            spoken: `네, 대표님. 요청하신 내용을 Word 파일과 인포그래픽 HTML 파일 두 가지로 동시에 생성하여 열어 드렸습니다.`
+          };
         }
         const created = await createDocument(fmt, spec);
         if (executeOsActions && created && created.ok && created.path) {

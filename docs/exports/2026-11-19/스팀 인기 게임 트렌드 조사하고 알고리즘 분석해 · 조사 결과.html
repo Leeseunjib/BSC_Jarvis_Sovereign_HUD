@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스팀 인기 게임 트렌드 조사하고 알고리즘 분석해 · 조사 결과 — Infographic Report</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-sub: #f1f5f9;
+    --ink: #0f172a;
+    --ink-2: #475569;
+    --ink-3: #64748b;
+    --border: rgba(15, 23, 42, 0.08);
+    --accent: #0f4c81;
+    --accent-2: #0284c7;
+    --emerald: #059669;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.62;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 24px 64px; }
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+  }
+  .hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(15, 76, 129, 0.08);
+    border: 1px solid rgba(15, 76, 129, 0.16);
+    border-radius: 6px;
+    padding: 4px 10px;
+  }
+  .print-btn {
+    border: 1px solid var(--border);
+    background: var(--surface-sub);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .print-btn:hover { background: #e2e8f0; }
+  h1 { margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; color: var(--ink); }
+  .sub { color: var(--ink-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .summary-box {
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: var(--surface-sub);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .kpi-label { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+  .kpi-val { font-size: 22px; font-weight: 800; color: var(--accent); margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+  .kpi-sub { font-size: 11.5px; color: var(--ink-2); }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .panel-title { margin: 0 0 14px; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .bar-row { display: grid; grid-template-columns: 220px 1fr 72px; gap: 12px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+  .bar-label { color: var(--ink-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { height: 10px; background: var(--surface-sub); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent-2); border-radius: 6px; }
+  .bar-val { text-align: right; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .sec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .sec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .sec-num {
+    font-size: 11px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    background: rgba(15, 76, 129, 0.08);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+  .sec-card h2 { margin: 0; font-size: 15.5px; font-weight: 700; color: var(--ink); }
+  .sec-card p { margin: 0; font-size: 13.5px; color: var(--ink-2); text-wrap: pretty; }
+  .sec-card ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); }
+  .sec-card li { margin-bottom: 5px; }
+  .src-list { display: flex; flex-direction: column; gap: 8px; }
+  .src-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface-sub);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .src-item:hover { border-color: var(--accent-2); }
+  .src-url { font-size: 11.5px; color: var(--accent-2); word-break: break-all; }
+  @media print { .print-btn { display: none; } body { background: #fff; } .wrap { padding: 0; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-top">
+        <span class="badge">BEAUSCREATORS EXECUTIVE INFOGRAPHIC REPORT</span>
+        <button class="print-btn" onclick="window.print()">PDF 인쇄 / 저장</button>
+      </div>
+      <h1>스팀 인기 게임 트렌드 조사하고 알고리즘 분석해 · 조사 결과</h1>
+      <div class="sub">DuckDuckGo · 2026. 11. 19. 오후 5:25:42</div>
+      <div class="summary-box">FoxData는 게임 개발자, 퍼블리셔 및 마케터가 스팀 마켓플레이스를 실시간으로 추적할 수 있도록 하는 강력한 분석 모듈 인 Steam Charts를 출시했습니다 . [1]<br><br>한국 Steam 톱셀러 (매출 기준) 순위. [2]<br><br>스팀은 판매량을 공개하지 않아서 보통 리뷰 수로 거꾸로 짐작하는데요. [3]</div>
+    </section>
+
+    <section class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">분석 섹션</div><div class="kpi-val">7개</div><div class="kpi-sub">구조화 인사이트</div></div><div class="kpi-card"><div class="kpi-label">검증 출처</div><div class="kpi-val">6건</div><div class="kpi-sub">클릭 가능 링크</div></div><div class="kpi-card"><div class="kpi-label">출력 형식</div><div class="kpi-val">DOCX + HTML</div><div class="kpi-sub">Word · 인포그래픽</div></div><div class="kpi-card"><div class="kpi-label">작성 기준일</div><div class="kpi-val">2026-11-19</div><div class="kpi-sub">BeausCreators HQ</div></div>
+    </section>
+
+    
+    <section class="panel">
+      <h3 class="panel-title">핵심 지표 및 비중 비교</h3>
+      <div class="bar-row"><div class="bar-label">[1] FoxData Steam Charts: Steam 시장</div><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><div class="bar-val">739자</div></div><div class="bar-row"><div class="bar-label">[2] 스팀 인기게임 순위 - 한국 매출 기준 톱셀러 | 지글</div><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><div class="bar-val">52자</div></div><div class="bar-row"><div class="bar-label">[3] 2026년 스팀 인기게임 순위 Top100｜올해 제일 </div><div class="bar-track"><div class="bar-fill" style="width:46%"></div></div><div class="bar-val">338자</div></div><div class="bar-row"><div class="bar-label">[4] 차트 개요 - Steam</div><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><div class="bar-val">43자</div></div><div class="bar-row"><div class="bar-label">[5] 스팀 게임 목록 - 장르, 가격, 플레이어 수로 찾기 </div><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><div class="bar-val">65자</div></div><div class="bar-row"><div class="bar-label">[6] Steam 게임 인기 차트 -&gt; GameSensor</div><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><div class="bar-val">72자</div></div>
+    </section>
+
+    <section class="sec-grid">
+      
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">01</span>
+          <h2>[1] FoxData Steam Charts: Steam 시장 트렌드, 플레이어 데이터 및 인기 판매 ...</h2>
+        </div>
+        <ul><li>FoxData는 게임 개발자, 퍼블리셔 및 마케터가 스팀 마켓플레이스를 실시간으로 추적할 수 있도록 하는 강력한 분석 모듈 인 Steam Charts를 출시했습니다 . 신규 및 인기, 베스트셀러, 인기 출시 예정작, 특가, 인기 무료 게임 등 5가지 핵심 차트 카테고리 와 고급 필터(지역, 카테고리, 가격, 언어, 시스템 지원, 날짜)를 통해 플레이어 행동, 가격 전략 및 시장 동향을 즉시 분석할 수 있습니다 . 👉 몇 분 안에 스팀 시장 데이터 분석을 시작하세요</li><li>FoxData Steam Charts 는 FoxData 분석 플랫폼에 새롭게 추가된 기능으로, Steam 마켓플레이스 성과에 대한 포괄적인 실시간 데이터를 제공합니다. FoxData 대시보드의 &quot;인기 차트&quot; 섹션(마켓 &gt; 인기 차트 &gt; Steam 차트)에서 확인할 수 있는 이 도구는 순위, 가격, 할인 정보, 사용자 리뷰, 현재 플레이어 수, 30일 최고 플레이어 수, 24시간 플레이어 추세, 시스템 호환성 등 Steam의 주요 게임 성과 지표를 집계하고 시각화합니다. 스팀 스토어를 직접 둘러보는 것과는 달리, FoxData Steam Charts는 분석 기능을 제공합니다. 국가 /지역, 게임 카테고리, 시스템 지원 ( Windows , Mac , Linux ) , 가격 범위 , 언어 , 특정 날짜 별로 필터링 할 수 있습니다 . 따라서 스팀에서 무슨 일이 일어나고 있는지 세부적 으로 파악해야 하는 모든 사용자에게 최적화된 분석 도구입니다.</li></ul>
+      </article>
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">02</span>
+          <h2>[2] 스팀 인기게임 순위 - 한국 매출 기준 톱셀러 | 지글 (Gigle)</h2>
+        </div>
+        <p>한국 Steam 톱셀러 (매출 기준) 순위. 수집할 때마다 순위와 전일 대비 변동을 기록한다.</p>
+      </article>
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">03</span>
+          <h2>[3] 2026년 스팀 인기게임 순위 Top100｜올해 제일 많이 팔린 게임</h2>
+        </div>
+        <p>스팀은 판매량을 공개하지 않아서 보통 리뷰 수로 거꾸로 짐작하는데요. 판매량은 리뷰 수에 x30을 곱하는 박스라이터 계산법이 제일 많이 쓰이는데 게임에 따라 40이나 50을 곱해야 맞기도 해서 정확한 숫자보다는 대략 이만큼 팔렸구나 하는 감으로 봐주시면 좋을것 같네요. 순위는 2026년 출시작을 리뷰 순으로 뽑은 거고 데모는 뺐어요 (11월 13일 기준). 얼리 액세스로 팔다가 올해 정식 출시한 게임은 얼리 시절 리뷰까지 합쳐지기 때문에 그런 게임은 따로 적어 뒀고, 구간마다 평가가 높은 게임 위주로 골랐습니다. ※ 판매량 = 리뷰 수 x 30을 곱하는 박스라이터 계산법을 사용해 순위를 매겼습니다.</p>
+      </article>
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">04</span>
+          <h2>[4] 차트 개요 - Steam</h2>
+        </div>
+        <p>올해의 최다 판매 게임, 인기 출시 게임, 최다 플레이 게임 등을 돌아봅니다!</p>
+      </article>
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">05</span>
+          <h2>[5] 스팀 게임 목록 - 장르, 가격, 플레이어 수로 찾기 · SteamStatistics</h2>
+        </div>
+        <p>Steam에서 추적 중인 모든 게임을 둘러보세요. 장르, 가격, 평가, 플랫폼, 플레이어 수로 필터링할 수 있습니다.</p>
+      </article>
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">06</span>
+          <h2>[6] Steam 게임 인기 차트 -&gt; GameSensor</h2>
+        </div>
+        <p>실제 경험에 기반한 조언을 집약하고, 개발 및 프로모션 정보를 제공하며, 개발자가 퍼블리셔를, 퍼블리셔가 게임을 찾도록 돕습니다.</p>
+      </article>
+      <article class="sec-card">
+        <div class="sec-head">
+          <span class="sec-num">07</span>
+          <h2>참고</h2>
+        </div>
+        <p>원문과 검색 미리보기에서 핵심 문장을 발췌했습니다. 상단 버튼으로 Word(.docx), Markdown(.md), PDF, PPT(.pptx) 문서로 저장할 수 있습니다.</p>
+      </article>
+    </section>
+
+    
+    <section class="panel">
+      <h3 class="panel-title">검증된 출처 및 바로가기 링크 (6건)</h3>
+      <div class="src-list">
+        <a class="src-item" href="https://foxdata.com/kr/blogs/foxdata-steam-charts-track-steam-market-trends-player-data-top-selling-games/" target="_blank" rel="noopener noreferrer"><span><strong>[1] FoxData Steam Charts: Steam 시장 트렌드, 플레이어 데이터 및 인기 판매 ...</strong></span><span class="src-url">https://foxdata.com/kr/blogs/foxdata-steam-charts-track-steam-market-trends-player-data-top-selling-games/</span></a><a class="src-item" href="https://gigle.kr/charts/ranking" target="_blank" rel="noopener noreferrer"><span><strong>[2] 스팀 인기게임 순위 - 한국 매출 기준 톱셀러 | 지글 (Gigle)</strong></span><span class="src-url">https://gigle.kr/charts/ranking</span></a><a class="src-item" href="https://blog.naver.com/zpkpkz62/224476926053" target="_blank" rel="noopener noreferrer"><span><strong>[3] 2026년 스팀 인기게임 순위 Top100｜올해 제일 많이 팔린 게임</strong></span><span class="src-url">https://blog.naver.com/zpkpkz62/224476926053</span></a><a class="src-item" href="https://store.steampowered.com/stats/?l=koreana" target="_blank" rel="noopener noreferrer"><span><strong>[4] 차트 개요 - Steam</strong></span><span class="src-url">https://store.steampowered.com/stats/?l=koreana</span></a><a class="src-item" href="https://steamstatistics.com/ko/games" target="_blank" rel="noopener noreferrer"><span><strong>[5] 스팀 게임 목록 - 장르, 가격, 플레이어 수로 찾기 · SteamStatistics</strong></span><span class="src-url">https://steamstatistics.com/ko/games</span></a><a class="src-item" href="https://ko.gamesensor.info/steam" target="_blank" rel="noopener noreferrer"><span><strong>[6] Steam 게임 인기 차트 -&gt; GameSensor</strong></span><span class="src-url">https://ko.gamesensor.info/steam</span></a>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

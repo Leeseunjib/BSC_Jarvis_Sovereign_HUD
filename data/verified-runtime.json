@@ -1,10 +1,10 @@
 {
-  "createdAt": "2026-11-19T08:13:39.211Z",
+  "createdAt": "2026-11-19T08:25:25.335Z",
   "hashes": {
     "server.js": "f47c4b2308847f6e4ed0cd2cb3c6b7caed2fb664fd6e6e3888069221dfbb05ff",
     "server.verified.js": "b9b278c39fa168707281544b69e1e7d3e0522867c9e1610cbcf2372b003982c1",
-    "scripts/butler-engine.js": "dcce228a028108083c5f896762a7f895fdb65b052a2ba9604a5126b6a8e1507b",
-    "scripts/butler-engine.verified.js": "dcce228a028108083c5f896762a7f895fdb65b052a2ba9604a5126b6a8e1507b",
+    "scripts/butler-engine.js": "8e58fe7a55fb58d4a5ca7114bf42df8a3b92b4c73440156ea68aeef9e312e118",
+    "scripts/butler-engine.verified.js": "8e58fe7a55fb58d4a5ca7114bf42df8a3b92b4c73440156ea68aeef9e312e118",
     "scripts/voice-session.js": "867b68f2414a098c59ee67505dea4a0d48e270eed57ebd0793719ed178ce3270",
     "scripts/media-control.js": "a32eb14ed3b7e750cdd175b311f7215a551eb7bc5bcd80a72827135e57e04ae6",
     "scripts/windows-media.ps1": "78cbdc7855f15c4b6707a85b4992ec3d71aa173a0c00ea0d16e08a28b5756e8e",
@@ -47,12 +47,12 @@
     "public/js/speaker-capture-worklet.js": "c5f551d107b802b97f1afaf5a3eacf5b7c62e589b63bd6009c30f82cd3099633",
     "public/js/jarvis-app.js": "1fa68a0680a5bf18644ef271b59a823a46bdfaae9c6ea620b0b73ff20af78710",
     "scripts/ecosystem-index.js": "591e38840b2b3f538af61d0059c075495933ebe67c2aa80ad102acd8f87b89f4",
-    "scripts/office-doc-engine.js": "9c78cb3be8bbecf82f5f129c6a92904db6c277204d137e4edeaf77020da4f167",
+    "scripts/office-doc-engine.js": "5f0ec1c0df7b1b020c64a50a6979dc959c3ce6d998c2a00facc279202178ae3e",
     "scripts/rea-laya-bridge.js": "8983dd56cd5ed682c2163b04363c372a70adca339c2805251b48ba2d26973086",
     "scripts/recursive-learning.js": "9a0281db902f55f6c3684ad96b2e032c62791f63ec189457799b683af81174eb",
     "scripts/computer-use-hands.js": "59af7f234c058401699f832b8222fdcfa8775a4218b32b75f9bb5b2ab7c52ac6",
     "scripts/jarvis-ide-cli-mcp-tools.js": "1b3cf3691e90cd8c78f759d4bb1e6e368a1a73cbb255f0b15622181cdb7502aa",
     "scripts/jarvis-briefing-hub.js": "30663842dff60dc1c1f0c41edf20d406860a73e31c1ced901f1c998e826b283f",
-    "scripts/jarvis-agent-core.js": "d5790a416b771b04322d5859853ca6baa591b4cba8bd53b57cdd090b77ac903e"
+    "scripts/jarvis-agent-core.js": "e11b646b480aac2acfe29a7dbfed2deea5ceca8c8fca9ac4caf5167ca9e945b5"
   }
 }
